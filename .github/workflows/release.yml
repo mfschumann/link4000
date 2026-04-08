@@ -19,17 +19,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Create source archive
-        run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          git archive --format=tar.gz --prefix=link4000-${TAG_NAME}/ -o link4000-${TAG_NAME}.tar.gz HEAD
-          git archive --format=zip --prefix=link4000-${TAG_NAME}/ -o link4000-${TAG_NAME}.zip HEAD
-
       - name: Get tag annotation
         id: tag_annotation
         run: |
@@ -49,7 +38,4 @@ jobs:
           body: ${{ steps.tag_annotation.outputs.annotation }}
           draft: false
           prerelease: false
-          files: |
-            link4000-${{ steps.tag_annotation.outputs.tag_name }}.tar.gz
-            link4000-${{ steps.tag_annotation.outputs.tag_name }}.zip
           generate_release_notes: true
