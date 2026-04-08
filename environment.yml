@@ -1,0 +1,12 @@
+name: link4000
+dependencies:
+  - python==3.13.*
+  - pyinstaller
+  - pyside6
+  - pywin32
+  - conda-lock
+  - pytest
+  - pytest-cov
+  - snakeviz
+  - py-spy
+  - ruff
