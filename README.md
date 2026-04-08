@@ -133,16 +133,18 @@ unknown = "#999999"
 # ".docx" = "#1565C0"
 ```
 
-## Building for Distribution
-
-### Windows Executable
+## Building a Single-File Windows Executable 
 
 Build the executable:
 ```bash
 pyinstaller link4000.spec
 ```
 
-The executable will be created at `dist/Link4000.exe`.
+The executable will be created at `dist/Link4000.exe`. 
+
+**Note**: The executable generated using this approach is only suitable 
+for your personal use. When redistributing it to others, make sure to 
+comply with all applicable licenses (e.g. LGPLv3 for redistribution of PySide6).  
 
 ## Project Structure
 
