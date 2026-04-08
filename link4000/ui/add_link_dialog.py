@@ -34,6 +34,7 @@ from link4000.utils.path_utils import (
     resolve_unc_path,
     is_sharepoint_url,
     get_sharepoint_file_extension,
+    onedrive_to_sharepoint_url,
 )
 
 
@@ -196,6 +197,10 @@ class AddLinkDialog(QDialog):
         to their targets (converting network drive paths to UNC), and
         auto-fills the title if the user has not set it manually.
 
+        On Windows, if the path falls inside a OneDrive-synced SharePoint
+        library the resolved URL is automatically converted to the
+        corresponding SharePoint web URL so that the link is shareable.
+
         Args:
             path: The file or folder path selected by the user.
         """
@@ -209,7 +214,15 @@ class AddLinkDialog(QDialog):
                 path = target
 
         resolved = resolve_unc_path(path)
-        self._url_input.setText(resolved)
+
+        # Try to convert a local OneDrive/SharePoint-synced path to its
+        # SharePoint web URL (Windows only, no-op on other platforms).
+        sp_url = onedrive_to_sharepoint_url(resolved)
+        if sp_url:
+            self._url_input.setText(sp_url)
+        else:
+            self._url_input.setText(resolved)
+
         if not self._title_manually_set:
             # Use split("/") + split("\\") so basename works cross-platform
             # (e.g. Windows-style paths on Linux).
@@ -311,6 +324,10 @@ class AddLinkDialog(QDialog):
 
         if is_file_path(url):
             url = resolve_unc_path(url)
+            # Convert local OneDrive/SharePoint-synced paths to SharePoint URLs.
+            sp_url = onedrive_to_sharepoint_url(url)
+            if sp_url:
+                url = sp_url
 
         tags = [t.strip() for t in self._tags_input.text().split(",") if t.strip()]
 

@@ -12,6 +12,8 @@ from link4000.utils.path_utils import (
     to_office_uri,
     resolve_unc_path,
     resolve_lnk,
+    onedrive_to_sharepoint_url,
+    clear_onedrive_cache,
 )
 
 
@@ -318,3 +320,306 @@ class TestResolveLnk:
             target, title = resolve_lnk(Path("C:\\broken.lnk"))
             assert target == ""
             assert title == ""
+
+
+# -----------------------------------------------------------------------
+# onedrive_to_sharepoint_url
+# -----------------------------------------------------------------------
+
+# Shared mount-points fixture used across multiple test classes.
+# All paths are stored in normalised form (forward-slash, no trailing /).
+_SAMPLE_MOUNTS = [
+    (
+        "C:/Users/me/OneDrive - Contoso/Projects",
+        "https://contoso.sharepoint.com/sites/engineering/Shared Documents/Projects",
+    ),
+    (
+        "C:/Users/me/OneDrive - Contoso",
+        "https://contoso-my.sharepoint.com/personal/me_contoso_com/Documents",
+    ),
+    (
+        "D:/Sync/Finance Docs",
+        "https://contoso.sharepoint.com/sites/finance/Shared Documents",
+    ),
+]
+
+
+class TestOnedriveToSharepointUrl:
+    """Tests for onedrive_to_sharepoint_url with explicit mount_points."""
+
+    def test_exact_mount_point(self):
+        """Tests that the exact mount-point root returns the URL namespace."""
+        result = onedrive_to_sharepoint_url(
+            r"C:\Users\me\OneDrive - Contoso\Projects",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        assert result == (
+            "https://contoso.sharepoint.com/sites/engineering"
+            "/Shared Documents/Projects"
+        )
+
+    def test_file_inside_mount(self):
+        """Tests that a file inside a synced library is resolved to a SharePoint URL."""
+        result = onedrive_to_sharepoint_url(
+            r"C:\Users\me\OneDrive - Contoso\Projects\plan.docx",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        assert result == (
+            "https://contoso.sharepoint.com/sites/engineering"
+            "/Shared Documents/Projects/plan.docx"
+        )
+
+    def test_nested_folder(self):
+        """Tests that nested subfolders are correctly appended."""
+        result = onedrive_to_sharepoint_url(
+            r"C:\Users\me\OneDrive - Contoso\Projects\sub\deep\file.txt",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        assert result == (
+            "https://contoso.sharepoint.com/sites/engineering"
+            "/Shared Documents/Projects/sub/deep/file.txt"
+        )
+
+    def test_spaces_in_relative_path(self):
+        """Tests that spaces in the relative path are URL-encoded."""
+        result = onedrive_to_sharepoint_url(
+            r"C:\Users\me\OneDrive - Contoso\Projects\My Report.docx",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        assert result == (
+            "https://contoso.sharepoint.com/sites/engineering"
+            "/Shared Documents/Projects/My%20Report.docx"
+        )
+
+    def test_special_characters_encoded(self):
+        """Tests that special characters in the path are percent-encoded."""
+        result = onedrive_to_sharepoint_url(
+            r"C:\Users\me\OneDrive - Contoso\Projects\R&D/budget#1.xlsx",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        assert result == (
+            "https://contoso.sharepoint.com/sites/engineering"
+            "/Shared Documents/Projects/R%26D/budget%231.xlsx"
+        )
+
+    def test_longest_prefix_match(self):
+        """Tests that the most specific (longest) mount point wins."""
+        # "Projects" is a sub-mount that is longer than the root "OneDrive - Contoso"
+        result = onedrive_to_sharepoint_url(
+            r"C:\Users\me\OneDrive - Contoso\Projects\plan.docx",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        # Should use the "Projects" mount, NOT the root mount.
+        assert "engineering" in result
+        assert "personal" not in result
+
+    def test_no_match(self):
+        """Tests that a path outside all mounts returns None."""
+        result = onedrive_to_sharepoint_url(
+            r"C:\Users\me\Documents\file.txt",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        assert result is None
+
+    def test_empty_path(self):
+        """Tests that an empty path returns None."""
+        assert onedrive_to_sharepoint_url("", mount_points=_SAMPLE_MOUNTS) is None
+
+    def test_empty_mount_points(self):
+        """Tests that an empty mount-points list returns None."""
+        assert onedrive_to_sharepoint_url(r"C:\file.txt", mount_points=[]) is None
+
+    def test_none_mount_points_no_cache(self):
+        """Tests that passing None mount_points with no registry returns None."""
+        # On Linux the registry reading returns an empty list anyway.
+        clear_onedrive_cache()
+        result = onedrive_to_sharepoint_url(r"C:\file.txt", mount_points=None)
+        assert result is None
+
+    def test_case_insensitive_on_win32(self):
+        """Tests that path matching is case-insensitive on Windows."""
+        with patch("sys.platform", "win32"):
+            result = onedrive_to_sharepoint_url(
+                r"c:\users\me\onedrive - contoso\projects\file.txt",
+                mount_points=_SAMPLE_MOUNTS,
+            )
+        assert result is not None
+        assert result.endswith("/file.txt")
+
+    def test_case_sensitive_on_linux(self):
+        """Tests that path matching is case-sensitive on Linux."""
+        with patch("sys.platform", "linux"):
+            result = onedrive_to_sharepoint_url(
+                r"c:\users\me\onedrive - contoso\projects\file.txt",
+                mount_points=_SAMPLE_MOUNTS,
+            )
+        # Lowercase c: won't match uppercase C: on Linux.
+        assert result is None
+
+    def test_unix_path_no_match(self):
+        """Tests that Unix paths do not match Windows mount points."""
+        result = onedrive_to_sharepoint_url(
+            "/home/user/file.txt",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        assert result is None
+
+    def test_trailing_slash_in_input(self):
+        """Tests that a trailing slash on the input path is handled."""
+        result = onedrive_to_sharepoint_url(
+            "C:\\Users\\me\\OneDrive - Contoso\\Projects\\",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        # Exact mount point match (trailing slash stripped).
+        assert result == (
+            "https://contoso.sharepoint.com/sites/engineering"
+            "/Shared Documents/Projects"
+        )
+
+    def test_url_encoding_of_percent(self):
+        """Tests that literal percent signs in the path are double-encoded."""
+        result = onedrive_to_sharepoint_url(
+            r"C:\Users\me\OneDrive - Contoso\Projects\50%sale.txt",
+            mount_points=_SAMPLE_MOUNTS,
+        )
+        assert result is not None
+        assert "50%25sale.txt" in result
+
+
+class TestClearOnedriveCache:
+    """Tests for clear_onedrive_cache."""
+
+    def test_clear_resets_cache(self):
+        """Tests that clearing the cache causes it to be repopulated on next access."""
+        from link4000.utils import path_utils as pu
+
+        pu._onedrive_mount_cache = [("dummy", "https://example.com")]
+        clear_onedrive_cache()
+        assert pu._onedrive_mount_cache is None
+
+
+class TestReadOnedriveMountPoints:
+    """Tests for _read_onedrive_mount_points with mocked registry."""
+
+    @patch("sys.platform", "win32")
+    def test_reads_registry_entries(self):
+        """Tests that registry entries are read and sorted by length descending."""
+        import types
+
+        from link4000.utils.path_utils import _read_onedrive_mount_points
+
+        # Fake winreg module.
+        fake_winreg = types.ModuleType("winreg")
+        fake_winreg.HKEY_CURRENT_USER = 0x80000001
+
+        subkey_names = ["abc123", "def456", "ghi789"]
+        subkey_data = {
+            "abc123": {
+                "MountPoint": r"C:\Users\me\OneDrive - Contoso\Team",
+                "UrlNamespace": "https://contoso.sharepoint.com/sites/team/Shared Documents",
+            },
+            "def456": {
+                "MountPoint": r"C:\Users\me\OneDrive - Contoso",
+                "UrlNamespace": "https://contoso-my.sharepoint.com/personal/me_contoso_com/Documents",
+            },
+            "ghi789": {
+                "MountPoint": "",
+                "UrlNamespace": "https://example.com/empty",
+            },
+        }
+
+        def fake_enum_key(key, idx):
+            if isinstance(key, str):
+                names = subkey_names
+            else:
+                names = getattr(key, "_names", [])
+            if idx >= len(names):
+                raise OSError
+            return names[idx]
+
+        def fake_open_key(parent, name, reserved=0, access=0):
+            if isinstance(name, str) and "SyncEngines" in name:
+                # Base key.
+                class BaseKey:
+                    _names = subkey_names
+
+                    def __enter__(self):
+                        return self
+
+                    def __exit__(self, *args):
+                        pass
+
+                return BaseKey()
+            # Sub-key.
+            data = subkey_data.get(name, {})
+
+            class SubKey:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    pass
+
+            sk = SubKey()
+            sk._data = data
+            return sk
+
+        def fake_query_value(key, name):
+            return key._data.get(name, ""), 0
+
+        fake_winreg.OpenKey = fake_open_key
+        fake_winreg.EnumKey = fake_enum_key
+        fake_winreg.QueryValueEx = fake_query_value
+
+        import sys as _sys
+
+        original_winreg = _sys.modules.get("winreg")
+        _sys.modules["winreg"] = fake_winreg
+        try:
+            result = _read_onedrive_mount_points()
+        finally:
+            if original_winreg is not None:
+                _sys.modules["winreg"] = original_winreg
+            else:
+                _sys.modules.pop("winreg", None)
+
+        # Empty mount-point entry should be excluded.
+        assert len(result) == 2
+        # Longest mount-point first.
+        assert len(result[0][0]) >= len(result[1][0])
+        # Correct normalisation (backslash -> forward-slash).
+        assert "\\" not in result[0][0]
+        assert "\\" not in result[1][0]
+
+    @patch("sys.platform", "linux")
+    def test_returns_empty_on_non_windows(self):
+        """Tests that _read_onedrive_mount_points returns [] on non-Windows."""
+        from link4000.utils.path_utils import _read_onedrive_mount_points
+
+        result = _read_onedrive_mount_points()
+        assert result == []
+
+    @patch("sys.platform", "win32")
+    def test_handles_registry_error(self):
+        """Tests that a registry error is handled gracefully."""
+        import types
+
+        from link4000.utils.path_utils import _read_onedrive_mount_points
+
+        fake_winreg = types.ModuleType("winreg")
+        fake_winreg.HKEY_CURRENT_USER = 0x80000001
+        fake_winreg.OpenKey = None  # will raise when called
+
+        import sys as _sys
+
+        original_winreg = _sys.modules.get("winreg")
+        _sys.modules["winreg"] = fake_winreg
+        try:
+            result = _read_onedrive_mount_points()
+        finally:
+            if original_winreg is not None:
+                _sys.modules["winreg"] = original_winreg
+            else:
+                _sys.modules.pop("winreg", None)
+
+        assert result == []

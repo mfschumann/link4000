@@ -3,7 +3,6 @@
 - fix onedrive to sharepoint resolution (generated path is wrong)
 
 ## TODO
-- resolve links on OneDrive to sharepoint URLs
 - add NOT filter option (match all tags NOT having tag)
 - add dialog for managing exclusions
 - add exclusion patterns to the config (applicable to the dynamic items)

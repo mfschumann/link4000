@@ -14,6 +14,7 @@ Link4000 allows you to:
 - Import favorites from Microsoft Edge browser
 - Access Microsoft Office recent documents (Windows)
 - Open links in your default browser or file manager
+- Automatically convert local OneDrive/SharePoint-synced paths to shareable SharePoint URLs (Windows)
 
 ## Installation
 
@@ -181,6 +182,7 @@ main.py                  # Application entry point
 - **Clipboard Integration**: Pre-fill URL from clipboard when adding links
 - **Drag & Drop**: (Planned) Import links by dragging files
 - **Import/Export**: JSON format for portability
+- **OneDrive → SharePoint URL**: When browsing for a file on a synced SharePoint library, the local path is automatically converted to its SharePoint web URL (Windows)
 
 ## Platform-Specific Features
 
@@ -190,6 +192,7 @@ main.py                  # Application entry point
 | Edge Favorites      | ✅       | ✅         | ✅     |
 | Office Recent       | ✅       | -         | -     |
 | UNC Path Resolution | ✅       | -         | -     |
+| OneDrive → SharePoint URL | ✅ | - | - |
 
 ## License
 

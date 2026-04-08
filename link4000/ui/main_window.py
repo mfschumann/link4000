@@ -19,6 +19,7 @@ from link4000.utils.path_utils import (
     to_office_uri,
     get_parent_folder,
     resolve_unc_path,
+    onedrive_to_sharepoint_url,
 )
 from link4000.data.recent_docs import fetch_recent_entries
 from link4000.data.edge_favorites import fetch_edge_favorites
@@ -1009,6 +1010,26 @@ class MainWindow(QMainWindow):
             clipboard.setText(parent)
             self._status_bar.showMessage(f"Copied: {parent}", 2000)
 
+    def _copy_sharepoint_url(self, link: Link) -> None:
+        """Copy the SharePoint URL of a synced local path to the clipboard.
+
+        Converts the link's local OneDrive / SharePoint-synced path to its
+        SharePoint web URL and copies it.  Shows a warning in the status bar
+        if the conversion is not possible.
+
+        Args:
+            link: The Link object whose SharePoint URL should be copied.
+        """
+        sp_url = onedrive_to_sharepoint_url(link.url)
+        if sp_url:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(sp_url)
+            self._status_bar.showMessage(f"Copied SharePoint URL: {sp_url}", 3000)
+        else:
+            self._status_bar.showMessage(
+                "No SharePoint mapping found for this path", 3000
+            )
+
     def _get_selected_link(self) -> Link | None:
         """Retrieve the currently selected link from the table.
 
@@ -1087,6 +1108,13 @@ class MainWindow(QMainWindow):
                     lambda: self._copy_parent_folder(link)
                 )
                 menu.addAction(copy_parent_action)
+
+                if sys.platform == "win32":
+                    copy_sp_action = QAction("Copy SharePoint URL", self)
+                    copy_sp_action.triggered.connect(
+                        lambda: self._copy_sharepoint_url(link)
+                    )
+                    menu.addAction(copy_sp_action)
             else:
                 copy_url_action = QAction("Copy URL", self)
                 copy_url_action.triggered.connect(lambda: self._copy_url(link))

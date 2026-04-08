@@ -12,6 +12,12 @@ from link4000.utils.config import get_sharepoint_patterns
 # Module-level cache: drive letter (uppercase) -> UNC root, or None if local/unknown
 _drive_unc_cache: dict[str, Optional[str]] = {}
 
+# Module-level cache for OneDrive sync mount-point -> SharePoint URL mappings.
+# Each entry is (normalized_mount_point, url_namespace).  Populated once per
+# process from the Windows registry key
+# HKCU\SOFTWARE\SyncEngines\Providers\OneDrive.
+_onedrive_mount_cache: Optional[list[tuple[str, str]]] = None
+
 # Office URI scheme mapping: extension -> scheme prefix
 _OFFICE_SCHEMES = {
     ".doc": "ms-word:ofv|u|",
@@ -299,3 +305,152 @@ def _get_unc_for_drive(drive_letter: str) -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+# ---------------------------------------------------------------------------
+# OneDrive / SharePoint local-path -> URL conversion
+# ---------------------------------------------------------------------------
+
+
+def _read_onedrive_mount_points() -> list[tuple[str, str]]:
+    """Read OneDrive sync mount-point to SharePoint URL mappings from the
+    Windows registry.
+
+    Scans ``HKCU\\SOFTWARE\\SyncEngines\\Providers\\OneDrive`` and each of its
+    sub-keys.  Every sub-key that has both a non-empty *MountPoint* and a
+    *UrlNamespace* value is included in the result.
+
+    On non-Windows platforms the function returns an empty list.
+
+    Returns:
+        A list of ``(normalized_mount_point, url_namespace)`` tuples sorted
+        by mount-point length descending so that the most specific match is
+        tried first by :func:`onedrive_to_sharepoint_url`.
+    """
+    if sys.platform != "win32":
+        return []
+
+    try:
+        import winreg
+
+        base_key_path = r"SOFTWARE\SyncEngines\Providers\OneDrive"
+        entries: list[tuple[str, str]] = []
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, base_key_path) as base_key:
+            idx = 0
+            while True:
+                try:
+                    subkey_name = winreg.EnumKey(base_key, idx)
+                except OSError:
+                    break
+                idx += 1
+
+                try:
+                    with winreg.OpenKey(base_key, subkey_name) as subkey:
+                        mount_point, _ = winreg.QueryValueEx(subkey, "MountPoint")
+                        url_namespace, _ = winreg.QueryValueEx(
+                            subkey, "UrlNamespace"
+                        )
+                except OSError:
+                    continue
+
+                if not mount_point or not url_namespace:
+                    continue
+
+                # Normalise backslashes and strip trailing separator.
+                norm = mount_point.replace("\\", "/").rstrip("/")
+                entries.append((norm, url_namespace.rstrip("/")))
+
+        # Longest mount-point first → most specific match wins.
+        entries.sort(key=lambda e: len(e[0]), reverse=True)
+        return entries
+    except Exception:
+        return []
+
+
+def _get_onedrive_mount_points() -> list[tuple[str, str]]:
+    """Return cached OneDrive mount-point mappings, populating the cache on
+    first access.
+
+    Returns:
+        A list of ``(normalized_mount_point, url_namespace)`` tuples.
+    """
+    global _onedrive_mount_cache
+    if _onedrive_mount_cache is None:
+        _onedrive_mount_cache = _read_onedrive_mount_points()
+    return _onedrive_mount_cache
+
+
+def onedrive_to_sharepoint_url(
+    local_path: str,
+    *,
+    mount_points: Optional[list[tuple[str, str]]] = None,
+) -> Optional[str]:
+    """Convert a local OneDrive / SharePoint-synced file path to a SharePoint
+    URL.
+
+    The function looks up the Windows registry (or *mount_points* if given) for
+    synced library mappings.  When *local_path* falls inside a known mount
+    point the remaining relative path is URL-encoded and appended to the
+    corresponding SharePoint URL namespace.
+
+    Args:
+        local_path: An absolute local file-system path
+            (e.g. ``C:\\Users\\me\\OneDrive - Corp\\Docs\\file.docx``).
+        mount_points: Optional explicit list of
+            ``(normalized_mount_point, url_namespace)`` tuples for testing or
+            when the registry should not be consulted.
+
+    Returns:
+        The SharePoint URL string, or *None* if *local_path* does not fall
+        inside a synced library.
+
+    Example::
+
+        >>> onedrive_to_sharepoint_url(
+        ...     r"C:\\Users\\me\\OneDrive - Corp\\Docs\\file.docx",
+        ...     mount_points=[
+        ...         ("C:/Users/me/OneDrive - Corp/Docs",
+        ...          "https://contoso.sharepoint.com/sites/team/Shared Documents")
+        ...     ],
+        ... )
+        'https://contoso.sharepoint.com/sites/team/Shared%20Documents/file.docx'
+    """
+    if not local_path:
+        return None
+
+    if mount_points is None:
+        mount_points = _get_onedrive_mount_points()
+
+    if not mount_points:
+        return None
+
+    # Normalise input path for comparison.
+    norm_path = local_path.replace("\\", "/").rstrip("/")
+    # On Windows the comparison must be case-insensitive.
+    compare = norm_path.lower() if sys.platform == "win32" else norm_path
+
+    for mount_norm, url_ns in mount_points:
+        mount_compare = mount_norm.lower() if sys.platform == "win32" else mount_norm
+
+        if compare == mount_compare:
+            # Path IS the mount-point root itself.
+            return url_ns
+
+        if compare.startswith(mount_compare + "/"):
+            relative = norm_path[len(mount_norm) + 1 :]
+            encoded = "/".join(
+                urllib.parse.quote(part, safe="") for part in relative.split("/")
+            )
+            return f"{url_ns}/{encoded}"
+
+    return None
+
+
+def clear_onedrive_cache() -> None:
+    """Clear the OneDrive mount-point cache so it is re-read on next access.
+
+    Useful after the user adds a new SharePoint sync during a running session.
+    """
+    global _onedrive_mount_cache
+    _onedrive_mount_cache = None
