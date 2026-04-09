@@ -10,10 +10,8 @@
 - better handling of capitalization in tag suggestion
 - UX: what buttons do we need in the main list?
 - add "resolve" checkbox in add/edit dialog
-- add usage hints (to tooltips?) like "click to open" or "double-click to edit"
 
-## DONE
-- remove "" when copy-pasting path into edit dialog (with the dialog open)
+## DONE (not yet tested)
 
 ## NOT PLANNED
 - add clear button to reset search input ← double click on search input does this already

@@ -114,9 +114,16 @@ class LinkTableModel(QAbstractTableModel):
                 tooltip += (
                     f"\nModified: {link.updated_at.strftime('%Y-%m-%d %H:%M:%S')}"
                 )
+                tooltip += "\n\nClick to open • Double-click to edit"
                 return tooltip
+            elif col == self.COL_TAGS:
+                return "Double-click to edit"
             elif col == self.COL_LAST_ACCESSED:
                 return link.last_accessed.strftime("%Y-%m-%d %H:%M:%S")
+            elif col == self.COL_EDIT:
+                return "Click to edit"
+            elif col == self.COL_COPY:
+                return "Click to copy URL"
 
         if role == Qt.ItemDataRole.FontRole:
             if link.is_recent or link.is_favorite:

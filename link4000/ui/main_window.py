@@ -204,6 +204,12 @@ class MainWindow(QMainWindow):
         self._filter_timer.setSingleShot(True)
         self._filter_timer.timeout.connect(self._apply_filter_preview)
 
+        self._click_timer = QTimer(self)
+        self._click_timer.setInterval(300)
+        self._click_timer.setSingleShot(True)
+        self._click_timer.timeout.connect(self._execute_delayed_click)
+        self._pending_click_index: QModelIndex | None = None
+
         ensure_config_exists()
         self._tray_behavior = get_tray_behavior()
         self._should_load_recent_files = get_load_recent_files()
@@ -360,6 +366,9 @@ class MainWindow(QMainWindow):
         toolbar_layout.addWidget(self._add_button)
 
         self._reload_button = QPushButton("Reload")
+        self._reload_button.setToolTip(
+            "Reload stored links, recent files, and favorites"
+        )
         self._reload_button.clicked.connect(self._load_links)
         toolbar_layout.addWidget(self._reload_button)
 
@@ -914,14 +923,26 @@ class MainWindow(QMainWindow):
     def _on_cell_clicked(self, index: QModelIndex) -> None:
         """Handle single clicks on table cells.
 
-        When the title column is clicked, opens the link in the appropriate
-        application. Recent entries are opened via the OS, while stored links
-        are opened and their last-accessed timestamp is updated.
+        When the title column is clicked, schedules opening the link after a
+        short delay. If a double-click occurs within the delay, the single-click
+        action is cancelled.
 
         Args:
             index: The QModelIndex of the clicked cell.
         """
         if index.column() == LinkTableModel.COL_TITLE:
+            self._click_timer.stop()
+            self._pending_click_index = index
+            self._click_timer.start()
+
+    def _execute_delayed_click(self) -> None:
+        """Execute the delayed single-click action.
+
+        Called by the click timer when no double-click occurred within the
+        delay period.
+        """
+        if self._pending_click_index is not None:
+            index = self._pending_click_index
             link_id = index.data(Qt.ItemDataRole.UserRole)
             if link_id:
                 link = self._model.get_link_by_id(link_id)
@@ -930,16 +951,19 @@ class MainWindow(QMainWindow):
                         self._open_recent(link)
                     else:
                         self._open_link(link)
+            self._pending_click_index = None
 
     def _on_cell_double_clicked(self, index: QModelIndex) -> None:
         """Handle double clicks on table cells.
 
-        Recent entries are promoted (edit dialog to save to store), favorites
-        are promoted similarly, and stored links open the edit dialog.
+        Cancels any pending single-click action and opens the edit dialog
+        for the clicked link.
 
         Args:
             index: The QModelIndex of the double-clicked cell.
         """
+        self._click_timer.stop()
+        self._pending_click_index = None
         link_id = index.data(Qt.ItemDataRole.UserRole)
         if link_id:
             link = self._model.get_link_by_id(link_id)
