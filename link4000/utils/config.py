@@ -19,6 +19,7 @@ _DEFAULTS = {
             r"sharepoint\.com/.*",
             r"onedrive\.live\.com/.*",
         ],
+        "exclusion_patterns": [],
         "theme": "light",
         "tray_behavior": "close_to_tray",
         "load_recent_files": True,
@@ -141,6 +142,17 @@ def get_sharepoint_patterns() -> list:
     )
 
 
+def get_exclusion_patterns() -> list:
+    """
+    Return the list of regex patterns for excluding recent items from the link list.
+    """
+    cfg = _get_config()
+    global_cfg = cfg.get("global", {})
+    return global_cfg.get(
+        "exclusion_patterns", _DEFAULTS["global"]["exclusion_patterns"]
+    )
+
+
 def get_links_file_path() -> str:
     """
     Return the path to links.json as configured in config.toml [global] section.
@@ -227,6 +239,13 @@ def ensure_config_exists() -> None:
 # sharepoint_patterns = [
 #     'sharepoint\\.com/.*',
 #     'onedrive\\.live\\.com/.*',
+# ]
+
+# Regex patterns for excluding recent items from appearing in the link list.
+# Items whose URL or path matches any pattern will be filtered out.
+# exclusion_patterns = [
+#     '.*\\.internal\\.company\\.com.*',
+#     '.*/temp/.*',
 # ]
 
 # Window close and minimize behavior:

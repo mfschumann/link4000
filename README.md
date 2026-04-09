@@ -115,6 +115,13 @@ Configuration is stored in `~/.link4000/config.toml`:
 #     'onedrive\\.live\\.com/.*',
 # ]
 
+# Regex patterns for excluding recent items from the link list.
+# Recent items whose URL or path matches any pattern will be filtered out.
+# exclusion_patterns = [
+#     '.*\\.internal\\.company\\.com.*',
+#     '.*/temp/.*',
+# ]
+
 # Window close and minimize behavior:
 #   "close_to_tray"   - X button hides to tray, minimize goes to taskbar (default)
 #   "minimize_to_tray" - minimize hides to tray, X button closes normally
