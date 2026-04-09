@@ -9,11 +9,11 @@
 - add exclusion patterns to the config (applicable to the dynamic items)
 - better handling of capitalization in tag suggestion
 - UX: what buttons do we need in the main list?
-- remove "" when copy-pasting path into edit dialog (with the dialog open)
 - add "resolve" checkbox in add/edit dialog
 - add usage hints (to tooltips?) like "click to open" or "double-click to edit"
 
-## DONE (not yet tested)
+## DONE
+- remove "" when copy-pasting path into edit dialog (with the dialog open)
 
 ## NOT PLANNED
 - add clear button to reset search input ← double click on search input does this already

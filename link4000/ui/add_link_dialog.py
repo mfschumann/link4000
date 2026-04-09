@@ -143,6 +143,7 @@ class AddLinkDialog(QDialog):
             self._tags_input.setText(", ".join(link.tags))
         elif url:
             self._url_input.setText(url)
+            url = url.strip('"')
             if is_sharepoint_url(url):
                 ext = get_sharepoint_file_extension(url)
                 if ext:
@@ -199,6 +200,7 @@ class AddLinkDialog(QDialog):
         Args:
             path: The file or folder path selected by the user.
         """
+        path = path.strip('"')
         if sys.platform == "win32":
             path = path.replace("/", "\\")
 
@@ -214,9 +216,7 @@ class AddLinkDialog(QDialog):
             # Use split("/") + split("\\") so basename works cross-platform
             # (e.g. Windows-style paths on Linux).
             basename = (
-                lnk_title
-                if lnk_title
-                else path.replace("\\", "/").rsplit("/", 1)[-1]
+                lnk_title if lnk_title else path.replace("\\", "/").rsplit("/", 1)[-1]
             )
             if basename:
                 self._auto_filling_title = True
@@ -230,6 +230,7 @@ class AddLinkDialog(QDialog):
             text: The current text in the URL input field.
         """
         if not self._title_manually_set and not self._is_edit:
+            text = text.strip('"')
             if is_file_path(text):
                 basename = os.path.basename(text.rstrip(os.sep))
                 if basename:
