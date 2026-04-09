@@ -366,6 +366,9 @@ class MainWindow(QMainWindow):
         toolbar_layout.addWidget(self._add_button)
 
         self._reload_button = QPushButton("Reload")
+        self._reload_button.setToolTip(
+            "Reload stored links, recent files, and favorites"
+        )
         self._reload_button.clicked.connect(self._load_links)
         toolbar_layout.addWidget(self._reload_button)
 
