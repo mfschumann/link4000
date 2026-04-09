@@ -11,9 +11,9 @@
 - UX: what buttons do we need in the main list?
 - remove "" when copy-pasting path into edit dialog (with the dialog open)
 - add "resolve" checkbox in add/edit dialog
-- add usage hints (to tooltips?) like "click to open" or "double-click to edit"
 
 ## DONE (not yet tested)
+- add usage hints to tooltips ("click to open", "double-click to edit")
 
 ## NOT PLANNED
 - add clear button to reset search input ← double click on search input does this already
