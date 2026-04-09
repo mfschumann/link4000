@@ -300,7 +300,7 @@ class AddLinkDialog(QDialog):
     def _on_save(self) -> None:
         """Validate inputs and save the link, then accept the dialog."""
         title = self._title_input.text().strip()
-        url = self._url_input.text().strip()
+        url = self._url_input.text().strip().strip('"')
 
         if not title:
             QMessageBox.warning(self, "Validation Error", "Title is required")
