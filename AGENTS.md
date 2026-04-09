@@ -6,6 +6,15 @@
 # Way of working
 Before you start modifying code in a new session, create a new branch and check it out as a worktree at <main>/../link4000.worktrees/<branch>. Make all changes in the worktree, never change code in the <main> directory. Never commit to the main branch, unless the user explicitly asks you to.
 
+## Important: Verify worktree location
+After creating a worktree, always verify you're in the correct directory by:
+1. Checking the current working directory (pwd)
+2. Confirming the worktree path in git status output (look for "git worktree" in the branch info)
+3. Use absolute paths that point to the worktree folder (e.g., /var/home/martin/Projekte/link4000.worktrees/<branch>/)
+
+## Validation step
+Before applying any edits, verify the filePath in your edit/write tools points to the worktree directory, not <main>.
+
 # Python environment 
 This is a python project with an environment managed by conda/mamba. The environment is already set up at the <main>/.env folder. Don't attempt to set up a python environment in the worktree.
 - Always use <main>/.env/bin/python as the python interpreter.

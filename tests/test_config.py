@@ -73,6 +73,12 @@ class TestConfigDefaults:
         """Test default load_favorites value is True."""
         assert config.get_load_favorites() is True
 
+    def test_default_exclusion_patterns(self):
+        """Test default exclusion_patterns is an empty list."""
+        patterns = config.get_exclusion_patterns()
+        assert isinstance(patterns, list)
+        assert patterns == []
+
 
 class TestConfigWithFile:
     """Test configuration with custom config file."""

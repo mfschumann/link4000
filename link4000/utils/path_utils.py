@@ -7,7 +7,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Optional
 
-from link4000.utils.config import get_sharepoint_patterns
+from link4000.utils.config import get_exclusion_patterns, get_sharepoint_patterns
 
 # Module-level cache: drive letter (uppercase) -> UNC root, or None if local/unknown
 _drive_unc_cache: dict[str, Optional[str]] = {}
@@ -65,6 +65,23 @@ def is_sharepoint_url(url: str) -> bool:
     patterns = get_sharepoint_patterns()
     for pattern in patterns:
         if re.search(pattern, url, re.IGNORECASE):
+            return True
+    return False
+
+
+def matches_exclusion_pattern(url_or_path: str) -> bool:
+    """
+    Return True if the URL or path matches any of the configured exclusion patterns.
+    """
+    if not url_or_path:
+        return False
+
+    patterns = get_exclusion_patterns()
+    if not patterns:
+        return False
+
+    for pattern in patterns:
+        if re.search(pattern, url_or_path, re.IGNORECASE):
             return True
     return False
 
@@ -174,9 +191,7 @@ def resolve_lnk(lnk_path: Path) -> tuple[str, str]:
         target = shortcut.TargetPath
         # Normalize backslashes so Path.stem works on non-Windows platforms
         # (lnk_path.stem treats backslash as filename char on Linux).
-        title = shortcut.Description or Path(
-            lnk_path.name.replace("\\", "/")
-        ).stem
+        title = shortcut.Description or Path(lnk_path.name.replace("\\", "/")).stem
 
         return target, title
     except Exception as e:

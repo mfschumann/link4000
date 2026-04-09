@@ -19,6 +19,7 @@ from link4000.utils.path_utils import (
     to_office_uri,
     get_parent_folder,
     resolve_unc_path,
+    matches_exclusion_pattern,
 )
 from link4000.data.recent_docs import fetch_recent_entries
 from link4000.data.edge_favorites import fetch_edge_favorites
@@ -477,6 +478,7 @@ class MainWindow(QMainWindow):
                 if (
                     url.lower() in self._stored_urls
                     or url.lower() in self._excluded_urls_lower
+                    or matches_exclusion_pattern(url)
                 ):
                     continue
                 self._stored_urls.add(url.lower())
@@ -517,6 +519,7 @@ class MainWindow(QMainWindow):
                 if (
                     entry.url.lower() in self._stored_urls
                     or entry.url.lower() in self._excluded_urls_lower
+                    or matches_exclusion_pattern(entry.url)
                 ):
                     continue
                 self._stored_urls.add(entry.url.lower())
