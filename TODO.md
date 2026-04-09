@@ -12,6 +12,7 @@
 - add "resolve" checkbox in add/edit dialog
 
 ## DONE (not yet tested)
+- better handling of capitalization in tag suggestion
 
 ## NOT PLANNED
 - add clear button to reset search input ← double click on search input does this already

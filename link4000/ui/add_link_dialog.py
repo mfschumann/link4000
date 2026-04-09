@@ -285,9 +285,8 @@ class AddLinkDialog(QDialog):
             matches = list(self._all_tags)
 
         if input_text:
-            matches_with_input = [
-                input_text[: -1 * len(current)] + m for m in sorted(matches)
-            ]
+            prefix = input_text[: -len(current)]
+            matches_with_input = [prefix + m for m in sorted(matches)]
         else:
             matches_with_input = sorted(matches)
 

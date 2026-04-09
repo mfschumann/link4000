@@ -237,3 +237,25 @@ class TestAddLinkDialogTagCompletion:
         completions = [model.data(model.index(i, 0)) for i in range(model.rowCount())]
         assert "work" in completions
         assert "personal" not in completions
+
+    def test_completer_preserves_existing_tag_capitalization(self):
+        """Suggestions use the original tag's capitalization, not user's input."""
+        dlg = AddLinkDialog(all_tags={"Foo", "Bar", "Baz"})
+        dlg._tags_input.setText("f")
+        dlg._on_tags_text_changed("f")
+        model = dlg._completer.model()
+        completions = [model.data(model.index(i, 0)) for i in range(model.rowCount())]
+        assert "Foo" in completions
+        assert "fFoo" not in completions
+
+    def test_completer_preserves_arbitrary_capitalization(self):
+        """Suggestions preserve any capitalization like FOO, foO, etc."""
+        dlg = AddLinkDialog(all_tags={"FOO", "foO", "Foo"})
+        dlg._tags_input.setText("f")
+        dlg._on_tags_text_changed("f")
+        model = dlg._completer.model()
+        completions = [model.data(model.index(i, 0)) for i in range(model.rowCount())]
+        assert "FOO" in completions
+        assert "foO" in completions
+        assert "Foo" in completions
+        assert "fFOO" not in completions
