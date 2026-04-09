@@ -15,7 +15,7 @@ Link4000 allows you to:
 - Access Microsoft Office recent documents (Windows)
 - Open links in your default browser or file manager
 
-## Installation
+## Installation and Running
 
 ### First time setup with conda-lock
 Assuming you have conda installed and channels configured in `~/.condarc`.
@@ -38,6 +38,13 @@ conda-lock install -n link4000 conda-forge-lock.yml
 conda activate link4000
 python main.py
 ```
+
+### Sync the environment
+After running `git pull` to update your repository, make sure to run
+```bash
+conda-lock install -n link4000 conda-subscription-lock.yml
+```
+(or the `forge` variant) in order to sync your environment to the lock file that may have been updated by pulling.
 
 ## Usage
 
