@@ -17,7 +17,6 @@ from link4000.utils.path_utils import (
     is_url,
     is_file_path,
     to_office_uri,
-    get_parent_folder,
     resolve_unc_path,
     matches_exclusion_pattern,
 )
@@ -919,7 +918,7 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _open_parent_folder(link):
         """Open the parent folder of the given file path."""
-        path = get_parent_folder(link.url)
+        path = str(Path(link.url).parent)
         if not path:
             return
         if sys.platform == "win32":
@@ -1034,7 +1033,7 @@ class MainWindow(QMainWindow):
         Args:
             link: The Link object whose parent folder path should be copied.
         """
-        parent = get_parent_folder(link.url)
+        parent = str(Path(link.url).parent)
         if parent:
             clipboard = QApplication.clipboard()
             clipboard.setText(parent)

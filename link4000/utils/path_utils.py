@@ -258,34 +258,6 @@ def is_folder(url: str) -> bool:
     return False
 
 
-def get_parent_folder(path: str) -> str:
-    """
-    Return the parent folder of the given path, handling:
-    - Unix paths: /home/user/folder/file.txt → /home/user/folder
-    - Windows drive letters: C:\\Users\\john\\file.txt → C:\\Users\\john
-    - UNC paths: \\\\server\\share\\folder\\file.txt → \\\\server\\share\\folder
-    """
-    if not path:
-        return ""
-
-    # Normalize the path separators for consistent handling
-    normalized = path.replace("/", "\\")
-
-    # UNC path: \\server\share\folder\file.txt
-    if normalized.startswith("\\\\"):
-        parts = normalized.split("\\")
-        if len(parts) >= 4:
-            return "\\".join(parts[:-1])
-        return normalized
-
-    # Windows drive letter: C:\Users\john\file.txt
-    if len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "\\":
-        return "\\".join(normalized.split("\\")[:-1])
-
-    # Unix path and general case - use pathlib
-    return str(Path(path).parent)
-
-
 def _get_unc_for_drive(drive_letter: str) -> Optional[str]:
     """
     Call ``WNetGetConnectionW`` via *ctypes* to retrieve the UNC share name

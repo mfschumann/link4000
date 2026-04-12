@@ -8,7 +8,6 @@ from link4000.utils.path_utils import (
     is_file_path,
     get_link_type,
     get_file_extension,
-    get_parent_folder,
     to_office_uri,
     resolve_unc_path,
     resolve_lnk,
@@ -143,36 +142,6 @@ class TestGetFileExtension:
         """Tests that SharePoint file extensions are extracted via the dedicated helper."""
         result = get_file_extension("https://company.sharepoint.com/file.docx")
         assert result == ".docx"
-
-
-class TestGetParentFolder:
-    """Tests for get_parent_folder function."""
-
-    def test_unix_path(self):
-        """Tests that parent folder is correctly extracted from Unix paths."""
-        assert get_parent_folder("/home/user/file.txt") == "/home/user"
-        assert get_parent_folder("/home/user/folder/file.txt") == "/home/user/folder"
-
-    def test_windows_drive_letter(self):
-        """Tests that parent folder is correctly extracted from Windows drive paths."""
-        assert get_parent_folder("C:\\Users\\john\\file.txt") == "C:\\Users\\john"
-        assert (
-            get_parent_folder("C:\\Users\\john\\folder\\file.txt")
-            == "C:\\Users\\john\\folder"
-        )
-
-    def test_unc_path(self):
-        """Tests that parent folder is correctly extracted from UNC paths."""
-        result = get_parent_folder("\\\\server\\share\\folder\\file.txt")
-        assert result == "\\\\server\\share\\folder"
-
-    def test_empty_path(self):
-        """Tests that an empty path returns an empty string."""
-        assert get_parent_folder("") == ""
-
-    def test_root_path(self):
-        """Tests that the root path '/' returns '/' as its parent."""
-        assert get_parent_folder("/") == "/"
 
 
 class TestToOfficeUri:
