@@ -221,7 +221,8 @@ class MainWindow(QMainWindow):
             self._setup_tray()
         self._load_links()
 
-    def _get_icon(self) -> QIcon | None:
+    @staticmethod
+    def _get_icon() -> QIcon | None:
         """Load the application icon based on the current theme.
 
         Searches for SVG or PNG icon files in the resources directory,
@@ -543,7 +544,8 @@ class MainWindow(QMainWindow):
 
         self._run_in_background(fetch_and_process, on_finished)
 
-    def _run_in_background(self, fetch_func: Callable, on_finished: Callable) -> None:
+    @staticmethod
+    def _run_in_background(fetch_func: Callable, on_finished: Callable) -> None:
         """Execute a function in a background thread and deliver results on the main thread.
 
         Spawns a worker thread to run ``fetch_func`` and polls for completion
@@ -863,7 +865,8 @@ class MainWindow(QMainWindow):
             except Exception:
                 webbrowser.open(target)
 
-    def _open_recent(self, link):
+    @staticmethod
+    def _open_recent(link):
         """Open a recent (non-stored) entry directly via the OS."""
         target = link.url
         if sys.platform == "win32":
@@ -913,7 +916,8 @@ class MainWindow(QMainWindow):
                 self._store.add(saved)
                 self._load_links()
 
-    def _open_parent_folder(self, link):
+    @staticmethod
+    def _open_parent_folder(link):
         """Open the parent folder of the given file path."""
         path = get_parent_folder(link.url)
         if not path:
@@ -1126,7 +1130,6 @@ class MainWindow(QMainWindow):
                 edit_action.triggered.connect(lambda: self._edit_link(link))
             menu.addAction(edit_action)
         else:
-            count = len(selected_links)
             add_tags_action = QAction("Add Tags...", self)
             add_tags_action.triggered.connect(
                 lambda: self._bulk_add_tags(selected_links)

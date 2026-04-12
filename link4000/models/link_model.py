@@ -262,7 +262,7 @@ class LinkSortFilterModel(QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         """Returns True if the row passes all active filters (search, tags, types)."""
-        model = self.sourceModel()
+        model: LinkTableModel = self.sourceModel()
         if not model:
             return True
 
@@ -298,7 +298,7 @@ class LinkSortFilterModel(QSortFilterProxyModel):
 
     def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:
         """Compares two model indexes for sorting using custom sort roles."""
-        source_model = self.sourceModel()
+        source_model: LinkTableModel = self.sourceModel()
         if not source_model:
             return super().lessThan(left, right)
 

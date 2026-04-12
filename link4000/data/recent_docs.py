@@ -100,9 +100,9 @@ def _fetch_linux_gnome() -> list[RecentEntry]:
     entries: list[RecentEntry] = []
 
     try:
-        import xml.etree.ElementTree as ET
+        import xml.etree.ElementTree as elmTree
 
-        tree = ET.parse(xbel_path)
+        tree = elmTree.parse(xbel_path)
         root = tree.getroot()
         if root is None:
             return []

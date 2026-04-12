@@ -247,7 +247,8 @@ class TestLinkTableModel:
 class TestLinkSortFilterModel:
     """Tests for the LinkSortFilterModel proxy class."""
 
-    def _make_model(self, links=None, recent=None):
+    @staticmethod
+    def _make_model(links=None, recent=None):
         """Creates a LinkTableModel and LinkSortFilterModel pair for testing."""
         source = LinkTableModel()
         if links:
