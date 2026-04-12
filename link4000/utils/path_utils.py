@@ -97,7 +97,7 @@ def get_sharepoint_file_extension(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     path = urllib.parse.unquote(parsed.path)
 
-    _, ext = os.path.splitext(path)
+    ext = Path(path).suffix
     return ext.lower()
 
 
@@ -161,6 +161,7 @@ def resolve_unc_path(path: str) -> str:
 
     unc_root = _drive_unc_cache[drive_letter]
     if unc_root:
+        # Use string concatenation to preserve Windows path separators
         return unc_root + rest
     return path
 
@@ -244,7 +245,7 @@ def get_file_extension(url: str) -> str:
     if is_url(url):
         return ""
 
-    _, ext = os.path.splitext(url)
+    ext = Path(url).suffix
     return ext.lower()
 
 
@@ -281,8 +282,8 @@ def get_parent_folder(path: str) -> str:
     if len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "\\":
         return "\\".join(normalized.split("\\")[:-1])
 
-    # Unix path
-    return os.path.dirname(path)
+    # Unix path and general case - use pathlib
+    return str(Path(path).parent)
 
 
 def _get_unc_for_drive(drive_letter: str) -> Optional[str]:
