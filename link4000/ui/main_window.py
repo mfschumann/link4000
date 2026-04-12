@@ -66,7 +66,7 @@ from link4000.utils.config import (
     get_theme,
     get_tray_behavior,
 )
-
+from pathlib import Path
 
 class ButtonDelegate(QItemDelegate):
     """A custom item delegate that renders clickable buttons in a table view.
@@ -231,19 +231,19 @@ class MainWindow(QMainWindow):
             A QIcon instance for the application or tray icon.
         """
         if getattr(sys, "_MEIPASS", None):
-            base_path = sys._MEIPASS
+            base_path = Path(sys._MEIPASS)
         else:
-            base_path = os.path.dirname(os.path.abspath(__file__))
+            base_path = Path(os.path.dirname(os.path.abspath(__file__)))
 
         theme = get_theme()
         icon_name = "icon_dark.svg" if theme == "dark" else "icon.svg"
 
         icon_paths = [
-            os.path.join(base_path, "resources", icon_name),
+            base_path.parent.parent / "resources" / icon_name
         ]
         for path in icon_paths:
             if QFile(path).exists():
-                return QIcon(path)
+                return QIcon(str(path))
         return QIcon.fromTheme(
             "link", QIcon.fromTheme("insert-link", QIcon.fromTheme("chain"))
         )
