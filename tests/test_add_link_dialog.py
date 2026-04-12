@@ -201,14 +201,10 @@ class TestAddLinkDialogLnkResolution:
 
     def test_set_path_non_lnk_file_unchanged(self):
         """Non-.lnk files are handled by the existing path logic without lnk resolution."""
-        with (
-            patch(
-                "link4000.ui.add_link_dialog.resolve_unc_path",
-                side_effect=lambda p: p,
-            ),
-            patch("link4000.ui.add_link_dialog.sys") as mock_sys,
+        with patch(
+            "link4000.ui.add_link_dialog.resolve_unc_path",
+            side_effect=lambda p: p,
         ):
-            mock_sys.platform = "linux"
             dlg = AddLinkDialog()
             dlg._set_path("/home/user/document.pdf")
             assert dlg._url_input.text() == "/home/user/document.pdf"

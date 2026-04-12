@@ -234,7 +234,7 @@ class MainWindow(QMainWindow):
         if getattr(sys, "_MEIPASS", None):
             base_path = Path(sys._MEIPASS)
         else:
-            base_path = Path(os.path.dirname(os.path.abspath(__file__)))
+            base_path = Path(__file__).parent.resolve()
 
         theme = get_theme()
         icon_name = "icon_dark.svg" if theme == "dark" else "icon.svg"

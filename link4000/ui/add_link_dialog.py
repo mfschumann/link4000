@@ -6,8 +6,6 @@ and tag auto-completion from existing tags. Also supports deleting an
 existing link in edit mode.
 """
 
-import os
-import sys
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -157,7 +155,7 @@ class AddLinkDialog(QDialog):
                         self._title_input.setText(filename)
                         self._auto_filling_title = False
             elif is_file_path(url):
-                basename = os.path.basename(url.rstrip(os.sep))
+                basename = Path(url).name
                 if basename:
                     self._auto_filling_title = True
                     self._title_input.setText(basename)
@@ -201,8 +199,6 @@ class AddLinkDialog(QDialog):
             path: The file or folder path selected by the user.
         """
         path = path.strip('"')
-        if sys.platform == "win32":
-            path = path.replace("/", "\\")
 
         lnk_title = ""
         if path.lower().endswith(".lnk"):
@@ -213,11 +209,9 @@ class AddLinkDialog(QDialog):
         resolved = resolve_unc_path(path)
         self._url_input.setText(resolved)
         if not self._title_manually_set:
-            # Use split("/") + split("\\") so basename works cross-platform
-            # (e.g. Windows-style paths on Linux).
-            basename = (
-                lnk_title if lnk_title else path.replace("\\", "/").rsplit("/", 1)[-1]
-            )
+            # Use Path.name - normalize separators for cross-platform compatibility
+            resolved_path = Path(resolved.replace("\\", "/")) if resolved else Path()
+            basename = lnk_title if lnk_title else resolved_path.name
             if basename:
                 self._auto_filling_title = True
                 self._title_input.setText(basename)
@@ -232,7 +226,7 @@ class AddLinkDialog(QDialog):
         if not self._title_manually_set and not self._is_edit:
             text = text.strip('"')
             if is_file_path(text):
-                basename = os.path.basename(text.rstrip(os.sep))
+                basename = Path(text).name
                 if basename:
                     self._auto_filling_title = True
                     self._title_input.setText(basename)
