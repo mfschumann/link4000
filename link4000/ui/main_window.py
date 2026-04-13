@@ -427,6 +427,10 @@ class MainWindow(QMainWindow):
         stored = self._store.get_all()
         self._model.set_links(stored)
 
+        # Pre-compute link types in background to avoid GUI freeze when
+        # opening filter dialog (avoids blocking isdir()/isfile() calls)
+        self._precompute_link_types_background(stored)
+
         self._all_tags = set()
         for link in stored:
             self._all_tags.update(link.tags)
@@ -586,6 +590,32 @@ class MainWindow(QMainWindow):
         thread = threading.Thread(target=worker)
         thread.start()
         QTimer.singleShot(50, check_done)
+
+    def _precompute_link_types_background(self, links: list) -> None:
+        """Pre-compute link types in background to avoid GUI freeze.
+
+        Runs the link type computation (including filesystem checks like isdir/isfile)
+        in a background thread so the cache is populated before the filter
+        dialog is opened. This prevents blocking the GUI thread when accessing
+        link.link_type or link.file_extension.
+
+        Args:
+            links: List of Link objects to pre-compute types for.
+        """
+        # Capture links in closure for the background thread
+        links_to_process = links
+
+        def worker() -> None:
+            for link in links_to_process:
+                # Access properties to trigger caching. This runs isdir()/isfile() calls
+                # but in the background thread, not the GUI thread.
+                _ = link.link_type
+                _ = link.file_extension
+
+        def on_done() -> None:
+            pass  # No action needed when done, cache is populated
+
+        self._run_in_background(worker, on_done)
 
     def _update_status(self) -> None:
         """Update the status bar with current link counts.
