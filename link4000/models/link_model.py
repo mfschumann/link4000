@@ -226,6 +226,62 @@ class LinkTableModel(QAbstractTableModel):
                 return link
         return None
 
+    def remove_link(self, link_id: str) -> bool:
+        """Removes a link by ID from either the main list or recent list.
+
+        Notifies the view of the removal.
+
+        Args:
+            link_id: The ID of the link to remove.
+
+        Returns:
+            True if the link was found and removed, False otherwise.
+        """
+        for i, link in enumerate(self._links):
+            if link.id == link_id:
+                self.beginRemoveRows(QModelIndex(), i, i)
+                self._links.pop(i)
+                self.endRemoveRows()
+                return True
+        n = len(self._links)
+        for i, link in enumerate(self._recent_links):
+            if link.id == link_id:
+                self.beginRemoveRows(QModelIndex(), n + i, n + i)
+                self._recent_links.pop(i)
+                self.endRemoveRows()
+                return True
+        return False
+
+    def update_link(self, updated_link: Link) -> bool:
+        """Updates an existing link in place.
+
+        Notifies the view of the data change.
+
+        Args:
+            updated_link: The Link with updated data (must have matching ID).
+
+        Returns:
+            True if the link was found and updated, False otherwise.
+        """
+        for i, link in enumerate(self._links):
+            if link.id == updated_link.id:
+                self._links[i] = updated_link
+                self.dataChanged.emit(
+                    self.index(i, 0),
+                    self.index(i, self.columnCount() - 1),
+                )
+                return True
+        n = len(self._links)
+        for i, link in enumerate(self._recent_links):
+            if link.id == updated_link.id:
+                self._recent_links[i] = updated_link
+                self.dataChanged.emit(
+                    self.index(n + i, 0),
+                    self.index(n + i, self.columnCount() - 1),
+                )
+                return True
+        return False
+
 
 class LinkSortFilterModel(QSortFilterProxyModel):
     """Sort-filter proxy that filters links by search text, tags, and link types."""
