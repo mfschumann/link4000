@@ -238,6 +238,78 @@ class TestLinkTableModel:
         invalid = model.index(99, 0)
         assert model.data(invalid) is None
 
+    def test_remove_link_from_main_list(self):
+        """Tests that remove_link removes a link from the main list."""
+        model = LinkTableModel()
+        link_a = _make_link("A")
+        link_b = _make_link("B")
+        model.set_links([link_a, link_b])
+        assert model.rowCount() == 2
+        removed = model.remove_link(link_a.id)
+        assert removed is True
+        assert model.rowCount() == 1
+        assert model.get_link(0).title == "B"
+
+    def test_remove_link_from_recent_list(self):
+        """Tests that remove_link removes a link from the recent list."""
+        model = LinkTableModel()
+        model.set_links([_make_link("A")])
+        recent = _make_link("R1", is_recent=True)
+        model.set_recent_links([recent])
+        assert model.rowCount() == 2
+        removed = model.remove_link(recent.id)
+        assert removed is True
+        assert model.rowCount() == 1
+
+    def test_remove_link_not_found(self):
+        """Tests that remove_link returns False when link is not found."""
+        model = LinkTableModel()
+        model.set_links([_make_link("A")])
+        result = model.remove_link("nonexistent-id")
+        assert result is False
+        assert model.rowCount() == 1
+
+    def test_update_link_in_main_list(self):
+        """Tests that update_link updates a link in the main list."""
+        model = LinkTableModel()
+        link = _make_link("Original")
+        model.set_links([link])
+        updated = Link(
+            title="Updated",
+            url=link.url,
+            tags=["newtag"],
+            id=link.id,
+        )
+        result = model.update_link(updated)
+        assert result is True
+        assert model.get_link(0).title == "Updated"
+        assert model.get_link(0).tags == ["newtag"]
+
+    def test_update_link_in_recent_list(self):
+        """Tests that update_link updates a link in the recent list."""
+        model = LinkTableModel()
+        model.set_links([_make_link("A")])
+        recent = _make_link("R1", is_recent=True)
+        model.set_recent_links([recent])
+        updated = Link(
+            title="Updated Recent",
+            url=recent.url,
+            tags=["recent"],
+            id=recent.id,
+            is_recent=True,
+        )
+        result = model.update_link(updated)
+        assert result is True
+        assert model.get_link(1).title == "Updated Recent"
+
+    def test_update_link_not_found(self):
+        """Tests that update_link returns False when link is not found."""
+        model = LinkTableModel()
+        model.set_links([_make_link("A")])
+        nonexistent = _make_link("B")
+        result = model.update_link(nonexistent)
+        assert result is False
+
 
 # ---------------------------------------------------------------------------
 # LinkSortFilterModel

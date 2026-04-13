@@ -427,6 +427,10 @@ class MainWindow(QMainWindow):
         stored = self._store.get_all()
         self._model.set_links(stored)
 
+        # Pre-compute link types in background to avoid GUI freeze when
+        # opening filter dialog (avoids blocking isdir()/isfile() calls)
+        self._precompute_link_types_background(stored)
+
         self._all_tags = set()
         for link in stored:
             self._all_tags.update(link.tags)
@@ -543,6 +547,23 @@ class MainWindow(QMainWindow):
 
         self._run_in_background(fetch_and_process, on_finished)
 
+    def _refresh_recent_background(self) -> None:
+        """Refresh recent entries in the background without reloading stored links.
+
+        Updates the excluded URLs and stored URLs sets, then triggers a background
+        reload of recent entries. This is used after delete/edit operations to
+        provide immediate feedback while loading recent items asynchronously.
+        """
+        self._excluded_urls_lower = {
+            url.lower() for url in self._store.get_excluded_recent_urls()
+        }
+        stored = self._store.get_all()
+        self._stored_urls = {link.url.lower() for link in stored}
+        if self._should_load_recent_files:
+            QTimer.singleShot(0, self._load_recent_entries)
+        elif self._should_load_favorites:
+            QTimer.singleShot(0, self._load_favorites)
+
     @staticmethod
     def _run_in_background(fetch_func: Callable, on_finished: Callable) -> None:
         """Execute a function in a background thread and deliver results on the main thread.
@@ -570,6 +591,32 @@ class MainWindow(QMainWindow):
         thread.start()
         QTimer.singleShot(50, check_done)
 
+    def _precompute_link_types_background(self, links: list) -> None:
+        """Pre-compute link types in background to avoid GUI freeze.
+
+        Runs the link type computation (including filesystem checks like isdir/isfile)
+        in a background thread so the cache is populated before the filter
+        dialog is opened. This prevents blocking the GUI thread when accessing
+        link.link_type or link.file_extension.
+
+        Args:
+            links: List of Link objects to pre-compute types for.
+        """
+        # Capture links in closure for the background thread
+        links_to_process = links
+
+        def worker() -> None:
+            for link in links_to_process:
+                # Access properties to trigger caching. This runs isdir()/isfile() calls
+                # but in the background thread, not the GUI thread.
+                _ = link.link_type
+                _ = link.file_extension
+
+        def on_done() -> None:
+            pass  # No action needed when done, cache is populated
+
+        self._run_in_background(worker, on_done)
+
     def _update_status(self) -> None:
         """Update the status bar with current link counts.
 
@@ -578,6 +625,20 @@ class MainWindow(QMainWindow):
         total_count = self._model.rowCount()
         filtered_count = self._proxy_model.rowCount()
         self._status_bar.showMessage(f"{filtered_count} of {total_count} links")
+
+    def _update_all_tags(self) -> None:
+        """Update the all_tags set from current links in the model.
+
+        Used after single link updates to refresh the tag set without
+        doing a full reload of all stored links.
+        """
+        self._all_tags = set()
+        for link in self._model._links:
+            self._all_tags.update(link.tags)
+        if self._should_load_recent_files:
+            self._all_tags.add("recent")
+        if self._should_load_favorites:
+            self._all_tags.add("favorite")
 
     def _on_search_changed(self, text: str) -> None:
         """Handle search input text changes.
@@ -1245,7 +1306,8 @@ class MainWindow(QMainWindow):
 
         Stored links are deleted from the store. Recent and favorite entries
         are excluded from future loads by adding their URLs to the exclusion
-        list.
+        list. The list is updated immediately and recent entries are refreshed
+        in the background.
 
         Args:
             links: A list of Link objects to delete.
@@ -1266,34 +1328,52 @@ class MainWindow(QMainWindow):
             for link in links:
                 if link.is_recent or link.is_favorite:
                     self._store.add_excluded_recent_url(link.url)
-            self._load_links()
+                self._model.remove_link(link.id)
+            self._update_status()
+            self._refresh_recent_background()
 
     def _edit_link(self, link):
         """Open the edit dialog for a stored link.
 
         Shows an ``AddLinkDialog`` pre-filled with the link data. Supports
         both updating and deleting the link. On save, the link is updated
-        in the store and the list is reloaded.
+        in the store and the model is updated immediately.
 
         Args:
             link: The Link object to edit.
         """
         dialog = AddLinkDialog(self, link=link, all_tags=self._all_tags)
         dialog.delete_requested.connect(
-            lambda: self._store.delete(link.id) or self._load_links()
+            lambda: self._handle_delete_from_edit(link)
         )
         if dialog.exec():
             updated = dialog.get_link()
             if updated is not None:
                 self._store.update(updated)
-                self._load_links()
+                self._model.update_link(updated)
+                self._update_all_tags()
+
+    def _handle_delete_from_edit(self, link: Link) -> None:
+        """Handle deletion triggered from within the edit dialog.
+
+        Removes the link from the model immediately and refreshes recent
+        entries in the background.
+
+        Args:
+            link: The Link object being deleted.
+        """
+        self._store.delete(link.id)
+        self._model.remove_link(link.id)
+        self._update_status()
+        self._refresh_recent_background()
 
     def _delete_link(self, link):
         """Delete a single link after user confirmation.
 
         Stored links are removed from the store. Recent and favorite entries
         are excluded from future loads by adding their URLs to the exclusion
-        list. Reloads the link list after deletion.
+        list. The list is updated immediately and recent entries are refreshed
+        in the background.
 
         Args:
             link: The Link object to delete.
@@ -1309,4 +1389,6 @@ class MainWindow(QMainWindow):
                 self._store.add_excluded_recent_url(link.url)
             else:
                 self._store.delete(link.id)
-            self._load_links()
+            self._model.remove_link(link.id)
+            self._update_status()
+            self._refresh_recent_background()
