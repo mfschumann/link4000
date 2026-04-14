@@ -292,3 +292,59 @@ def _get_unc_for_drive(drive_letter: str) -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+def resolve_path(path: str) -> tuple[str, str]:
+    """
+    Resolve a path through all platform-specific transformations.
+
+    Handles:
+    - Windows .lnk shortcut resolution
+    - Linux/Unix symlink resolution
+    - Windows mapped drive to UNC path conversion
+
+    Args:
+        path: The input path string (URL or file path).
+
+    Returns:
+        A (resolved_path, title) tuple. Title is derived from .lnk description
+        or symlink target name; empty string if not applicable.
+    """
+    if not path:
+        return "", ""
+
+    # Use pathlib for path handling based on platform
+    if sys.platform == "win32":
+        path_obj = Path(path)
+    else:
+        path_obj = Path(path)
+
+    title = ""
+
+    # Step 1: Resolve Windows .lnk shortcuts
+    if sys.platform == "win32" and path.lower().endswith(".lnk"):
+        target, lnk_title = resolve_lnk(path_obj)
+        if target:
+            path = target
+            title = lnk_title or ""
+            # Update path_obj for further resolution
+            path_obj = Path(path)
+
+    # Step 2: Resolve symlinks (works on both Windows and Linux)
+    try:
+        if path_obj.is_symlink():
+            target = path_obj.readlink()
+            # Convert to string, preserving absolute vs relative
+            if target.is_absolute():
+                path = str(target)
+            else:
+                path = str(path_obj.parent / target)
+            path_obj = Path(path)
+    except (OSError, ValueError):
+        pass  # Not a symlink or cannot read
+
+    # Step 3: Resolve mapped drive to UNC on Windows
+    if sys.platform == "win32" and is_file_path(path):
+        path = resolve_unc_path(path)
+
+    return path, title

@@ -15,7 +15,7 @@ from collections import namedtuple
 from datetime import datetime
 from pathlib import Path
 
-from link4000.utils.path_utils import resolve_lnk, resolve_unc_path
+from link4000.utils.path_utils import resolve_path
 
 RecentEntry = namedtuple(
     "RecentEntry", ["url", "title", "created_at", "updated_at", "last_accessed"]
@@ -55,13 +55,10 @@ def _fetch_windows() -> list[RecentEntry]:
     for lnk_path in sorted(
         recent_folder.glob("*.lnk"), key=lambda p: p.stat().st_mtime, reverse=True
     )[:200]:
-        target, title = resolve_lnk(lnk_path)
+        # resolve_path handles both lnk resolution and UNC conversion
+        target, title = resolve_path(str(lnk_path))
         if not target:
             continue
-
-        # Resolve mapped drive letters to UNC paths on Windows
-        if sys.platform == "win32":
-            target = resolve_unc_path(target)
 
         try:
             mtime = datetime.fromtimestamp(lnk_path.stat().st_mtime)

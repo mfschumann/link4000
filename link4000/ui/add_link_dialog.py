@@ -28,8 +28,6 @@ from PySide6.QtCore import Qt, QStringListModel, QPoint, Signal
 from link4000.models.link import Link
 from link4000.utils.path_utils import (
     is_file_path,
-    resolve_lnk,
-    resolve_unc_path,
     is_sharepoint_url,
     get_sharepoint_file_extension,
 )
@@ -191,27 +189,20 @@ class AddLinkDialog(QDialog):
     def _set_path(self, path: str) -> None:
         """Set the URL input from a browsed file or folder path.
 
-        Normalizes path separators on Windows, resolves .lnk shortcut files
-        to their targets (converting network drive paths to UNC), and
-        auto-fills the title if the user has not set it manually.
+        Normalizes path separators on Windows and auto-fills the title
+        if the user has not set it manually. Path resolution (lnk, symlinks,
+        UNC) is handled automatically by the Link model.
 
         Args:
             path: The file or folder path selected by the user.
         """
         path = path.strip('"')
-
-        lnk_title = ""
-        if path.lower().endswith(".lnk"):
-            target, lnk_title = resolve_lnk(Path(path))
-            if target:
-                path = target
-
-        resolved = resolve_unc_path(path)
-        self._url_input.setText(resolved)
+        # Model handles resolution, but we still normalize the path separators
+        # for consistent display
+        normalized = path.replace("\\", "/")
+        self._url_input.setText(normalized)
         if not self._title_manually_set:
-            # Use Path.name - normalize separators for cross-platform compatibility
-            resolved_path = Path(resolved.replace("\\", "/")) if resolved else Path()
-            basename = lnk_title if lnk_title else resolved_path.name
+            basename = Path(normalized).name
             if basename:
                 self._auto_filling_title = True
                 self._title_input.setText(basename)
@@ -302,9 +293,6 @@ class AddLinkDialog(QDialog):
         if not url:
             QMessageBox.warning(self, "Validation Error", "URL / Path is required")
             return
-
-        if is_file_path(url):
-            url = resolve_unc_path(url)
 
         tags = [t.strip() for t in self._tags_input.text().split(",") if t.strip()]
 

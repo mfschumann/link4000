@@ -17,7 +17,6 @@ from link4000.utils.path_utils import (
     is_url,
     is_file_path,
     to_office_uri,
-    resolve_unc_path,
     matches_exclusion_pattern,
 )
 from link4000.data.recent_docs import fetch_recent_entries
@@ -477,8 +476,6 @@ class MainWindow(QMainWindow):
             recent_links = []
             for entry in all_recent_entries:
                 url = entry.url
-                if sys.platform == "win32" and is_file_path(url):
-                    url = resolve_unc_path(url)
                 if (
                     url.lower() in self._stored_urls
                     or url.lower() in self._excluded_urls_lower

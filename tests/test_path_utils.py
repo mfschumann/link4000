@@ -11,6 +11,7 @@ from link4000.utils.path_utils import (
     to_office_uri,
     resolve_unc_path,
     resolve_lnk,
+    resolve_path,
     matches_exclusion_pattern,
 )
 
@@ -325,3 +326,96 @@ class TestMatchesExclusionPattern:
         """Test that empty input returns False."""
         mock_get_patterns.return_value = ["*"]
         assert matches_exclusion_pattern("") is False
+
+
+class TestResolvePath:
+    """Tests for resolve_path function."""
+
+    def test_empty_path_returns_empty(self):
+        """Tests that an empty path returns empty strings."""
+        result = resolve_path("")
+        assert result == ("", "")
+
+    def test_url_unchanged(self):
+        """Tests that URLs are returned unchanged."""
+        result = resolve_path("https://example.com/file.pdf")
+        assert result == ("https://example.com/file.pdf", "")
+
+    def test_non_file_path_unchanged(self):
+        """Tests that non-file paths are returned unchanged."""
+        result = resolve_path("relative/path/file.txt")
+        assert result == ("relative/path/file.txt", "")
+
+    @patch("link4000.utils.path_utils.resolve_lnk")
+    @patch("link4000.utils.path_utils.Path.is_symlink", return_value=False)
+    def test_lnk_resolution_on_windows(self, mock_symlink, mock_lnk):
+        """Tests that .lnk files are resolved on Windows."""
+        import sys
+
+        with patch.object(sys, "platform", "win32"):
+            mock_lnk.return_value = ("C:\\Target\\file.pdf", "My PDF")
+            result = resolve_path("C:\\Shortcuts\\file.lnk")
+            assert result == ("C:\\Target\\file.pdf", "My PDF")
+            mock_lnk.assert_called_once()
+
+    @patch("link4000.utils.path_utils.resolve_lnk")
+    @patch("link4000.utils.path_utils.Path.is_symlink", return_value=False)
+    def test_lnk_not_resolved_on_linux(self, mock_symlink, mock_lnk):
+        """Tests that .lnk files are not resolved on Linux."""
+        import sys
+
+        with patch.object(sys, "platform", "linux"):
+            result = resolve_path("/home/user/shortcut.lnk")
+            assert result == ("/home/user/shortcut.lnk", "")
+            mock_lnk.assert_not_called()
+
+    @patch("link4000.utils.path_utils.resolve_unc_path")
+    @patch("link4000.utils.path_utils.Path.is_symlink", return_value=False)
+    def test_unc_resolution_on_windows(self, mock_symlink, mock_unc):
+        """Tests that UNC path resolution is called on Windows."""
+        import sys
+
+        with patch.object(sys, "platform", "win32"):
+            mock_unc.return_value = "\\\\server\\share\\file.txt"
+            result = resolve_path("Z:\\file.txt")
+            assert result == ("\\\\server\\share\\file.txt", "")
+            mock_unc.assert_called_once_with("Z:\\file.txt")
+
+    @patch("link4000.utils.path_utils.resolve_unc_path")
+    @patch("link4000.utils.path_utils.Path.is_symlink", return_value=False)
+    def test_unc_not_resolved_on_linux(self, mock_symlink, mock_unc):
+        """Tests that UNC path resolution is not called on Linux."""
+        import sys
+
+        with patch.object(sys, "platform", "linux"):
+            result = resolve_path("/mnt/share/file.txt")
+            assert result == ("/mnt/share/file.txt", "")
+            mock_unc.assert_not_called()
+
+    @patch("link4000.utils.path_utils.resolve_lnk")
+    @patch("link4000.utils.path_utils.Path.is_symlink", return_value=True)
+    @patch("pathlib.Path.readlink")
+    def test_symlink_resolution(self, mock_readlink, mock_is_link, mock_lnk):
+        """Tests that symlinks are resolved."""
+        import sys
+        from pathlib import Path
+
+        mock_readlink.return_value = Path("/actual/target/file.txt")
+
+        with patch.object(sys, "platform", "linux"):
+            result = resolve_path("/home/user/link")
+            assert result[0] == "/actual/target/file.txt"
+
+    @patch("link4000.utils.path_utils.resolve_lnk", return_value=("", ""))
+    @patch("pathlib.Path.is_symlink", return_value=False)
+    @patch("link4000.utils.path_utils.resolve_unc_path")
+    def test_lnk_followed_by_unc(self, mock_unc, mock_is_link, mock_lnk):
+        """Tests that .lnk resolution is followed by UNC resolution."""
+        import sys
+
+        mock_lnk.return_value = ("Z:\\target\\file.pdf", "Report")
+        mock_unc.return_value = "\\\\server\\share\\file.pdf"
+
+        with patch.object(sys, "platform", "win32"):
+            result = resolve_path("C:\\shortcut.lnk")
+            assert result == ("\\\\server\\share\\file.pdf", "Report")
