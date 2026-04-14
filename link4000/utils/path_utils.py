@@ -69,51 +69,12 @@ def is_sharepoint_url(url: str) -> bool:
     return False
 
 
-def _escape_windows_path_backslashes(pattern: str) -> str:
-    """
-    Escape backslashes in patterns that look like Windows paths (drive letter or UNC).
-
-    Windows paths like ``C:\\temp`` or ``\\\\server\\share`` contain literal
-    backslashes that need to be escaped for regex to match them literally.
-    Without escaping, ``\\t`` in regex means "tab character".
-
-    This function only escapes backslashes in patterns that appear to be
-    Windows file paths (starting with drive letter like ``C:`` or UNC ``\\\\``).
-    Regular regex patterns (like ``\\.internal\\.com``) are passed through unchanged.
-    """
-    # Check if pattern looks like a Windows path: drive letter (C:) or UNC (\\server)
-    is_windows_path = re.match(r"^[A-Za-z]:|^\\\\", pattern)
-
-    if not is_windows_path:
-        return pattern
-
-    # Escape single backslashes to match literally
-    result = []
-    i = 0
-    while i < len(pattern):
-        if pattern[i] == "\\":
-            if i + 1 < len(pattern) and pattern[i + 1] == "\\":
-                # Already escaped backslash (\\), keep as-is
-                result.append(pattern[i])
-                result.append(pattern[i + 1])
-                i += 2
-            else:
-                # Single backslash - escape it
-                result.append("\\\\")
-                i += 1
-        else:
-            result.append(pattern[i])
-            i += 1
-    return "".join(result)
-
-
 def matches_exclusion_pattern(url_or_path: str) -> bool:
     """
     Return True if the URL or path matches any of the configured exclusion patterns.
 
-    Windows paths like ``C:\\temp`` in patterns are automatically escaped
-    so backslashes are matched literally. Path slashes are normalized so both
-    forward slash and backslash patterns work.
+    Path slashes are normalized so patterns work regardless of slash direction.
+    For example, pattern "C:\\test" will match both "C:/test/file.txt" and "C:\\test\\file.txt".
     """
     if not url_or_path:
         return False
@@ -122,17 +83,19 @@ def matches_exclusion_pattern(url_or_path: str) -> bool:
     if not patterns:
         return False
 
-    # Normalize path slashes: convert forward slashes to backslashes
-    # This handles paths like "C:/test/file.txt" when pattern is "C:\\test\\.*"
-    normalized_path = url_or_path.replace("/", "\\")
+    # Normalize path slashes both ways
+    normalized_backslash = url_or_path.replace("/", "\\")
+    normalized_forward = url_or_path.replace("\\", "/")
 
     for pattern in patterns:
-        # Escape backslashes in Windows paths so they match literally
-        escaped_pattern = _escape_windows_path_backslashes(pattern)
-        # Try matching both normalized path and original path
-        if re.search(escaped_pattern, normalized_path, re.IGNORECASE):
+        # Try matching pattern against path normalized to backslashes
+        if re.search(pattern, normalized_backslash, re.IGNORECASE):
             return True
-        if re.search(escaped_pattern, url_or_path, re.IGNORECASE):
+        # Try matching pattern against path normalized to forward slashes
+        if re.search(pattern, normalized_forward, re.IGNORECASE):
+            return True
+        # Try matching pattern against original path
+        if re.search(pattern, url_or_path, re.IGNORECASE):
             return True
     return False
 
