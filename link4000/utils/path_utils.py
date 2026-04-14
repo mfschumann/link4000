@@ -4,7 +4,7 @@ import os
 import re
 import sys
 import urllib.parse
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Optional
 
 from link4000.utils.config import get_exclusion_patterns, get_sharepoint_patterns
@@ -73,8 +73,9 @@ def matches_exclusion_pattern(url_or_path: str) -> bool:
     """
     Return True if the URL or path matches any of the configured exclusion patterns.
 
-    Path slashes are normalized so patterns work regardless of slash direction.
-    For example, pattern "C:\\test" will match both "C:/test/file.txt" and "C:\\test\\file.txt".
+    Uses pathlib.PurePath.full_match with glob patterns. Patterns should use
+    glob syntax (e.g., "*.txt", "**/temp/**") rather than regex syntax.
+    No path normalization is performed - patterns must match the exact path format.
     """
     if not url_or_path:
         return False
@@ -83,19 +84,9 @@ def matches_exclusion_pattern(url_or_path: str) -> bool:
     if not patterns:
         return False
 
-    # Normalize path slashes both ways
-    normalized_backslash = url_or_path.replace("/", "\\")
-    normalized_forward = url_or_path.replace("\\", "/")
-
+    path = PurePath(url_or_path)
     for pattern in patterns:
-        # Try matching pattern against path normalized to backslashes
-        if re.search(pattern, normalized_backslash, re.IGNORECASE):
-            return True
-        # Try matching pattern against path normalized to forward slashes
-        if re.search(pattern, normalized_forward, re.IGNORECASE):
-            return True
-        # Try matching pattern against original path
-        if re.search(pattern, url_or_path, re.IGNORECASE):
+        if path.full_match(pattern):
             return True
     return False
 

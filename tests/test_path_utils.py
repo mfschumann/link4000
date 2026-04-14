@@ -296,7 +296,7 @@ class TestMatchesExclusionPattern:
     @patch("link4000.utils.path_utils.get_exclusion_patterns")
     def test_matches_pattern(self, mock_get_patterns):
         """Test that URL matching pattern returns True."""
-        mock_get_patterns.return_value = [r"\.internal\.company\.com"]
+        mock_get_patterns.return_value = ["**/*.internal.company.com/*"]
         assert (
             matches_exclusion_pattern("https://server.internal.company.com/file")
             is True
@@ -305,20 +305,14 @@ class TestMatchesExclusionPattern:
     @patch("link4000.utils.path_utils.get_exclusion_patterns")
     def test_no_match(self, mock_get_patterns):
         """Test that non-matching URL returns False."""
-        mock_get_patterns.return_value = [r"\.internal\.company\.com"]
+        mock_get_patterns.return_value = ["*internal.company.com/*"]
         assert matches_exclusion_pattern("https://example.com/file") is False
 
     @patch("link4000.utils.path_utils.get_exclusion_patterns")
     def test_multiple_patterns(self, mock_get_patterns):
         """Test multiple patterns - first match wins."""
-        mock_get_patterns.return_value = [r"/temp/", r"\.private\."]
+        mock_get_patterns.return_value = ["**/temp/**", "**/private/*"]
         assert matches_exclusion_pattern("C:/temp/file.txt") is True
-
-    @patch("link4000.utils.path_utils.get_exclusion_patterns")
-    def test_case_insensitive(self, mock_get_patterns):
-        """Test that matching is case insensitive."""
-        mock_get_patterns.return_value = [r"\.INTERNAL\.COMPANY"]
-        assert matches_exclusion_pattern("https://server.internal.company.com") is True
 
     @patch("link4000.utils.path_utils.get_exclusion_patterns")
     def test_empty_patterns(self, mock_get_patterns):
@@ -329,5 +323,5 @@ class TestMatchesExclusionPattern:
     @patch("link4000.utils.path_utils.get_exclusion_patterns")
     def test_empty_input(self, mock_get_patterns):
         """Test that empty input returns False."""
-        mock_get_patterns.return_value = [r".*"]
+        mock_get_patterns.return_value = ["*"]
         assert matches_exclusion_pattern("") is False
