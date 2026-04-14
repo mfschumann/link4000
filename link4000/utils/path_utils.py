@@ -313,11 +313,7 @@ def resolve_path(path: str) -> tuple[str, str]:
     if not path:
         return "", ""
 
-    # Use pathlib for path handling based on platform
-    if sys.platform == "win32":
-        path_obj = Path(path)
-    else:
-        path_obj = Path(path)
+    path_obj = Path(path)
 
     title = ""
 
