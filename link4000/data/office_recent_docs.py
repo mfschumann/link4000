@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+from link4000.utils.path_utils import resolve_unc_path
+
 RecentEntry = namedtuple(
     "RecentEntry", ["url", "title", "created_at", "updated_at", "last_accessed"]
 )
@@ -193,6 +195,10 @@ def _parse_mru_value(value: str) -> Optional[RecentEntry]:
     path = value.split("*", 1)[1].strip()
     if not path:
         return None
+
+    # Resolve mapped drive letters to UNC paths on Windows
+    if sys.platform == "win32":
+        path = resolve_unc_path(path)
 
     timestamp = _parse_mru_timestamp(value)
 
