@@ -1,6 +1,7 @@
 ## FIXME
 - icon disappears sometimes (after reload? when moving window across monitors?)
 - fix onedrive to sharepoint resolution (generated path is wrong)
+- exlude pattern does not work with Windows-paths
 
 ## TODO
 - resolve links on OneDrive to sharepoint URLs
