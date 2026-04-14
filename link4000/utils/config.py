@@ -144,7 +144,7 @@ def get_sharepoint_patterns() -> list:
 
 def get_exclusion_patterns() -> list:
     """
-    Return the list of regex patterns for excluding recent items from the link list.
+    Return the list of glob patterns for excluding recent items from the link list.
     """
     cfg = _get_config()
     global_cfg = cfg.get("global", {})
