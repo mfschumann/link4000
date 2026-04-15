@@ -33,6 +33,10 @@ from link4000.utils.path_utils import (
     is_sharepoint_url,
     get_sharepoint_file_extension,
 )
+from link4000.utils.onedrive_resolver import (
+    resolve_to_sharepoint_url,
+    is_onedrive_path,
+)
 
 
 class AddLinkDialog(QDialog):
@@ -305,6 +309,11 @@ class AddLinkDialog(QDialog):
 
         if is_file_path(url):
             url = resolve_unc_path(url)
+
+        if is_onedrive_path(url):
+            resolved_url = resolve_to_sharepoint_url(url)
+            if resolved_url:
+                url = resolved_url
 
         tags = [t.strip() for t in self._tags_input.text().split(",") if t.strip()]
 

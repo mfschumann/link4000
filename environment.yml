@@ -10,3 +10,5 @@ dependencies:
   - snakeviz
   - py-spy
   - ruff
+  - office365-rest-python-client
+  - msal

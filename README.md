@@ -166,6 +166,19 @@ enabled = true
 # Maximum age in days (0 = no limit)
 max_age_days = 30
 
+[onedrive]
+# Azure AD app client ID for OneDrive/SharePoint resolution
+# To enable automatic resolution of local OneDrive paths to SharePoint URLs:
+# 1. Register an Azure AD app at https://portal.azure.com
+# 2. Add redirect URI: "http://localhost" (Mobile and Desktop application)
+# 3. Grant API permissions:
+#    - Files.Read.All (Application)
+#    - Sites.Read.All (Application)
+#    - User.Read (Delegated)
+# 4. Copy the Application (client) ID here
+# client_id = "your-azure-app-client-id"
+# tenant = "common"  # or your tenant ID (e.g., "contoso.onmicrosoft.com")
+
 [colors]
 web = "#0066CC"
 folder = "#FF9500"
