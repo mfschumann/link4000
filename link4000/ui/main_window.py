@@ -351,6 +351,12 @@ class MainWindow(QMainWindow):
         self._search_input.textChanged.connect(self._on_search_changed)
         toolbar_layout.addWidget(self._search_input)
 
+        self._clear_button = QPushButton("✕")
+        self._clear_button.setToolTip("Clear search and filters")
+        self._clear_button.setFixedWidth(30)
+        self._clear_button.clicked.connect(self._on_clear_clicked)
+        toolbar_layout.addWidget(self._clear_button)
+
         self._sort_combo = QComboBox()
         self._sort_combo.addItems(["Sort by", "Created", "Modified"])
         self._sort_combo.currentTextChanged.connect(self._on_sort_changed)
@@ -657,6 +663,17 @@ class MainWindow(QMainWindow):
         """Apply the pending search text to the proxy model."""
         self._search_timer.stop()
         self._proxy_model.set_search_text(self._pending_search_text)
+        self._update_status()
+
+    def _on_clear_clicked(self) -> None:
+        """Clear search text and active filters."""
+        self._search_input.clear()
+        self._proxy_model.set_search_text("")
+        self._selected_tags = set()
+        self._selected_types = set()
+        self._match_all = False
+        self._proxy_model.set_selected_tags(set(), False, set())
+        self._update_tag_filter_button()
         self._update_status()
 
     def _on_sort_changed(self, text: str) -> None:
