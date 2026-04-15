@@ -4,8 +4,8 @@ This module provides functionality to resolve local file paths within
 OneDrive for Business folders (that are synced from SharePoint) to their
 corresponding SharePoint URLs.
 
-Uses Microsoft Graph API via office365-rest-python-client with MSAL
-interactive authentication.
+Uses Microsoft Graph API via office365-rest-python-client with
+Azure CLI authentication (no app registration required).
 """
 
 import os
@@ -16,13 +16,14 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from office365.graph_client import GraphClient
 
-from link4000.utils.config import get_onedrive_config
-
 _graph_client: Optional["GraphClient"] = None
 
 
 def _get_graph_client() -> Optional["GraphClient"]:
-    """Get or create the Microsoft Graph client with interactive authentication.
+    """Get or create the Microsoft Graph client using Azure CLI authentication.
+
+    Uses AzureCliCredential which automatically uses credentials from 'az login'.
+    No app registration required.
 
     Returns:
         Authenticated GraphClient instance, or None if authentication fails.
@@ -32,36 +33,24 @@ def _get_graph_client() -> Optional["GraphClient"]:
         return _graph_client
 
     try:
-        import msal
+        from azure.identity import AzureCliCredential
         from office365.graph_client import GraphClient
     except ImportError:
         return None
 
-    config = get_onedrive_config()
-    client_id = config.get("client_id", "")
-    tenant = config.get("tenant", "common")
-
-    if not client_id:
-        return None
-
-    authority = f"https://login.microsoftonline.com/{tenant}"
-    app = msal.PublicClientApplication(client_id, authority=authority)
-
-    scopes = [
-        "Files.Read.All",
-        "Sites.Read.All",
-        "User.Read",
-    ]
-
-    result = app.acquire_token_interactive(scopes=scopes)
-    if result is None or "access_token" not in result:
-        return None
-
-    def acquire_token():
-        return result
-
     try:
-        _graph_client = GraphClient(tenant=tenant, acquire_token=acquire_token)
+        credential = AzureCliCredential()
+        token = credential.get_token(
+            "https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Sites.Read.All"
+        )
+
+        def acquire_token():
+            return {"access_token": token.token}
+
+        _graph_client = GraphClient(
+            tenant="common",
+            acquire_token=acquire_token,
+        )
         return _graph_client
     except Exception:
         return None

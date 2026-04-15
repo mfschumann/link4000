@@ -135,17 +135,10 @@ Configuration is stored in `~/.link4000/config.toml`:
 # load_favorites = true
 
 [onedrive]
-# Azure AD app client ID for OneDrive/SharePoint resolution
-# To enable automatic resolution of local OneDrive paths to SharePoint URLs:
-# 1. Register an Azure AD app at https://portal.azure.com
-# 2. Add redirect URI: "http://localhost" (Mobile and Desktop application)
-# 3. Grant API permissions:
-#    - Files.Read.All (Application)
-#    - Sites.Read.All (Application)
-#    - User.Read (Delegated)
-# 4. Copy the Application (client) ID here
-# client_id = "your-azure-app-client-id"
-# tenant = "common"  # or your tenant ID (e.g., "contoso.onmicrosoft.com")
+# OneDrive/SharePoint resolution: No configuration needed!
+# Simply ensure Azure CLI is installed and user has run 'az login'.
+# The app will automatically use the credentials from Azure CLI.
+# If not logged in, run: az login
 
 [colors]
 web = "#0066CC"
