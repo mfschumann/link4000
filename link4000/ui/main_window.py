@@ -448,6 +448,7 @@ class MainWindow(QMainWindow):
         )
         self._current_sort_column = LinkTableModel.COL_LAST_ACCESSED
         self._current_sort_order = Qt.SortOrder.DescendingOrder
+        self._status_bar.showMessage("Loading stored links...")
         self._update_status()
 
         self._excluded_urls_lower = {
@@ -468,6 +469,7 @@ class MainWindow(QMainWindow):
         are tagged with "recent" and added to the model. On completion,
         schedules loading of favorites.
         """
+        self._status_bar.showMessage("Loading recent entries...")
 
         def fetch_and_process():
             recent_entries = fetch_recent_entries()
@@ -515,6 +517,7 @@ class MainWindow(QMainWindow):
         are not already stored or excluded are tagged with "favorite" and
         appended to the model alongside recent entries.
         """
+        self._status_bar.showMessage("Loading favorites...")
 
         def fetch_and_process():
             favorite_entries = fetch_edge_favorites()
