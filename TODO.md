@@ -10,6 +10,7 @@
 - UX: what buttons do we need in the main list?
 - add "resolve" checkbox in add/edit dialog
 - add indexing of items to enable full text search
+- during async loading of items, update status bar message
 
 ## DONE (not yet tested)
 - fix GUI freeze when opening file-type filter dialog (pre-compute link types in background)
