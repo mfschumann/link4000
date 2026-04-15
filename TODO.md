@@ -2,6 +2,10 @@
 - icon disappears sometimes (after reload? when moving window across monitors?)
 - fix onedrive to sharepoint resolution (generated path is wrong)
 - exlude pattern does not work with Windows-paths
+- when adding a new item using the selection dialog, paths are shown posix-style (G:/blub)
+- UNC resolution translates the drive to windows-style paths (\\blub\drive), leading to mixed-style paths
+- startup is slower after migration to resolve_path()
+- strange lnk files from appdata\microsoft\windows\recent show as recent items (title = lnk file, target = lnk file). These did not show up before: e.g. msteamssystem-initiated (4).lnk, ms-settingstaskbar.lnk
 
 ## TODO
 - resolve links on OneDrive to sharepoint URLs
