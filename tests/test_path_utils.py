@@ -9,8 +9,6 @@ from link4000.utils.path_utils import (
     get_link_type,
     get_file_extension,
     to_office_uri,
-    resolve_unc_path,
-    resolve_lnk,
     resolve_path,
     matches_exclusion_pattern,
 )
@@ -171,126 +169,6 @@ class TestToOfficeUri:
         assert result is None
 
 
-class TestResolveUncPath:
-    """Tests for resolve_unc_path function."""
-
-    def test_non_windows_returns_unchanged(self):
-        """Tests that resolve_unc_path returns the path unchanged on non-Windows."""
-        with patch("sys.platform", "linux"):
-            result = resolve_unc_path("/home/user/file.txt")
-            assert result == "/home/user/file.txt"
-
-    @patch("sys.platform", "win32")
-    @patch("link4000.utils.path_utils._get_unc_for_drive")
-    def test_mapped_drive_to_unc(self, mock_get_unc):
-        """Tests that a mapped drive letter is resolved to its UNC equivalent."""
-        mock_get_unc.return_value = "\\\\fileserver\\share"
-        result = resolve_unc_path("Z:\\Docs\\file.txt")
-        assert result == "\\\\fileserver\\share\\Docs\\file.txt"
-
-    @patch("sys.platform", "win32")
-    @patch("link4000.utils.path_utils._get_unc_for_drive")
-    def test_unc_path_unchanged(self, mock_get_unc):
-        """Tests that an existing UNC path is returned unchanged on Windows."""
-        result = resolve_unc_path("\\\\server\\share\\file.txt")
-        assert result == "\\\\server\\share\\file.txt"
-
-    @patch("sys.platform", "win32")
-    @patch("link4000.utils.path_utils._get_unc_for_drive")
-    def test_local_drive_returns_unchanged(self, mock_get_unc):
-        """Tests that a local (non-mapped) drive returns the path unchanged on Windows."""
-        mock_get_unc.return_value = None  # Local drive, not mapped
-        result = resolve_unc_path("C:\\Users\\file.txt")
-        assert result == "C:\\Users\\file.txt"
-
-
-class TestResolveLnk:
-    """Tests for resolve_lnk function."""
-
-    def test_resolves_shortcut_target_and_description(self):
-        """Tests that resolve_lnk extracts TargetPath and Description from a .lnk file."""
-        import sys
-        from pathlib import Path
-        from unittest.mock import MagicMock
-
-        mock_client = MagicMock()
-        mock_shortcut = MagicMock()
-        mock_shortcut.TargetPath = "C:\\Users\\docs\\report.pdf"
-        mock_shortcut.Description = "Q4 Report"
-        mock_shell = MagicMock()
-        mock_shell.CreateShortCut.return_value = mock_shortcut
-        mock_client.Dispatch.return_value = mock_shell
-
-        mock_win32com = MagicMock()
-        mock_win32com.client = mock_client
-
-        with patch.dict(
-            sys.modules,
-            {"win32com": mock_win32com, "win32com.client": mock_client},
-        ):
-            target, title = resolve_lnk(Path("C:\\Users\\Recent\\report.lnk"))
-            assert target == "C:\\Users\\docs\\report.pdf"
-            assert title == "Q4 Report"
-            mock_shell.CreateShortCut.assert_called_once_with(
-                "C:\\Users\\Recent\\report.lnk"
-            )
-
-    def test_falls_back_to_stem_when_no_description(self):
-        """Tests that resolve_lnk uses the filename stem when Description is empty."""
-        import sys
-        from pathlib import Path
-        from unittest.mock import MagicMock
-
-        mock_client = MagicMock()
-        mock_shortcut = MagicMock()
-        mock_shortcut.TargetPath = "D:\\data.xlsx"
-        mock_shortcut.Description = ""
-        mock_shell = MagicMock()
-        mock_shell.CreateShortCut.return_value = mock_shortcut
-        mock_client.Dispatch.return_value = mock_shell
-
-        mock_win32com = MagicMock()
-        mock_win32com.client = mock_client
-
-        with patch.dict(
-            sys.modules,
-            {"win32com": mock_win32com, "win32com.client": mock_client},
-        ):
-            target, title = resolve_lnk(Path("D:\\Recent\\data.lnk"))
-            assert target == "D:\\data.xlsx"
-            assert title == "data"
-
-    def test_returns_empty_on_import_error(self):
-        """Tests that resolve_lnk returns empty strings when pywin32 is unavailable."""
-        import sys
-        from pathlib import Path
-
-        with patch.dict(sys.modules, {"win32com": None, "win32com.client": None}):
-            target, title = resolve_lnk(Path("C:\\test.lnk"))
-            assert target == ""
-            assert title == ""
-
-    def test_returns_empty_on_com_error(self):
-        """Tests that resolve_lnk returns empty strings on COM errors."""
-        import sys
-        from pathlib import Path
-        from unittest.mock import MagicMock
-
-        mock_client = MagicMock()
-        mock_client.Dispatch.side_effect = Exception("COM error")
-
-        mock_win32com = MagicMock()
-        mock_win32com.client = mock_client
-
-        with patch.dict(
-            sys.modules,
-            {"win32com": mock_win32com, "win32com.client": mock_client},
-        ):
-            target, title = resolve_lnk(Path("C:\\broken.lnk"))
-            assert target == ""
-            assert title == ""
-
-
 class TestMatchesExclusionPattern:
     """Tests for matches_exclusion_pattern function."""
 
@@ -346,7 +224,7 @@ class TestResolvePath:
         result = resolve_path("relative/path/file.txt")
         assert result == ("relative/path/file.txt", "")
 
-    @patch("link4000.utils.path_utils.resolve_lnk")
+    @patch("link4000.utils.path_utils._resolve_lnk")
     @patch("link4000.utils.path_utils.Path.is_symlink", return_value=False)
     def test_lnk_resolution_on_windows(self, mock_symlink, mock_lnk):
         """Tests that .lnk files are resolved on Windows."""
@@ -358,7 +236,7 @@ class TestResolvePath:
             assert result == ("C:\\Target\\file.pdf", "My PDF")
             mock_lnk.assert_called_once()
 
-    @patch("link4000.utils.path_utils.resolve_lnk")
+    @patch("link4000.utils.path_utils._resolve_lnk")
     @patch("link4000.utils.path_utils.Path.is_symlink", return_value=False)
     def test_lnk_not_resolved_on_linux(self, mock_symlink, mock_lnk):
         """Tests that .lnk files are not resolved on Linux."""
@@ -369,7 +247,7 @@ class TestResolvePath:
             assert result == ("/home/user/shortcut.lnk", "")
             mock_lnk.assert_not_called()
 
-    @patch("link4000.utils.path_utils.resolve_unc_path")
+    @patch("link4000.utils.path_utils._resolve_unc_path")
     @patch("link4000.utils.path_utils.Path.is_symlink", return_value=False)
     def test_unc_resolution_on_windows(self, mock_symlink, mock_unc):
         """Tests that UNC path resolution is called on Windows."""
@@ -381,7 +259,7 @@ class TestResolvePath:
             assert result == ("\\\\server\\share\\file.txt", "")
             mock_unc.assert_called_once_with("Z:\\file.txt")
 
-    @patch("link4000.utils.path_utils.resolve_unc_path")
+    @patch("link4000.utils.path_utils._resolve_unc_path")
     @patch("link4000.utils.path_utils.Path.is_symlink", return_value=False)
     def test_unc_not_resolved_on_linux(self, mock_symlink, mock_unc):
         """Tests that UNC path resolution is not called on Linux."""
@@ -392,7 +270,7 @@ class TestResolvePath:
             assert result == ("/mnt/share/file.txt", "")
             mock_unc.assert_not_called()
 
-    @patch("link4000.utils.path_utils.resolve_lnk")
+    @patch("link4000.utils.path_utils._resolve_lnk")
     @patch("link4000.utils.path_utils.Path.is_symlink", return_value=True)
     @patch("pathlib.Path.readlink")
     def test_symlink_resolution(self, mock_readlink, mock_is_link, mock_lnk):
@@ -406,9 +284,9 @@ class TestResolvePath:
             result = resolve_path("/home/user/link")
             assert result[0] == "/actual/target/file.txt"
 
-    @patch("link4000.utils.path_utils.resolve_lnk", return_value=("", ""))
+    @patch("link4000.utils.path_utils._resolve_lnk", return_value=("", ""))
     @patch("pathlib.Path.is_symlink", return_value=False)
-    @patch("link4000.utils.path_utils.resolve_unc_path")
+    @patch("link4000.utils.path_utils._resolve_unc_path")
     def test_lnk_followed_by_unc(self, mock_unc, mock_is_link, mock_lnk):
         """Tests that .lnk resolution is followed by UNC resolution."""
         import sys

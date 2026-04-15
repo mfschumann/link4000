@@ -136,7 +136,7 @@ def to_office_uri(url: str) -> str | None:
     return f"{scheme}{url}"
 
 
-def resolve_unc_path(path: str) -> str:
+def _resolve_unc_path(path: str) -> str:
     """
     On Windows, if *path* starts with a mapped drive letter, replace the drive
     letter with its UNC equivalent and return the resolved path.
@@ -147,7 +147,7 @@ def resolve_unc_path(path: str) -> str:
 
     Example::
 
-        resolve_unc_path(r"Z:\\Reports\\Q1.xlsx")
+        _resolve_unc_path(r"Z:\\Reports\\Q1.xlsx")
         # → r"\\\\fileserver\\Finance\\Reports\\Q1.xlsx"
     """
     if sys.platform != "win32":
@@ -171,7 +171,7 @@ def resolve_unc_path(path: str) -> str:
     return path
 
 
-def resolve_lnk(lnk_path: Path) -> tuple[str, str]:
+def _resolve_lnk(lnk_path: Path) -> tuple[str, str]:
     """Resolve a Windows .lnk shortcut file to its target path and description.
 
     Uses ``win32com.client`` (pywin32) to read the shortcut's target and
@@ -188,7 +188,7 @@ def resolve_lnk(lnk_path: Path) -> tuple[str, str]:
     try:
         import win32com.client
     except Exception as e:
-        print(f"resolve_lnk import error: {e}", file=sys.stderr)
+        print(f"_resolve_lnk import error: {e}", file=sys.stderr)
         return "", ""
 
     try:
@@ -201,7 +201,7 @@ def resolve_lnk(lnk_path: Path) -> tuple[str, str]:
 
         return target, title
     except Exception as e:
-        print(f"resolve_lnk({lnk_path.name}) exception: {e}", file=sys.stderr)
+        print(f"_resolve_lnk({lnk_path.name}) exception: {e}", file=sys.stderr)
         return "", ""
 
 
@@ -226,7 +226,7 @@ def get_link_type(url: str) -> str:
         return "web"
 
     if is_file_path(url):
-        resolved = resolve_unc_path(url) if sys.platform == "win32" else url
+        resolved = _resolve_unc_path(url) if sys.platform == "win32" else url
         if os.path.isdir(resolved):
             return "folder"
         if os.path.isfile(resolved):
@@ -257,7 +257,7 @@ def get_file_extension(url: str) -> str:
 def is_folder(url: str) -> bool:
     """Return True if the URL is a file path pointing to an existing directory."""
     if is_file_path(url):
-        resolved = resolve_unc_path(url) if sys.platform == "win32" else url
+        resolved = _resolve_unc_path(url) if sys.platform == "win32" else url
         if os.path.isdir(resolved):
             return True
     return False
@@ -313,13 +313,17 @@ def resolve_path(path: str) -> tuple[str, str]:
     if not path:
         return "", ""
 
-    path_obj = Path(path)
+    # Use pathlib for path handling based on platform
+    if sys.platform == "win32":
+        path_obj = Path(path)
+    else:
+        path_obj = Path(path)
 
     title = ""
 
     # Step 1: Resolve Windows .lnk shortcuts
     if sys.platform == "win32" and path.lower().endswith(".lnk"):
-        target, lnk_title = resolve_lnk(path_obj)
+        target, lnk_title = _resolve_lnk(path_obj)
         if target:
             path = target
             title = lnk_title or ""
@@ -341,6 +345,6 @@ def resolve_path(path: str) -> tuple[str, str]:
 
     # Step 3: Resolve mapped drive to UNC on Windows
     if sys.platform == "win32" and is_file_path(path):
-        path = resolve_unc_path(path)
+        path = _resolve_unc_path(path)
 
     return path, title
