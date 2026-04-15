@@ -33,6 +33,10 @@ _DEFAULTS = {
         "unknown": "#999999",
     },
     "extensions": {},
+    "onedrive": {
+        "client_id": "",
+        "tenant": "common",
+    },
 }
 
 
@@ -219,6 +223,17 @@ def get_load_favorites() -> bool:
     return global_cfg.get("load_favorites", _DEFAULTS["global"]["load_favorites"])
 
 
+def get_onedrive_config() -> dict:
+    """
+    Return the OneDrive/SharePoint configuration dictionary.
+
+    Returns a dict with 'client_id' and 'tenant' keys.
+    Default client_id is empty (feature disabled).
+    """
+    cfg = _get_config()
+    return cfg.get("onedrive", _DEFAULTS.get("onedrive", {}))
+
+
 def ensure_config_exists() -> None:
     """Create default config.toml if it doesn't exist."""
     if os.path.exists(_CONFIG_PATH):
@@ -276,6 +291,16 @@ unknown = "#999999"
 # ".py" = "#008000"
 # ".txt" = "#757575"
 # ".md" = "#000000"
+
+# OneDrive/SharePoint configuration for resolving local paths to SharePoint URLs
+# To enable this feature, register an Azure app with the following permissions:
+#   - Files.Read.All (Application)
+#   - Sites.Read.All (Application)
+#   - User.Read (Delegated)
+# And configure redirect URI to "http://localhost" in Azure Portal
+# [onedrive]
+# client_id = "your-azure-app-client-id"
+# tenant = "common"  # or your tenant ID (e.g., "contoso.onmicrosoft.com")
 """
 
     with open(_CONFIG_PATH, "w") as f:
