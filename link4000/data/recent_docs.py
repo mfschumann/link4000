@@ -1,4 +1,4 @@
-"""Read recently-opened files from the OS native recent-files infrastructure.
+r"""Read recently-opened files from the OS native recent-files infrastructure.
 
 Supported platforms:
   - Windows  (%AppData%\Microsoft\Windows\Recent .lnk files via pywin32 IShellLinkW)
@@ -21,24 +21,27 @@ from link4000.utils.path_utils import resolve_lnk, resolve_unc_path
 
 
 @SourceRegistry.register
-class WindowsRecentSource(LinkSource):
-    """Link source for Windows recent files."""
+class RecentSource(LinkSource):
+    """Link source for OS recent files (Windows and GNOME/Linux)."""
 
     name = "recent"
     source_tag = "recent"
 
     @property
     def is_available(self) -> bool:
-        """Check if Windows recent files are available."""
-        return sys.platform == "win32"
+        """Check if an OS recent-files source is available on this platform."""
+        return sys.platform == "win32" or sys.platform.startswith("linux")
 
     def fetch(self) -> list[SourceEntry]:
-        """Fetch recently-opened files on Windows via .lnk shortcuts.
+        """Fetch recent entries for the current platform."""
+        if sys.platform == "win32":
+            return self._fetch_windows()
+        if sys.platform.startswith("linux"):
+            return self._fetch_linux_gnome()
+        return []
 
-        Returns:
-            A list of SourceEntry values sorted by modification time, newest
-            first, limited to the 200 most recent items.
-        """
+    def _fetch_windows(self) -> list[SourceEntry]:
+        """Fetch recently-opened files on Windows via .lnk shortcuts."""
         recent_folder = (
             Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Recent"
         )
@@ -74,28 +77,8 @@ class WindowsRecentSource(LinkSource):
 
         return entries
 
-
-@SourceRegistry.register
-class GnomeRecentSource(LinkSource):
-    """Link source for GNOME recent files."""
-
-    name = "gnome_recent"
-    source_tag = "recent"
-
-    @property
-    def is_available(self) -> bool:
-        """Check if GNOME recent files are available."""
-        return sys.platform.startswith("linux")
-
-    def fetch(self) -> list[SourceEntry]:
-        """Fetch recently-opened files on Linux/Gnome from recently-used.xbel.
-
-        Parses the freedesktop.org XBEL bookmark file and extracts file:// entries
-        with their timestamps.
-
-        Returns:
-            A list of SourceEntry values sorted by last-accessed time, newest first.
-        """
+    def _fetch_linux_gnome(self) -> list[SourceEntry]:
+        """Fetch recently-opened files on Linux/GNOME from recently-used.xbel."""
         xbel_path = Path.home() / ".local" / "share" / "recently-used.xbel"
         if not xbel_path.exists():
             return []
@@ -127,10 +110,6 @@ class GnomeRecentSource(LinkSource):
                     if title_el is not None and title_el.text
                     else Path(url).name
                 )
-
-                created_at: datetime | None = None
-                updated_at: datetime | None = None
-                last_accessed: datetime | None = None
 
                 raw_added = bookmark.get("added")
                 raw_modified = bookmark.get("modified")
@@ -190,10 +169,9 @@ class GnomeRecentSource(LinkSource):
 
 
 def fetch_recent_entries() -> list[SourceEntry]:
-    """Return recently-opened files from the OS, newest first."""
+    """Backward-compatible wrapper for recent source loading."""
     sources = SourceRegistry.get_enabled_sources()
-    entries: list[SourceEntry] = []
     for source in sources:
-        if source.name in ("recent", "gnome_recent"):
-            entries.extend(source.fetch())
-    return entries
+        if source.name == "recent":
+            return source.fetch()
+    return []
