@@ -123,17 +123,17 @@ class TestLinkTableModel:
         model.set_links(links)
         assert model.rowCount() == 2
 
-    def test_set_recent_links(self):
-        """Tests that setting recent links updates the row count correctly."""
+    def test_set_dynamic_links(self):
+        """Tests that setting dynamic links updates the row count correctly."""
         model = LinkTableModel()
-        model.set_recent_links([_make_link("R1", source_tag="recent")])
+        model.set_dynamic_links([_make_link("R1", source_tag="recent")])
         assert model.rowCount() == 1
 
     def test_links_and_recent_combined(self):
-        """Tests that row count reflects both regular and recent links combined."""
+        """Tests that row count reflects both regular and dynamic links combined."""
         model = LinkTableModel()
         model.set_links([_make_link("A"), _make_link("B")])
-        model.set_recent_links([_make_link("R1", source_tag="recent")])
+        model.set_dynamic_links([_make_link("R1", source_tag="recent")])
         assert model.rowCount() == 3
 
     def test_data_title(self):
@@ -151,16 +151,16 @@ class TestLinkTableModel:
         assert model.data(idx) == "work, important"
 
     def test_data_recent_tag(self):
-        """Tests that recent links display 'recent' in the tags column."""
+        """Tests that dynamic links display 'recent' in the tags column."""
         model = LinkTableModel()
-        model.set_recent_links([_make_link(source_tag="recent")])
+        model.set_dynamic_links([_make_link(source_tag="recent")])
         idx = model.index(0, LinkTableModel.COL_TAGS)
         assert model.data(idx) == "recent"
 
     def test_data_favorite_tag(self):
         """Tests that favorite links display source tag in the tags column."""
         model = LinkTableModel()
-        model.set_recent_links([_make_link(source_tag="edge_favorites")])
+        model.set_dynamic_links([_make_link(source_tag="edge_favorites")])
         idx = model.index(0, LinkTableModel.COL_TAGS)
         assert model.data(idx) == "edge_favorites"
 
@@ -191,7 +191,7 @@ class TestLinkTableModel:
         """Tests retrieving a recent link by row index when both lists are set."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
-        model.set_recent_links([_make_link("R1", source_tag="recent")])
+        model.set_dynamic_links([_make_link("R1", source_tag="recent")])
         assert model.get_link(1).title == "R1"
 
     def test_get_link_by_id(self):
@@ -201,12 +201,12 @@ class TestLinkTableModel:
         model.set_links(links)
         assert model.get_link_by_id(links[1].id).title == "B"
 
-    def test_get_link_by_id_in_recent(self):
+    def test_get_link_by_id_in_dynamic(self):
         """Tests retrieving a recent link by its unique ID."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
         recent = _make_link("R1", source_tag="recent")
-        model.set_recent_links([recent])
+        model.set_dynamic_links([recent])
         assert model.get_link_by_id(recent.id).title == "R1"
 
     def test_get_link_by_id_not_found(self):
@@ -222,11 +222,11 @@ class TestLinkTableModel:
         assert model.rowCount() == 2
         assert model.get_link(1).title == "B"
 
-    def test_append_recent_links(self):
-        """Tests that appending recent links adds them after regular links."""
+    def test_append_dynamic_links(self):
+        """Tests that appending dynamic links adds them after regular links."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
-        model.append_recent_links([_make_link("R1", source_tag="recent")])
+        model.append_dynamic_links([_make_link("R1", source_tag="recent")])
         assert model.rowCount() == 2
         assert model.get_link(1).title == "R1"
 
@@ -253,7 +253,7 @@ class TestLinkTableModel:
         model = LinkTableModel()
         model.set_links([_make_link("A")])
         recent = _make_link("R1", source_tag="recent")
-        model.set_recent_links([recent])
+        model.set_dynamic_links([recent])
         assert model.rowCount() == 2
         removed = model.remove_link(recent.id)
         assert removed is True
@@ -283,12 +283,12 @@ class TestLinkTableModel:
         assert model.get_link(0).title == "Updated"
         assert model.get_link(0).tags == ["newtag"]
 
-    def test_update_link_in_recent_list(self):
+    def test_update_link_in_dynamic_list(self):
         """Tests that update_link updates a link in the recent list."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
         recent = _make_link("R1", source_tag="recent")
-        model.set_recent_links([recent])
+        model.set_dynamic_links([recent])
         updated = Link(
             title="Updated Recent",
             url=recent.url,
@@ -324,7 +324,7 @@ class TestLinkSortFilterModel:
         if links:
             source.set_links(links)
         if recent:
-            source.set_recent_links(recent)
+            source.set_dynamic_links(recent)
         proxy = LinkSortFilterModel()
         proxy.setSourceModel(source)
         return proxy, source

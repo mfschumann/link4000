@@ -423,7 +423,7 @@ class MainWindow(QMainWindow):
 
         Retrieves all links from the store, populates the tag set, applies the
         default sort order (last accessed, descending), updates the status bar,
-        and schedules asynchronous loading of recent entries and favorites.
+        and schedules asynchronous loading of dynamic source entries.
         """
         if "json_store" in self._enabled_sources:
             stored = self._store.get_all()
@@ -506,7 +506,7 @@ class MainWindow(QMainWindow):
             return all_links
 
         def on_finished(links):
-            self._model.set_recent_links(links)
+            self._model.set_dynamic_links(links)
             self._update_status()
 
         self._run_in_background(fetch_and_process, on_finished)
@@ -1251,7 +1251,7 @@ class MainWindow(QMainWindow):
 
         Stored links are deleted from the store. Recent and favorite entries
         are excluded from future loads by adding their URLs to the exclusion
-        list. The list is updated immediately and recent entries are refreshed
+        list. The list is updated immediately and dynamic entries are refreshed
         in the background.
 
         Args:
@@ -1313,7 +1313,7 @@ class MainWindow(QMainWindow):
 
         Stored links are removed from the store. Recent and favorite entries
         are excluded from future loads by adding their URLs to the exclusion
-        list. The list is updated immediately and recent entries are refreshed
+        list. The list is updated immediately and dynamic entries are refreshed
         in the background.
 
         Args:
