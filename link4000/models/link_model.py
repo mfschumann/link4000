@@ -95,10 +95,8 @@ class LinkTableModel(QAbstractTableModel):
             if col == self.COL_TITLE:
                 return link.title
             elif col == self.COL_TAGS:
-                if link.is_recent:
-                    return "recent"
-                if link.is_favorite:
-                    return "favorite"
+                if link.source_tag:
+                    return link.source_tag
                 return ", ".join(link.tags)
             elif col == self.COL_LAST_ACCESSED:
                 return format_relative_date(link.last_accessed)
@@ -126,7 +124,7 @@ class LinkTableModel(QAbstractTableModel):
                 return "Click to copy URL"
 
         if role == Qt.ItemDataRole.FontRole:
-            if link.is_recent or link.is_favorite:
+            if link.source_tag:
                 font = QFont()
                 font.setItalic(True)
                 return font

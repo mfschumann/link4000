@@ -23,8 +23,8 @@ class Link:
         created_at: Timestamp when the link was created.
         updated_at: Timestamp when the link was last modified.
         last_accessed: Timestamp when the link was last opened.
-        is_recent: Whether the link was recently accessed.
-        is_favorite: Whether the link is marked as a favorite.
+        source_tag: Tag identifying the source (e.g., "recent", "office_recent",
+            "edge_favorites", "json_store"). Empty for stored links.
     """
 
     title: str
@@ -34,8 +34,7 @@ class Link:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     last_accessed: datetime = field(default_factory=datetime.now)
-    is_recent: bool = field(default=False)
-    is_favorite: bool = field(default=False)
+    source_tag: str = field(default="")
     _cached_link_type: Optional[str] = field(default=None, repr=False)
     _cached_file_extension: Optional[str] = field(default=None, repr=False)
 
@@ -63,6 +62,7 @@ class Link:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "last_accessed": self.last_accessed.isoformat(),
+            "source_tag": self.source_tag,
         }
 
     @classmethod
@@ -77,6 +77,7 @@ class Link:
             title=data.get("title", ""),
             url=data.get("url", ""),
             tags=data.get("tags", []),
+            source_tag=data.get("source_tag", ""),
             created_at=datetime.fromisoformat(
                 data.get("created_at", datetime.now().isoformat())
             ),

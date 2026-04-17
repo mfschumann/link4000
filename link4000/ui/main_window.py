@@ -20,9 +20,6 @@ from link4000.utils.path_utils import (
     resolve_unc_path,
     matches_exclusion_pattern,
 )
-from link4000.data.recent_docs import fetch_recent_entries
-from link4000.data.edge_favorites import fetch_edge_favorites
-from link4000.data.office_recent_docs import fetch_office_recent_entries
 from link4000.models.link import Link
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -60,12 +57,13 @@ from link4000.ui.bulk_edit_tags_dialog import BulkEditTagsDialog
 from link4000.ui.tag_filter_window import TagFilterWindow
 from link4000.utils.config import (
     ensure_config_exists,
-    get_load_favorites,
-    get_load_recent_files,
     get_theme,
     get_tray_behavior,
+    get_enabled_sources,
 )
+from link4000.data.source_registry import SourceRegistry
 from pathlib import Path
+
 
 class ButtonDelegate(QItemDelegate):
     """A custom item delegate that renders clickable buttons in a table view.
@@ -212,8 +210,7 @@ class MainWindow(QMainWindow):
 
         ensure_config_exists()
         self._tray_behavior = get_tray_behavior()
-        self._should_load_recent_files = get_load_recent_files()
-        self._should_load_favorites = get_load_favorites()
+        self._enabled_sources = get_enabled_sources()
         self._setup_ui()
         self._tray = None
         if self._tray_behavior != "normal":
@@ -238,9 +235,7 @@ class MainWindow(QMainWindow):
         theme = get_theme()
         icon_name = "icon_dark.svg" if theme == "dark" else "icon.svg"
 
-        icon_paths = [
-            base_path.parent.parent / "resources" / icon_name
-        ]
+        icon_paths = [base_path.parent.parent / "resources" / icon_name]
         for path in icon_paths:
             if QFile(path).exists():
                 return QIcon(str(path))
@@ -440,10 +435,9 @@ class MainWindow(QMainWindow):
         self._all_tags = set()
         for link in stored:
             self._all_tags.update(link.tags)
-        if self._should_load_recent_files:
-            self._all_tags.add("recent")
-        if self._should_load_favorites:
-            self._all_tags.add("favorite")
+        for source_name in self._enabled_sources:
+            if source_name != "json_store":
+                self._all_tags.add(source_name)
 
         self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
         self._proxy_model.sort(
@@ -462,116 +456,72 @@ class MainWindow(QMainWindow):
         }
         self._stored_urls = {link.url.lower() for link in stored}
 
-        if self._should_load_recent_files:
-            QTimer.singleShot(0, self._load_recent_entries)
-        elif self._should_load_favorites:
-            QTimer.singleShot(0, self._load_favorites)
+        if self._enabled_sources:
+            QTimer.singleShot(0, self._load_dynamic_sources)
 
-    def _load_recent_entries(self) -> None:
-        """Fetch recent documents and add them as non-stored link entries.
+    def _load_dynamic_sources(self) -> None:
+        """Fetch entries from all enabled dynamic sources.
 
         Runs the fetch in a background thread to avoid blocking the UI.
-        Newly discovered recent URLs that are not already stored or excluded
-        are tagged with "recent" and added to the model. On completion,
-        schedules loading of favorites.
+        Newly discovered URLs that are not already stored or excluded
+        are added to the model with their source_tag.
         """
-        self._status_bar.showMessage("Loading recent entries...")
+        self._status_bar.showMessage("Loading dynamic sources...")
 
         def fetch_and_process():
-            recent_entries = fetch_recent_entries()
-            office_recent_entries = fetch_office_recent_entries()
-            all_recent_entries = list(recent_entries) + list(office_recent_entries)
+            sources = SourceRegistry.get_enabled_sources()
+            all_links = []
 
-            recent_links = []
-            for entry in all_recent_entries:
-                url = entry.url
-                if sys.platform == "win32" and is_file_path(url):
-                    url = resolve_unc_path(url)
-                if (
-                    url.lower() in self._stored_urls
-                    or url.lower() in self._excluded_urls_lower
-                    or matches_exclusion_pattern(url)
-                ):
+            for source in sources:
+                if source.name == "json_store":
                     continue
-                self._stored_urls.add(url.lower())
-                recent_link = Link(
-                    title=entry.title,
-                    url=url,
-                    tags=["recent"],
-                    id=f"recent:{url}",
-                    created_at=entry.created_at,
-                    updated_at=entry.updated_at,
-                    last_accessed=entry.last_accessed,
-                    is_recent=True,
-                )
-                recent_links.append(recent_link)
 
-            return recent_links
+                entries = source.fetch()
+                for entry in entries:
+                    url = entry.url
+                    if sys.platform == "win32" and is_file_path(url):
+                        url = resolve_unc_path(url)
+                    if (
+                        url.lower() in self._stored_urls
+                        or url.lower() in self._excluded_urls_lower
+                        or matches_exclusion_pattern(url)
+                    ):
+                        continue
+                    self._stored_urls.add(url.lower())
+                    link = Link(
+                        title=entry.title,
+                        url=url,
+                        tags=[entry.source_tag],
+                        id=f"{source.name}:{url}",
+                        created_at=entry.created_at,
+                        updated_at=entry.updated_at,
+                        last_accessed=entry.last_accessed,
+                        source_tag=entry.source_tag,
+                    )
+                    all_links.append(link)
 
-        def on_finished(recent_links):
-            self._model.set_recent_links(recent_links)
-            self._update_status()
-            if self._should_load_favorites:
-                QTimer.singleShot(0, self._load_favorites)
+            return all_links
 
-        self._run_in_background(fetch_and_process, on_finished)
-
-    def _load_favorites(self) -> None:
-        """Fetch Edge browser favorites and add them as non-stored link entries.
-
-        Runs the fetch in a background thread. Discovered favorite URLs that
-        are not already stored or excluded are tagged with "favorite" and
-        appended to the model alongside recent entries.
-        """
-        self._status_bar.showMessage("Loading favorites...")
-
-        def fetch_and_process():
-            favorite_entries = fetch_edge_favorites()
-            favorite_links = []
-            for entry in favorite_entries:
-                if (
-                    entry.url.lower() in self._stored_urls
-                    or entry.url.lower() in self._excluded_urls_lower
-                    or matches_exclusion_pattern(entry.url)
-                ):
-                    continue
-                self._stored_urls.add(entry.url.lower())
-                favorite_link = Link(
-                    title=entry.title,
-                    url=entry.url,
-                    tags=["favorite"],
-                    id=f"favorite:{entry.url}",
-                    created_at=entry.created_at,
-                    updated_at=entry.updated_at,
-                    last_accessed=entry.last_accessed,
-                    is_favorite=True,
-                )
-                favorite_links.append(favorite_link)
-            return favorite_links
-
-        def on_finished(favorite_links):
-            current_recent = self._model._recent_links
-            self._model.set_recent_links(current_recent + favorite_links)
+        def on_finished(links):
+            self._model.set_recent_links(links)
             self._update_status()
 
         self._run_in_background(fetch_and_process, on_finished)
 
     def _refresh_recent_background(self) -> None:
-        """Refresh recent entries in the background without reloading stored links.
+        """Refresh dynamic entries in the background without reloading stored links.
 
         Updates the excluded URLs and stored URLs sets, then triggers a background
-        reload of recent entries. This is used after delete/edit operations to
-        provide immediate feedback while loading recent items asynchronously.
+        reload of dynamic entries. This is used after delete/edit operations to
+        provide immediate feedback while loading items asynchronously.
         """
         self._excluded_urls_lower = {
             url.lower() for url in self._store.get_excluded_recent_urls()
         }
         stored = self._store.get_all()
         self._stored_urls = {link.url.lower() for link in stored}
-        if self._should_load_recent_files:
-            QTimer.singleShot(0, self._load_recent_entries)
-        elif self._should_load_favorites:
-            QTimer.singleShot(0, self._load_favorites)
+        if self._enabled_sources:
+            QTimer.singleShot(0, self._load_dynamic_sources)
 
     @staticmethod
     def _run_in_background(fetch_func: Callable, on_finished: Callable) -> None:
@@ -644,10 +594,9 @@ class MainWindow(QMainWindow):
         self._all_tags = set()
         for link in self._model._links:
             self._all_tags.update(link.tags)
-        if self._should_load_recent_files:
-            self._all_tags.add("recent")
-        if self._should_load_favorites:
-            self._all_tags.add("favorite")
+        for source_name in self._enabled_sources:
+            if source_name != "json_store":
+                self._all_tags.add(source_name)
 
     def _on_search_changed(self, text: str) -> None:
         """Handle search input text changes.
@@ -964,13 +913,13 @@ class MainWindow(QMainWindow):
                 webbrowser.open(target)
 
     def _promote_recent(self, link):
-        """Open the edit dialog pre-filled for a recent entry; on save, add to store."""
+        """Open the edit dialog pre-filled for a dynamic entry; on save, add to store."""
         promoted = Link(
             title=link.title,
             url=link.url,
             tags=[],
             id="",  # empty id signals store.add() to generate a fresh UUID
-            is_recent=False,
+            source_tag="",
         )
         dialog = AddLinkDialog(self, link=promoted, all_tags=self._all_tags)
         if dialog.exec():
@@ -981,20 +930,8 @@ class MainWindow(QMainWindow):
                 self._load_links()
 
     def _promote_favorite(self, link):
-        """Open the edit dialog pre-filled for a favorite entry; on save, add to store."""
-        promoted = Link(
-            title=link.title,
-            url=link.url,
-            tags=[],
-            id="",  # empty id signals store.add() to generate a fresh UUID
-            is_favorite=False,
-        )
-        dialog = AddLinkDialog(self, link=promoted, all_tags=self._all_tags)
-        if dialog.exec():
-            saved = dialog.get_link()
-            if saved is not None:
-                self._store.add(saved)
-                self._load_links()
+        """Open the edit dialog pre-filled for a dynamic entry; on save, add to store."""
+        self._promote_recent(link)
 
     @staticmethod
     def _open_parent_folder(link):
@@ -1034,7 +971,7 @@ class MainWindow(QMainWindow):
             if link_id:
                 link = self._model.get_link_by_id(link_id)
                 if link:
-                    if link.is_recent:
+                    if link.source_tag:
                         self._open_recent(link)
                     else:
                         self._open_link(link)
@@ -1055,10 +992,8 @@ class MainWindow(QMainWindow):
         if link_id:
             link = self._model.get_link_by_id(link_id)
             if link:
-                if link.is_recent:
+                if link.source_tag:
                     self._promote_recent(link)
-                elif link.is_favorite:
-                    self._promote_favorite(link)
                 else:
                     self._edit_link(link)
 
@@ -1073,10 +1008,8 @@ class MainWindow(QMainWindow):
         """
         link = self._model.get_link_by_id(link_id)
         if link:
-            if link.is_recent:
+            if link.source_tag:
                 self._promote_recent(link)
-            elif link.is_favorite:
-                self._promote_favorite(link)
             else:
                 self._edit_link(link)
 
@@ -1094,7 +1027,7 @@ class MainWindow(QMainWindow):
             clipboard = QApplication.clipboard()
             clipboard.setText(link.url)
             self._status_bar.showMessage(f"Copied: {link.url}", 2000)
-            if not link.is_recent:
+            if not link.source_tag:
                 self._store.update_last_accessed(link.id)
                 link.last_accessed = datetime.now()
 
@@ -1176,7 +1109,7 @@ class MainWindow(QMainWindow):
             link = selected_links[0]
             open_label = "Open Path" if is_file_path(link.url) else "Open URL"
             open_action = QAction(open_label, self)
-            if link.is_recent:
+            if link.source_tag:
                 open_action.triggered.connect(lambda: self._open_recent(link))
             else:
                 open_action.triggered.connect(lambda: self._open_link(link))
@@ -1204,7 +1137,7 @@ class MainWindow(QMainWindow):
                 menu.addAction(copy_url_action)
 
             edit_action = QAction("Edit", self)
-            if link.is_recent:
+            if link.source_tag:
                 edit_action.triggered.connect(lambda: self._promote_recent(link))
             else:
                 edit_action.triggered.connect(lambda: self._edit_link(link))
@@ -1247,30 +1180,23 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             tags_to_add = dialog.get_tags()
             if tags_to_add:
-                stored_links = [
-                    link
-                    for link in links
-                    if not link.is_recent and not link.is_favorite
-                ]
+                stored_links = [link for link in links if not link.source_tag]
                 link_ids = [link.id for link in stored_links]
                 if link_ids:
                     self._store.bulk_update_tags(link_ids, tags_to_add, [])
 
                 for link in links:
-                    if link.is_recent or link.is_favorite:
+                    if link.source_tag:
                         new_tags = list(link.tags)
-                        if "recent" in new_tags:
-                            new_tags.remove("recent")
-                        if "favorite" in new_tags:
-                            new_tags.remove("favorite")
+                        if link.source_tag in new_tags:
+                            new_tags.remove(link.source_tag)
                         new_tags.extend(tags_to_add)
                         promoted = Link(
                             title=link.title,
                             url=link.url,
                             tags=new_tags,
                             id="",
-                            is_recent=False,
-                            is_favorite=False,
+                            source_tag="",
                         )
                         self._store.add(promoted)
 
@@ -1292,30 +1218,23 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             tags_to_remove = dialog.get_tags()
             if tags_to_remove:
-                stored_links = [
-                    link
-                    for link in links
-                    if not link.is_recent and not link.is_favorite
-                ]
+                stored_links = [link for link in links if not link.source_tag]
                 link_ids = [link.id for link in stored_links]
                 if link_ids:
                     self._store.bulk_update_tags(link_ids, [], tags_to_remove)
 
                 for link in links:
-                    if link.is_recent or link.is_favorite:
+                    if link.source_tag:
                         new_tags = list(link.tags)
-                        if "recent" in new_tags:
-                            new_tags.remove("recent")
-                        if "favorite" in new_tags:
-                            new_tags.remove("favorite")
+                        if link.source_tag in new_tags:
+                            new_tags.remove(link.source_tag)
                         new_tags = [t for t in new_tags if t not in tags_to_remove]
                         promoted = Link(
                             title=link.title,
                             url=link.url,
                             tags=new_tags,
                             id="",
-                            is_recent=False,
-                            is_favorite=False,
+                            source_tag="",
                         )
                         self._store.add(promoted)
 
@@ -1340,13 +1259,11 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            link_ids = [
-                link.id for link in links if not link.is_recent and not link.is_favorite
-            ]
+            link_ids = [link.id for link in links if not link.source_tag]
             if link_ids:
                 self._store.bulk_delete(link_ids)
             for link in links:
-                if link.is_recent or link.is_favorite:
+                if link.source_tag:
                     self._store.add_excluded_recent_url(link.url)
                 self._model.remove_link(link.id)
             self._update_status()
@@ -1363,9 +1280,7 @@ class MainWindow(QMainWindow):
             link: The Link object to edit.
         """
         dialog = AddLinkDialog(self, link=link, all_tags=self._all_tags)
-        dialog.delete_requested.connect(
-            lambda: self._handle_delete_from_edit(link)
-        )
+        dialog.delete_requested.connect(lambda: self._handle_delete_from_edit(link))
         if dialog.exec():
             updated = dialog.get_link()
             if updated is not None:
@@ -1405,7 +1320,7 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            if link.is_recent or link.is_favorite:
+            if link.source_tag:
                 self._store.add_excluded_recent_url(link.url)
             else:
                 self._store.delete(link.id)

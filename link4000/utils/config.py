@@ -22,8 +22,9 @@ _DEFAULTS = {
         "exclusion_patterns": [],
         "theme": "light",
         "tray_behavior": "close_to_tray",
-        "load_recent_files": True,
-        "load_favorites": True,
+    },
+    "sources": {
+        "enabled": ["json_store", "recent", "office_recent", "edge_favorites"],
     },
     "colors": {
         "web": "#0066CC",
@@ -197,26 +198,15 @@ def get_tray_behavior() -> str:
     return value
 
 
-def get_load_recent_files() -> bool:
-    """
-    Return whether loading of OS and Office recent files is enabled.
+def get_enabled_sources() -> list[str]:
+    """Return the list of enabled source plugins.
 
-    Default is True.
-    """
-    cfg = _get_config()
-    global_cfg = cfg.get("global", {})
-    return global_cfg.get("load_recent_files", _DEFAULTS["global"]["load_recent_files"])
-
-
-def get_load_favorites() -> bool:
-    """
-    Return whether loading of browser favorites is enabled.
-
-    Default is True.
+    Returns:
+        List of source names that should be loaded.
     """
     cfg = _get_config()
-    global_cfg = cfg.get("global", {})
-    return global_cfg.get("load_favorites", _DEFAULTS["global"]["load_favorites"])
+    sources_cfg = cfg.get("sources", _DEFAULTS["sources"])
+    return sources_cfg.get("enabled", _DEFAULTS["sources"]["enabled"])
 
 
 def ensure_config_exists() -> None:
@@ -254,11 +244,10 @@ def ensure_config_exists() -> None:
 #   "normal"           - minimize to taskbar and close normally (no tray icon)
 # tray_behavior = "close_to_tray"
 
-# Load recent files from the OS and Office MRU (default: true)
-# load_recent_files = true
-
-# Load favorites from Microsoft Edge (default: true)
-# load_favorites = true
+[sources]
+# List of enabled link source plugins.
+# Available sources: json_store, recent (Windows/Linux GNOME), office_recent (Windows), edge_favorites
+# enabled = ["json_store", "recent", "office_recent", "edge_favorites"]
 
 [colors]
 web = "#0066CC"

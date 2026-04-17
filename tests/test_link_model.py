@@ -96,16 +96,14 @@ def _make_link(
     title="Test",
     url="https://example.com",
     tags=None,
-    is_recent=False,
-    is_favorite=False,
+    source_tag="",
 ):
     """Creates a Link instance with default or custom attributes for testing."""
     return Link(
         title=title,
         url=url,
         tags=tags or [],
-        is_recent=is_recent,
-        is_favorite=is_favorite,
+        source_tag=source_tag,
     )
 
 
@@ -128,14 +126,14 @@ class TestLinkTableModel:
     def test_set_recent_links(self):
         """Tests that setting recent links updates the row count correctly."""
         model = LinkTableModel()
-        model.set_recent_links([_make_link("R1", is_recent=True)])
+        model.set_recent_links([_make_link("R1", source_tag="recent")])
         assert model.rowCount() == 1
 
     def test_links_and_recent_combined(self):
         """Tests that row count reflects both regular and recent links combined."""
         model = LinkTableModel()
         model.set_links([_make_link("A"), _make_link("B")])
-        model.set_recent_links([_make_link("R1", is_recent=True)])
+        model.set_recent_links([_make_link("R1", source_tag="recent")])
         assert model.rowCount() == 3
 
     def test_data_title(self):
@@ -155,16 +153,16 @@ class TestLinkTableModel:
     def test_data_recent_tag(self):
         """Tests that recent links display 'recent' in the tags column."""
         model = LinkTableModel()
-        model.set_recent_links([_make_link(is_recent=True)])
+        model.set_recent_links([_make_link(source_tag="recent")])
         idx = model.index(0, LinkTableModel.COL_TAGS)
         assert model.data(idx) == "recent"
 
     def test_data_favorite_tag(self):
-        """Tests that favorite links display 'favorite' in the tags column."""
+        """Tests that favorite links display source tag in the tags column."""
         model = LinkTableModel()
-        model.set_recent_links([_make_link(is_favorite=True)])
+        model.set_recent_links([_make_link(source_tag="edge_favorites")])
         idx = model.index(0, LinkTableModel.COL_TAGS)
-        assert model.data(idx) == "favorite"
+        assert model.data(idx) == "edge_favorites"
 
     def test_data_user_role_returns_id(self):
         """Tests that UserRole returns the link's unique ID."""
@@ -193,7 +191,7 @@ class TestLinkTableModel:
         """Tests retrieving a recent link by row index when both lists are set."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
-        model.set_recent_links([_make_link("R1", is_recent=True)])
+        model.set_recent_links([_make_link("R1", source_tag="recent")])
         assert model.get_link(1).title == "R1"
 
     def test_get_link_by_id(self):
@@ -207,7 +205,7 @@ class TestLinkTableModel:
         """Tests retrieving a recent link by its unique ID."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
-        recent = _make_link("R1", is_recent=True)
+        recent = _make_link("R1", source_tag="recent")
         model.set_recent_links([recent])
         assert model.get_link_by_id(recent.id).title == "R1"
 
@@ -228,7 +226,7 @@ class TestLinkTableModel:
         """Tests that appending recent links adds them after regular links."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
-        model.append_recent_links([_make_link("R1", is_recent=True)])
+        model.append_recent_links([_make_link("R1", source_tag="recent")])
         assert model.rowCount() == 2
         assert model.get_link(1).title == "R1"
 
@@ -254,7 +252,7 @@ class TestLinkTableModel:
         """Tests that remove_link removes a link from the recent list."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
-        recent = _make_link("R1", is_recent=True)
+        recent = _make_link("R1", source_tag="recent")
         model.set_recent_links([recent])
         assert model.rowCount() == 2
         removed = model.remove_link(recent.id)
@@ -289,14 +287,14 @@ class TestLinkTableModel:
         """Tests that update_link updates a link in the recent list."""
         model = LinkTableModel()
         model.set_links([_make_link("A")])
-        recent = _make_link("R1", is_recent=True)
+        recent = _make_link("R1", source_tag="recent")
         model.set_recent_links([recent])
         updated = Link(
             title="Updated Recent",
             url=recent.url,
             tags=["recent"],
             id=recent.id,
-            is_recent=True,
+            source_tag="recent",
         )
         result = model.update_link(updated)
         assert result is True
