@@ -425,7 +425,10 @@ class MainWindow(QMainWindow):
         default sort order (last accessed, descending), updates the status bar,
         and schedules asynchronous loading of recent entries and favorites.
         """
-        stored = self._store.get_all()
+        if "json_store" in self._enabled_sources:
+            stored = self._store.get_all()
+        else:
+            stored = []
         self._model.set_links(stored)
 
         # Pre-compute link types in background to avoid GUI freeze when
@@ -735,6 +738,9 @@ class MainWindow(QMainWindow):
             types found in the store (e.g. file extensions or URL types).
         """
         types = set()
+        if "json_store" not in self._enabled_sources:
+            return types
+
         for link in self._store.get_all():
             link_ext = link.file_extension
             if link_ext:
