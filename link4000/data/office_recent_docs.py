@@ -229,12 +229,3 @@ class OfficeRecentSource(LinkSource):
         dt = windows_epoch + timedelta(microseconds=filetime_microseconds)
 
         return dt.replace(tzinfo=None)
-
-
-def fetch_office_recent_entries() -> list[SourceEntry]:
-    """Return recently-opened Office documents from registry, newest first."""
-    sources = SourceRegistry.get_enabled_sources()
-    for source in sources:
-        if source.name == "office_recent":
-            return source.fetch()
-    return []

@@ -113,11 +113,3 @@ class EdgeFavoritesSource(LinkSource):
         entries.sort(key=lambda e: e.created_at, reverse=True)
         return entries
 
-
-def fetch_edge_favorites() -> list[SourceEntry]:
-    """Return favorites from Microsoft Edge, newest first based on date_added."""
-    sources = SourceRegistry.get_enabled_sources()
-    for source in sources:
-        if source.name == "edge_favorites":
-            return source.fetch()
-    return []

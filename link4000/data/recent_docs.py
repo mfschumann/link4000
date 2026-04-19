@@ -167,11 +167,3 @@ class RecentSource(LinkSource):
         entries.sort(key=lambda e: e.last_accessed, reverse=True)
         return entries
 
-
-def fetch_recent_entries() -> list[SourceEntry]:
-    """Backward-compatible wrapper for recent source loading."""
-    sources = SourceRegistry.get_enabled_sources()
-    for source in sources:
-        if source.name == "recent":
-            return source.fetch()
-    return []
