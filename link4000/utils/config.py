@@ -24,7 +24,7 @@ _DEFAULTS = {
         "tray_behavior": "close_to_tray",
     },
     "sources": {
-        "enabled": ["json_store", "recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"],
+        "enabled": ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"],
     },
     "colors": {
         "web": "#0066CC",
@@ -245,9 +245,9 @@ def ensure_config_exists() -> None:
 # tray_behavior = "close_to_tray"
 
 [sources]
-# List of enabled link source plugins.
-# Available sources: json_store, recent_windows (Windows), recent_linux_gnome (Linux/GNOME), office_recent (Windows), edge_favorites
-# enabled = ["json_store", "recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
+# List of enabled link source plugins (json_store is always enabled via LinkStore).
+# Available sources: recent_windows (Windows), recent_linux_gnome (Linux/GNOME), office_recent (Windows), edge_favorites
+# enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
 
 [colors]
 web = "#0066CC"

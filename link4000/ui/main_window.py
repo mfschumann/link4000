@@ -425,10 +425,8 @@ class MainWindow(QMainWindow):
         default sort order (last accessed, descending), updates the status bar,
         and schedules asynchronous loading of dynamic source entries.
         """
-        if "json_store" in self._enabled_sources:
-            stored = self._store.get_all()
-        else:
-            stored = []
+        self._status_bar.showMessage("Loading stored links...")
+        stored = self._store.get_all()
         self._model.set_links(stored)
 
         # Pre-compute link types in background to avoid GUI freeze when
@@ -439,8 +437,7 @@ class MainWindow(QMainWindow):
         for link in stored:
             self._all_tags.update(link.tags)
         for source_name in self._enabled_sources:
-            if source_name != "json_store":
-                self._all_tags.add(source_name)
+            self._all_tags.add(source_name)
 
         self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
         self._proxy_model.sort(
@@ -451,7 +448,6 @@ class MainWindow(QMainWindow):
         )
         self._current_sort_column = LinkTableModel.COL_LAST_ACCESSED
         self._current_sort_order = Qt.SortOrder.DescendingOrder
-        self._status_bar.showMessage("Loading stored links...")
         self._update_status()
 
         self._excluded_urls_lower = {
@@ -476,9 +472,6 @@ class MainWindow(QMainWindow):
             all_links = []
 
             for source in sources:
-                if source.name == "json_store":
-                    continue
-
                 entries = source.fetch()
                 for entry in entries:
                     url = entry.url
@@ -598,8 +591,7 @@ class MainWindow(QMainWindow):
         for link in self._model._links:
             self._all_tags.update(link.tags)
         for source_name in self._enabled_sources:
-            if source_name != "json_store":
-                self._all_tags.add(source_name)
+            self._all_tags.add(source_name)
 
     def _on_search_changed(self, text: str) -> None:
         """Handle search input text changes.
@@ -738,8 +730,7 @@ class MainWindow(QMainWindow):
             types found in the store (e.g. file extensions or URL types).
         """
         types = set()
-        if "json_store" not in self._enabled_sources:
-            return types
+        return types
 
         for link in self._store.get_all():
             link_ext = link.file_extension

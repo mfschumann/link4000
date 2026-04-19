@@ -129,13 +129,13 @@ Configuration is stored in `~/.link4000/config.toml`:
 # tray_behavior = "close_to_tray"
 
 [sources]
-# Enable/disable source plugins. Available sources:
-#   - json_store: User-managed links stored in JSON
+# Enable/disable source plugins (json_store is always enabled via LinkStore).
+# Available sources:
 #   - recent_windows: Recent files on Windows
 #   - recent_linux_gnome: Recent files on Linux/GNOME
 #   - office_recent: Recent Office documents (Windows)
 #   - edge_favorites: Microsoft Edge browser favorites
-# enabled = ["json_store", "recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
+# enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
 
 [colors]
 web = "#0066CC"
@@ -181,7 +181,6 @@ link4000/
 │   └── loader_types.py  # Source entry types
 ├── source_plugins/  # Source plugin implementations
 │   ├── __init__.py  # Auto-registers all plugins
-│   ├── json_store.py # User-managed links
 │   ├── recent_docs_windows.py # Windows recent files
 │   ├── recent_docs_linux_gnome.py # Linux/GNOME recent files
 │   ├── edge_favorites.py # Edge browser favorites
