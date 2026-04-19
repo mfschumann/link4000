@@ -134,6 +134,12 @@ Configuration is stored in `~/.link4000/config.toml`:
 # Load favorites from Edge browser
 # load_favorites = true
 
+[onedrive]
+# OneDrive/SharePoint resolution: No configuration needed!
+# Simply ensure Azure CLI is installed and user has run 'az login'.
+# The app will automatically use the credentials from Azure CLI.
+# If not logged in, run: az login
+
 [colors]
 web = "#0066CC"
 folder = "#FF9500"

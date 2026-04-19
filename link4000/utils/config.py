@@ -276,6 +276,10 @@ unknown = "#999999"
 # ".py" = "#008000"
 # ".txt" = "#757575"
 # ".md" = "#000000"
+
+# OneDrive/SharePoint resolution: No configuration needed!
+# Simply ensure Azure CLI is installed and user has run 'az login'.
+# The app will automatically use the credentials from Azure CLI.
 """
 
     with open(_CONFIG_PATH, "w") as f:
