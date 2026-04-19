@@ -128,11 +128,14 @@ Configuration is stored in `~/.link4000/config.toml`:
 #   "normal"           - minimize to taskbar and close normally (no tray icon)
 # tray_behavior = "close_to_tray"
 
-# Load recent files from MS Office (Windows-only), Windows and Linux (Gnome)
-# load_recent_files = true
-
-# Load favorites from Edge browser
-# load_favorites = true
+[sources]
+# Enable/disable source plugins. Available sources:
+#   - json_store: User-managed links stored in JSON
+#   - recent_windows: Recent files on Windows
+#   - recent_linux_gnome: Recent files on Linux/GNOME
+#   - office_recent: Recent Office documents (Windows)
+#   - edge_favorites: Microsoft Edge browser favorites
+# enabled = ["json_store", "recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
 
 [colors]
 web = "#0066CC"
@@ -173,7 +176,14 @@ link4000/
 │   └── path_utils.py    # URL/path utilities
 ├── data/
 │   ├── link_store.py    # Link persistence
-│   ├── recent_docs.py   # Recent files (Windows/Linux)
+│   ├── link_source.py   # Abstract base class for source plugins
+│   ├── source_registry.py # Plugin registry
+│   └── loader_types.py  # Source entry types
+├── source_plugins/  # Source plugin implementations
+│   ├── __init__.py  # Auto-registers all plugins
+│   ├── json_store.py # User-managed links
+│   ├── recent_docs_windows.py # Windows recent files
+│   ├── recent_docs_linux_gnome.py # Linux/GNOME recent files
 │   ├── edge_favorites.py # Edge browser favorites
 │   └── office_recent_docs.py # Office recent documents
 └── ui/

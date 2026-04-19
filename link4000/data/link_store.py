@@ -11,39 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from link4000.data.loader_types import SourceEntry
-from link4000.data.link_source import LinkSource
-from link4000.data.source_registry import SourceRegistry
 from link4000.models.link import Link
 from link4000.utils.config import get_links_file_path
-
-
-@SourceRegistry.register
-class JsonStoreSource(LinkSource):
-    """Link source for loading links from the JSON store."""
-
-    name = "json_store"
-    source_tag = "json_store"
-
-    def fetch(self) -> list[SourceEntry]:
-        """Fetch all links from the JSON store as SourceEntry objects."""
-        store = LinkStore()
-        links = store.get_all()
-
-        entries: list[SourceEntry] = []
-        for link in links:
-            entries.append(
-                SourceEntry(
-                    url=link.url,
-                    title=link.title,
-                    created_at=link.created_at,
-                    updated_at=link.updated_at,
-                    last_accessed=link.last_accessed,
-                    source_tag=self.source_tag,
-                )
-            )
-
-        return entries
 
 
 class LinkStore:

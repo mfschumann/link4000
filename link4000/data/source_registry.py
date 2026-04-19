@@ -1,6 +1,5 @@
 """Plugin registry for link sources."""
 
-import importlib
 from typing import List
 
 from link4000.data.link_source import LinkSource
@@ -44,13 +43,8 @@ class SourceRegistry:
 
         Registration happens via `@SourceRegistry.register` at import time.
         """
-        for module_name in (
-            "link4000.data.link_store",
-            "link4000.data.recent_docs",
-            "link4000.data.office_recent_docs",
-            "link4000.data.edge_favorites",
-        ):
-            importlib.import_module(module_name)
+        # Import the source_plugins package which imports all plugin modules
+        import link4000.source_plugins  # noqa: F401
 
     @classmethod
     def get_enabled_sources(cls) -> List[LinkSource]:

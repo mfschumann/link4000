@@ -70,7 +70,8 @@ class TestConfigDefaults:
         sources = config.get_enabled_sources()
         assert isinstance(sources, list)
         assert "json_store" in sources
-        assert "recent" in sources
+        assert "recent_windows" in sources
+        assert "recent_linux_gnome" in sources
         assert "office_recent" in sources
         assert "edge_favorites" in sources
 
