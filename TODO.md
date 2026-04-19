@@ -1,6 +1,5 @@
 ## FIXME
 - icon disappears sometimes (after reload? when moving window across monitors?)
-- remove limit of 200 recent files
 
 ## TODO
 - resolve links on OneDrive to sharepoint URLs

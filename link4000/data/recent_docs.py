@@ -52,7 +52,7 @@ class RecentSource(LinkSource):
         entries: list[SourceEntry] = []
         for lnk_path in sorted(
             recent_folder.glob("*.lnk"), key=lambda p: p.stat().st_mtime, reverse=True
-        )[:200]:
+        ):
             target, title = resolve_lnk(lnk_path)
             if not target:
                 continue
