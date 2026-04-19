@@ -24,7 +24,7 @@ class Link:
         updated_at: Timestamp when the link was last modified.
         last_accessed: Timestamp when the link was last opened.
         source_tag: Tag identifying the source (e.g., "recent", "office_recent",
-            "edge_favorites", "json_store"). Empty for stored links.
+            "edge_favorites"). Empty for stored links.
     """
 
     title: str
