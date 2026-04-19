@@ -27,10 +27,12 @@ class RecentDocsLinuxGnomeSource(LinkSource):
     name = "recent_linux_gnome"
     source_tag = "recent"
 
+    _xbel_path = Path.home() / ".local" / "share" / "recently-used.xbel"
+
     @property
     def is_available(self) -> bool:
         """Check if Linux/GNOME recent files source is available."""
-        return sys.platform.startswith("linux")
+        return sys.platform.startswith("linux") and self._xbel_path.is_file()
 
     def fetch(self) -> list[SourceEntry]:
         """Fetch recently-opened files on Linux/GNOME from recently-used.xbel.
@@ -38,8 +40,7 @@ class RecentDocsLinuxGnomeSource(LinkSource):
         Returns:
             A list of SourceEntry objects representing recent files.
         """
-        xbel_path = Path.home() / ".local" / "share" / "recently-used.xbel"
-        if not xbel_path.exists():
+        if not self.is_available:
             return []
 
         entries: list[SourceEntry] = []
@@ -47,7 +48,7 @@ class RecentDocsLinuxGnomeSource(LinkSource):
         try:
             import xml.etree.ElementTree as elmTree
 
-            tree = elmTree.parse(xbel_path)
+            tree = elmTree.parse(self._xbel_path)
             root = tree.getroot()
             if root is None:
                 return []

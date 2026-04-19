@@ -28,10 +28,14 @@ class RecentDocsWindowsSource(LinkSource):
     name = "recent_windows"
     source_tag = "recent"
 
+    _recent_folder = (
+        Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Recent"
+    )
+
     @property
     def is_available(self) -> bool:
         """Check if Windows recent files source is available."""
-        return sys.platform == "win32"
+        return sys.platform == "win32" and self._recent_folder.exists()
 
     def fetch(self) -> list[SourceEntry]:
         """Fetch recently-opened files on Windows via .lnk shortcuts.
@@ -39,16 +43,12 @@ class RecentDocsWindowsSource(LinkSource):
         Returns:
             A list of SourceEntry objects representing recent files.
         """
-        recent_folder = (
-            Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Recent"
-        )
-
-        if not recent_folder.exists():
+        if not self.is_available:
             return []
 
         entries: list[SourceEntry] = []
         for lnk_path in sorted(
-            recent_folder.glob("*.lnk"), key=lambda p: p.stat().st_mtime, reverse=True
+            self._recent_folder.glob("*.lnk"), key=lambda p: p.stat().st_mtime, reverse=True
         ):
             target, title = resolve_lnk(lnk_path)
             if not target:

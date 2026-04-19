@@ -34,7 +34,7 @@ class EdgeFavoritesSource(LinkSource):
     def fetch(self) -> list[SourceEntry]:
         """Return favorites from Microsoft Edge, newest first based on date_added."""
         bookmarks_path = self._get_bookmarks_path()
-        if not bookmarks_path:
+        if not self.is_available:
             return []
         return self._fetch_favorites_from_path(bookmarks_path)
 
