@@ -1,5 +1,6 @@
 ## FIXME
 - icon disappears sometimes (after reload? when moving window across monitors?)
+- remove limit of 200 recent files
 
 ## TODO
 - resolve links on OneDrive to sharepoint URLs
@@ -8,6 +9,8 @@
 - UX: what buttons do we need in the main list?
 - add "resolve" checkbox in add/edit dialog
 - add indexing of items to enable full text search
+- add browser history
+- add chrome favorites
 
 ## DONE (not yet tested)
 
