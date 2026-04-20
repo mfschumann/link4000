@@ -73,6 +73,7 @@ class TestConfigDefaults:
         assert "recent_linux_gnome" in sources
         assert "office_recent" in sources
         assert "edge_favorites" in sources
+        assert "edge_history" in sources
 
     def test_default_exclusion_patterns(self):
         """Test default exclusion_patterns is an empty list."""
@@ -169,14 +170,16 @@ tray_behavior = "invalid_value"
         assert behavior == "close_to_tray"
 
     def test_custom_enabled_sources(self, temp_config):
-        """Test loading custom enabled sources list."""
+        """Test disabling a source via per-source enabled option."""
         with open(temp_config, "w") as f:
             f.write("""
-[sources]
-enabled = ["json_store", "recent"]
+[sources.recent_windows]
+enabled = false
 """)
 
-        assert config.get_enabled_sources() == ["json_store", "recent"]
+        sources = config.get_enabled_sources()
+        assert "recent_windows" not in sources
+        assert "recent_linux_gnome" in sources  # still enabled by default
 
     def test_custom_colors(self, temp_config):
         """Test loading custom colors."""
@@ -270,7 +273,7 @@ class TestEnsureConfigExists:
 
         content = config_file.read_text()
         assert "[global]" in content
-        assert "[sources]" in content
+        assert "[sources.recent_windows]" in content
         assert "[colors]" in content
         assert "tray_behavior" in content
         assert "enabled =" in content
