@@ -44,18 +44,20 @@ class TagFilterWindow(QDialog):
     _link_types = {"web", "folder", "file", "sharepoint", "unknown"}
 
     def _get_dynamic_tags(self) -> tuple[str, ...]:
-        """Return tags from all registered source plugins.
+        """Return unique source_tags from all registered source plugins.
 
         Queries the SourceRegistry to get the source_tag from all available
-        source plugins. These tags represent dynamically generated entries
-        and are displayed in italics.
+        source plugins. Multiple plugins may share the same source_tag (e.g.,
+        recent_windows and recent_linux_gnome both use "recent"). These tags
+        represent dynamically generated entries and are displayed in italics.
 
         Returns:
-            Tuple of source_tag strings from registered plugins.
+            Tuple of unique source_tag strings from registered plugins.
         """
         SourceRegistry._ensure_plugins_loaded()
         registered = SourceRegistry.get_registered_sources()
-        return tuple(source_class.source_tag for source_class in registered.values())
+        unique_tags = {source_class.source_tag for source_class in registered.values()}
+        return tuple(sorted(unique_tags))
 
     def __init__(
         self,
