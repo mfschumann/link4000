@@ -25,6 +25,9 @@ _DEFAULTS = {
     },
     "sources": {
         "enabled": ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"],
+        "recent_windows": {"max_age_days": 0},
+        "recent_linux_gnome": {"max_age_days": 0},
+        "office_recent": {"max_age_days": 0},
     },
     "colors": {
         "web": "#0066CC",
@@ -209,6 +212,30 @@ def get_enabled_sources() -> list[str]:
     return sources_cfg.get("enabled", _DEFAULTS["sources"]["enabled"])
 
 
+def get_source_config(source_name: str) -> dict:
+    """Return the configuration dictionary for a specific source plugin.
+
+    Reads from [sources.<source_name>] section in config.toml, merging with
+    defaults defined in _DEFAULTS.
+
+    Args:
+        source_name: The name of the source plugin (e.g., "recent_windows").
+
+    Returns:
+        Dictionary of configuration options for the source plugin.
+    """
+    cfg = _get_config()
+    sources_cfg = cfg.get("sources", _DEFAULTS["sources"])
+
+    default_source_cfg = _DEFAULTS["sources"].get(source_name, {})
+
+    stored_source_cfg = sources_cfg.get(source_name, {})
+
+    merged = default_source_cfg.copy()
+    merged.update(stored_source_cfg)
+    return merged
+
+
 def ensure_config_exists() -> None:
     """Create default config.toml if it doesn't exist."""
     if os.path.exists(_CONFIG_PATH):
@@ -248,6 +275,25 @@ def ensure_config_exists() -> None:
 # List of enabled link source plugins (json_store is always enabled via LinkStore).
 # Available sources: recent_windows (Windows), recent_linux_gnome (Linux/GNOME), office_recent (Windows), edge_favorites
 # enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
+
+# Per-source configuration options:
+# Each source can have its own config section under [sources.<source_name>]
+# Options defined in config_schema use defaults if not specified.
+
+# Windows recent files config:
+[sources.recent_windows]
+# Maximum age in days for recent items (0 = no limit)
+# max_age_days = 0
+
+# Linux/GNOME recent files config:
+[sources.recent_linux_gnome]
+# Maximum age in days for recent items (0 = no limit)
+# max_age_days = 0
+
+# Office recent documents config:
+[sources.office_recent]
+# Maximum age in days for recent items (0 = no limit)
+# max_age_days = 0
 
 [colors]
 web = "#0066CC"

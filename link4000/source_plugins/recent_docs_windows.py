@@ -27,6 +27,9 @@ class RecentDocsWindowsSource(LinkSource):
 
     name = "recent_windows"
     source_tag = "recent"
+    config_schema = [
+        ("max_age_days", int, 0, "Maximum age in days for recent items (0 = no limit)"),
+    ]
 
     _recent_folder = (
         Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Recent"
@@ -72,4 +75,5 @@ class RecentDocsWindowsSource(LinkSource):
                 )
             )
 
-        return entries
+        max_age_days = self.get_config().get("max_age_days", 0)
+        return self._filter_by_age(entries, max_age_days)

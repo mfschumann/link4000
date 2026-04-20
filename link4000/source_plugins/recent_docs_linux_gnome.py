@@ -26,6 +26,9 @@ class RecentDocsLinuxGnomeSource(LinkSource):
 
     name = "recent_linux_gnome"
     source_tag = "recent"
+    config_schema = [
+        ("max_age_days", int, 0, "Maximum age in days for recent items (0 = no limit)"),
+    ]
 
     _xbel_path = Path.home() / ".local" / "share" / "recently-used.xbel"
 
@@ -125,4 +128,6 @@ class RecentDocsLinuxGnomeSource(LinkSource):
             pass
 
         entries.sort(key=lambda e: e.last_accessed, reverse=True)
-        return entries
+
+        max_age_days = self.get_config().get("max_age_days", 0)
+        return self._filter_by_age(entries, max_age_days)

@@ -26,6 +26,9 @@ class OfficeRecentSource(LinkSource):
 
     name = "office_recent"
     source_tag = "office_recent"
+    config_schema = [
+        ("max_age_days", int, 0, "Maximum age in days for recent items (0 = no limit)"),
+    ]
 
     @property
     def is_available(self) -> bool:
@@ -40,7 +43,9 @@ class OfficeRecentSource(LinkSource):
         entries.extend(self._fetch_office_user_mru_entries())
 
         entries.sort(key=lambda e: e.last_accessed, reverse=True)
-        return entries
+
+        max_age_days = self.get_config().get("max_age_days", 0)
+        return self._filter_by_age(entries, max_age_days)
 
     def _fetch_office_mru_entries(self) -> list[SourceEntry]:
         r"""Read from HKEY_CURRENT_USER\Software\Microsoft\Office\<version>\<App>\File MRU"""
