@@ -436,8 +436,12 @@ class MainWindow(QMainWindow):
         self._all_tags = set()
         for link in stored:
             self._all_tags.update(link.tags)
+        # Add source_tags from registered source plugins (not source names)
+        SourceRegistry._ensure_plugins_loaded()
+        registered = SourceRegistry.get_registered_sources()
         for source_name in self._enabled_sources:
-            self._all_tags.add(source_name)
+            if source_name in registered:
+                self._all_tags.add(registered[source_name].source_tag)
 
         self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
         self._proxy_model.sort(
@@ -590,8 +594,12 @@ class MainWindow(QMainWindow):
         self._all_tags = set()
         for link in self._model._links:
             self._all_tags.update(link.tags)
+        # Add source_tags from registered source plugins (not source names)
+        SourceRegistry._ensure_plugins_loaded()
+        registered = SourceRegistry.get_registered_sources()
         for source_name in self._enabled_sources:
-            self._all_tags.add(source_name)
+            if source_name in registered:
+                self._all_tags.add(registered[source_name].source_tag)
 
     def _on_search_changed(self, text: str) -> None:
         """Handle search input text changes.
