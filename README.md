@@ -137,6 +137,21 @@ Configuration is stored in `~/.link4000/config.toml`:
 #   - edge_favorites: Microsoft Edge browser favorites
 # enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
 
+# Per-source configuration options:
+# Each source can have its own config section under [sources.<source_name>]
+
+# Windows recent files - limit by age in days (0 = no limit)
+[sources.recent_windows]
+# max_age_days = 0
+
+# Linux/GNOME recent files - limit by age in days (0 = no limit)
+[sources.recent_linux_gnome]
+# max_age_days = 0
+
+# Office recent documents - limit by age in days (0 = no limit)
+[sources.office_recent]
+# max_age_days = 0
+
 [colors]
 web = "#0066CC"
 folder = "#FF9500"
@@ -204,6 +219,7 @@ main.py                  # Application entry point
 - **Clipboard Integration**: Pre-fill URL from clipboard when adding links
 - **Drag & Drop**: (Planned) Import links by dragging files
 - **Import/Export**: JSON format for portability
+- **Source Plugins**: Configurable source plugins with per-source options (e.g., age limits for recent files)
 
 ## Platform-Specific Features
 
