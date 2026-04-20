@@ -42,7 +42,13 @@ class TagFilterWindow(QDialog):
 
     tags_and_types_selected = Signal(set, bool, set)  # (tags, tag_match_all, types)
     filter_preview = Signal(set, bool, set)  # Preview filter as selection changes
-    _dynamic_tags = ("recent", "favorite")
+    _dynamic_tags = (
+        "favorite",  # from json_store
+        "recent",  # from recent_docs plugins
+        "office_recent",  # from office_recent_docs plugin
+        "edge_favorites",  # from edge_favorites plugin
+        "edge_history",  # from edge_history plugin
+    )
     _link_types = {"web", "folder", "file", "sharepoint", "unknown"}
 
     def __init__(

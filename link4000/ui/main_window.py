@@ -730,8 +730,6 @@ class MainWindow(QMainWindow):
             types found in the store (e.g. file extensions or URL types).
         """
         types = set()
-        return types
-
         for link in self._store.get_all():
             link_ext = link.file_extension
             if link_ext:
