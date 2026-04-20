@@ -11,7 +11,7 @@ Link4000 allows you to:
 - Store and organize URLs and file paths with custom tags
 - Search and filter links by title, tags, or type
 - View recently used files from Windows, Linux (GNOME), or macOS
-- Import favorites from Microsoft Edge browser
+- Import favorites and browsing history from Microsoft Edge browser
 - Access Microsoft Office recent documents (Windows)
 - Open links in your default browser or file manager
 
@@ -129,28 +129,42 @@ Configuration is stored in `~/.link4000/config.toml`:
 # tray_behavior = "close_to_tray"
 
 [sources]
-# Enable/disable source plugins (json_store is always enabled via LinkStore).
+# Source plugins configuration.
+# Set enabled = false to disable a source (defaults to true).
 # Available sources:
 #   - recent_windows: Recent files on Windows
 #   - recent_linux_gnome: Recent files on Linux/GNOME
 #   - office_recent: Recent Office documents (Windows)
 #   - edge_favorites: Microsoft Edge browser favorites
-# enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
+#   - edge_history: Microsoft Edge browser browsing history
 
-# Per-source configuration options:
-# Each source can have its own config section under [sources.<source_name>]
-
-# Windows recent files - limit by age in days (0 = no limit)
+# Windows recent files
 [sources.recent_windows]
-# max_age_days = 0
+enabled = true
+# Maximum age in days (0 = no limit)
+max_age_days = 0
 
-# Linux/GNOME recent files - limit by age in days (0 = no limit)
+# Linux/GNOME recent files
 [sources.recent_linux_gnome]
-# max_age_days = 0
+enabled = true
+# Maximum age in days (0 = no limit)
+max_age_days = 0
 
-# Office recent documents - limit by age in days (0 = no limit)
+# Office recent documents
 [sources.office_recent]
-# max_age_days = 0
+enabled = true
+# Maximum age in days (0 = no limit)
+max_age_days = 0
+
+# Edge browser favorites
+[sources.edge_favorites]
+enabled = true
+
+# Edge browser history
+[sources.edge_history]
+enabled = true
+# Maximum age in days (0 = no limit)
+max_age_days = 30
 
 [colors]
 web = "#0066CC"
@@ -199,6 +213,7 @@ link4000/
 │   ├── recent_docs_windows.py # Windows recent files
 │   ├── recent_docs_linux_gnome.py # Linux/GNOME recent files
 │   ├── edge_favorites.py # Edge browser favorites
+│   ├── edge_history.py # Edge browser history
 │   └── office_recent_docs.py # Office recent documents
 └── ui/
     ├── main_window.py        # Main application window
@@ -227,6 +242,7 @@ main.py                  # Application entry point
 |---------------------|---------|-----------|-------|
 | Recent Files        | ✅       | ✅ (GNOME) | -     |
 | Edge Favorites      | ✅       | ✅         | ✅     |
+| Edge History        | ✅       | ✅         | ✅     |
 | Office Recent       | ✅       | -         | -     |
 | UNC Path Resolution | ✅       | -         | -     |
 

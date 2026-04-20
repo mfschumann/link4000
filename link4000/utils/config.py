@@ -24,10 +24,11 @@ _DEFAULTS = {
         "tray_behavior": "close_to_tray",
     },
     "sources": {
-        "enabled": ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"],
-        "recent_windows": {"max_age_days": 0},
-        "recent_linux_gnome": {"max_age_days": 0},
-        "office_recent": {"max_age_days": 0},
+        "recent_windows": {"enabled": True, "max_age_days": 0},
+        "recent_linux_gnome": {"enabled": True, "max_age_days": 0},
+        "office_recent": {"enabled": True, "max_age_days": 0},
+        "edge_favorites": {"enabled": True},
+        "edge_history": {"enabled": True, "max_age_days": 30},
     },
     "colors": {
         "web": "#0066CC",
@@ -202,14 +203,25 @@ def get_tray_behavior() -> str:
 
 
 def get_enabled_sources() -> list[str]:
-    """Return the list of enabled source plugins.
+    """Return the list of enabled source plugin names.
+
+    Checks the 'enabled' config option for each registered source plugin.
+    Sources default to enabled (True) if not explicitly configured.
 
     Returns:
         List of source names that should be loaded.
     """
-    cfg = _get_config()
-    sources_cfg = cfg.get("sources", _DEFAULTS["sources"])
-    return sources_cfg.get("enabled", _DEFAULTS["sources"]["enabled"])
+    from link4000.data.source_registry import SourceRegistry
+
+    SourceRegistry._ensure_plugins_loaded()
+    registered = SourceRegistry.get_registered_sources()
+
+    enabled = []
+    for name in registered:
+        source_cfg = get_source_config(name)
+        if source_cfg.get("enabled", True):
+            enabled.append(name)
+    return enabled
 
 
 def get_source_config(source_name: str) -> dict:
@@ -271,29 +283,42 @@ def ensure_config_exists() -> None:
 #   "normal"           - minimize to taskbar and close normally (no tray icon)
 # tray_behavior = "close_to_tray"
 
-[sources]
-# List of enabled link source plugins (json_store is always enabled via LinkStore).
-# Available sources: recent_windows (Windows), recent_linux_gnome (Linux/GNOME), office_recent (Windows), edge_favorites
-# enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
-
 # Per-source configuration options:
 # Each source can have its own config section under [sources.<source_name>]
-# Options defined in config_schema use defaults if not specified.
+# Set enabled = false to disable a source (defaults to true).
 
 # Windows recent files config:
 [sources.recent_windows]
+# Set to false to disable this source
+enabled = true
 # Maximum age in days for recent items (0 = no limit)
-# max_age_days = 0
+max_age_days = 0
 
 # Linux/GNOME recent files config:
 [sources.recent_linux_gnome]
+# Set to false to disable this source
+enabled = true
 # Maximum age in days for recent items (0 = no limit)
-# max_age_days = 0
+max_age_days = 0
 
 # Office recent documents config:
 [sources.office_recent]
+# Set to false to disable this source
+enabled = true
 # Maximum age in days for recent items (0 = no limit)
-# max_age_days = 0
+max_age_days = 0
+
+# Edge browser favorites config:
+[sources.edge_favorites]
+# Set to false to disable this source
+enabled = true
+
+# Edge browser history config:
+[sources.edge_history]
+# Set to false to disable this source
+enabled = true
+# Maximum age in days for history items (0 = no limit)
+max_age_days = 30
 
 [colors]
 web = "#0066CC"

@@ -10,12 +10,14 @@ module imports all plugin modules to ensure they get registered.
 """
 
 from link4000.source_plugins.edge_favorites import EdgeFavoritesSource
+from link4000.source_plugins.edge_history import EdgeHistorySource
 from link4000.source_plugins.office_recent_docs import OfficeRecentSource
 from link4000.source_plugins.recent_docs_windows import RecentDocsWindowsSource
 from link4000.source_plugins.recent_docs_linux_gnome import RecentDocsLinuxGnomeSource
 
 __all__ = [
     "EdgeFavoritesSource",
+    "EdgeHistorySource",
     "OfficeRecentSource",
     "RecentDocsWindowsSource",
     "RecentDocsLinuxGnomeSource",

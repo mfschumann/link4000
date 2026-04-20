@@ -68,15 +68,16 @@ class TestTagFilterWindowInit:
         assert dlg._tag_or_radio.isChecked()
 
     def test_dynamic_tags_are_italic(self):
-        """Dynamic tags (e.g. 'recent', 'favorite') are rendered in italic font."""
+        """Dynamic tags (e.g. 'recent') are rendered in italic font."""
         dlg = TagFilterWindow(
-            all_tags={"work", "recent", "favorite"},
+            all_tags={"work", "recent"},
             selected_tags=set(),
             selected_types=set(),
         )
+        dynamic_tags = dlg._get_dynamic_tags()
         for i in range(dlg._tags_list.count()):
             item = dlg._tags_list.item(i)
-            if item.text() in ("recent", "favorite"):
+            if item.text() in dynamic_tags:
                 assert item.font().italic()
             else:
                 assert not item.font().italic()
@@ -84,13 +85,14 @@ class TestTagFilterWindowInit:
     def test_tags_sorted_dynamics_first(self):
         """Dynamic tags appear before regular tags, each group sorted alphabetically."""
         dlg = TagFilterWindow(
-            all_tags={"work", "recent", "personal", "favorite"},
+            all_tags={"work", "recent", "personal"},
             selected_tags=set(),
             selected_types=set(),
         )
         tags = [dlg._tags_list.item(i).text() for i in range(dlg._tags_list.count())]
-        dynamic = [t for t in tags if t in TagFilterWindow._dynamic_tags]
-        regular = [t for t in tags if t not in TagFilterWindow._dynamic_tags]
+        dynamic_tags = dlg._get_dynamic_tags()
+        dynamic = [t for t in tags if t in dynamic_tags]
+        regular = [t for t in tags if t not in dynamic_tags]
         assert dynamic == sorted(dynamic)
         assert regular == sorted(regular)
 
