@@ -22,8 +22,12 @@ _DEFAULTS = {
         "exclusion_patterns": [],
         "theme": "light",
         "tray_behavior": "close_to_tray",
-        "load_recent_files": True,
-        "load_favorites": True,
+    },
+    "sources": {
+        "enabled": ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"],
+        "recent_windows": {"max_age_days": 0},
+        "recent_linux_gnome": {"max_age_days": 0},
+        "office_recent": {"max_age_days": 0},
     },
     "colors": {
         "web": "#0066CC",
@@ -197,26 +201,39 @@ def get_tray_behavior() -> str:
     return value
 
 
-def get_load_recent_files() -> bool:
-    """
-    Return whether loading of OS and Office recent files is enabled.
+def get_enabled_sources() -> list[str]:
+    """Return the list of enabled source plugins.
 
-    Default is True.
-    """
-    cfg = _get_config()
-    global_cfg = cfg.get("global", {})
-    return global_cfg.get("load_recent_files", _DEFAULTS["global"]["load_recent_files"])
-
-
-def get_load_favorites() -> bool:
-    """
-    Return whether loading of browser favorites is enabled.
-
-    Default is True.
+    Returns:
+        List of source names that should be loaded.
     """
     cfg = _get_config()
-    global_cfg = cfg.get("global", {})
-    return global_cfg.get("load_favorites", _DEFAULTS["global"]["load_favorites"])
+    sources_cfg = cfg.get("sources", _DEFAULTS["sources"])
+    return sources_cfg.get("enabled", _DEFAULTS["sources"]["enabled"])
+
+
+def get_source_config(source_name: str) -> dict:
+    """Return the configuration dictionary for a specific source plugin.
+
+    Reads from [sources.<source_name>] section in config.toml, merging with
+    defaults defined in _DEFAULTS.
+
+    Args:
+        source_name: The name of the source plugin (e.g., "recent_windows").
+
+    Returns:
+        Dictionary of configuration options for the source plugin.
+    """
+    cfg = _get_config()
+    sources_cfg = cfg.get("sources", _DEFAULTS["sources"])
+
+    default_source_cfg = _DEFAULTS["sources"].get(source_name, {})
+
+    stored_source_cfg = sources_cfg.get(source_name, {})
+
+    merged = default_source_cfg.copy()
+    merged.update(stored_source_cfg)
+    return merged
 
 
 def ensure_config_exists() -> None:
@@ -254,11 +271,29 @@ def ensure_config_exists() -> None:
 #   "normal"           - minimize to taskbar and close normally (no tray icon)
 # tray_behavior = "close_to_tray"
 
-# Load recent files from the OS and Office MRU (default: true)
-# load_recent_files = true
+[sources]
+# List of enabled link source plugins (json_store is always enabled via LinkStore).
+# Available sources: recent_windows (Windows), recent_linux_gnome (Linux/GNOME), office_recent (Windows), edge_favorites
+# enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
 
-# Load favorites from Microsoft Edge (default: true)
-# load_favorites = true
+# Per-source configuration options:
+# Each source can have its own config section under [sources.<source_name>]
+# Options defined in config_schema use defaults if not specified.
+
+# Windows recent files config:
+[sources.recent_windows]
+# Maximum age in days for recent items (0 = no limit)
+# max_age_days = 0
+
+# Linux/GNOME recent files config:
+[sources.recent_linux_gnome]
+# Maximum age in days for recent items (0 = no limit)
+# max_age_days = 0
+
+# Office recent documents config:
+[sources.office_recent]
+# Maximum age in days for recent items (0 = no limit)
+# max_age_days = 0
 
 [colors]
 web = "#0066CC"
