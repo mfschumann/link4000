@@ -68,9 +68,9 @@ class TestTagFilterWindowInit:
         assert dlg._tag_or_radio.isChecked()
 
     def test_dynamic_tags_are_italic(self):
-        """Dynamic tags (e.g. 'recent', 'favorite') are rendered in italic font."""
+        """Dynamic tags (e.g. 'recent') are rendered in italic font."""
         dlg = TagFilterWindow(
-            all_tags={"work", "recent", "favorite"},
+            all_tags={"work", "recent"},
             selected_tags=set(),
             selected_types=set(),
         )
@@ -85,7 +85,7 @@ class TestTagFilterWindowInit:
     def test_tags_sorted_dynamics_first(self):
         """Dynamic tags appear before regular tags, each group sorted alphabetically."""
         dlg = TagFilterWindow(
-            all_tags={"work", "recent", "personal", "favorite"},
+            all_tags={"work", "recent", "personal"},
             selected_tags=set(),
             selected_types=set(),
         )

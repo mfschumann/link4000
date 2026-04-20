@@ -44,19 +44,18 @@ class TagFilterWindow(QDialog):
     _link_types = {"web", "folder", "file", "sharepoint", "unknown"}
 
     def _get_dynamic_tags(self) -> tuple[str, ...]:
-        """Return tags from all registered source plugins plus built-in dynamic tags.
+        """Return tags from all registered source plugins.
 
         Queries the SourceRegistry to get the source_tag from all available
         source plugins. These tags represent dynamically generated entries
         and are displayed in italics.
 
         Returns:
-            Tuple of source_tag strings from registered plugins plus 'favorite'.
+            Tuple of source_tag strings from registered plugins.
         """
         SourceRegistry._ensure_plugins_loaded()
         registered = SourceRegistry.get_registered_sources()
-        source_tags = tuple(source_class.source_tag for source_class in registered.values())
-        return source_tags + ("favorite",)
+        return tuple(source_class.source_tag for source_class in registered.values())
 
     def __init__(
         self,
