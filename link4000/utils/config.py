@@ -24,10 +24,11 @@ _DEFAULTS = {
         "tray_behavior": "close_to_tray",
     },
     "sources": {
-        "enabled": ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"],
+        "enabled": ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites", "edge_history"],
         "recent_windows": {"max_age_days": 0},
         "recent_linux_gnome": {"max_age_days": 0},
         "office_recent": {"max_age_days": 0},
+        "edge_history": {"max_age_days": 30},
     },
     "colors": {
         "web": "#0066CC",
@@ -273,8 +274,8 @@ def ensure_config_exists() -> None:
 
 [sources]
 # List of enabled link source plugins (json_store is always enabled via LinkStore).
-# Available sources: recent_windows (Windows), recent_linux_gnome (Linux/GNOME), office_recent (Windows), edge_favorites
-# enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
+# Available sources: recent_windows (Windows), recent_linux_gnome (Linux/GNOME), office_recent (Windows), edge_favorites, edge_history
+# enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites", "edge_history"]
 
 # Per-source configuration options:
 # Each source can have its own config section under [sources.<source_name>]
@@ -294,6 +295,11 @@ def ensure_config_exists() -> None:
 [sources.office_recent]
 # Maximum age in days for recent items (0 = no limit)
 # max_age_days = 0
+
+# Edge browser history config:
+[sources.edge_history]
+# Maximum age in days for history items (default: 30 days, 0 = no limit)
+# max_age_days = 30
 
 [colors]
 web = "#0066CC"
