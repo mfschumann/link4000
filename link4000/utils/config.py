@@ -248,6 +248,20 @@ def get_source_config(source_name: str) -> dict:
     return merged
 
 
+def get_azure_cli_path() -> str:
+    """Return the path to the Azure CLI executable.
+
+    Reads from [onedrive] azure_cli_path config option.
+    Defaults to "az" (PATH lookup) if not configured.
+
+    Returns:
+        Path to Azure CLI executable or "az" for PATH lookup.
+    """
+    cfg = _get_config()
+    onedrive_cfg = cfg.get("onedrive", {})
+    return onedrive_cfg.get("azure_cli_path", "az")
+
+
 def ensure_config_exists() -> None:
     """Create default config.toml if it doesn't exist."""
     if os.path.exists(_CONFIG_PATH):
@@ -337,9 +351,10 @@ unknown = "#999999"
 # ".txt" = "#757575"
 # ".md" = "#000000"
 
-# OneDrive/SharePoint resolution: No configuration needed!
-# Simply ensure Azure CLI is installed and user has run 'az login'.
-# The app will automatically use the credentials from Azure CLI.
+# OneDrive/SharePoint resolution configuration
+# Optional: override the Azure CLI executable path
+# azure_cli_path = "az"  # Default: "az" (uses PATH lookup)
+# Examples: "C:/Program Files/Microsoft SDKs/Azure/az.exe", "/usr/local/bin/az"
 """
 
     with open(_CONFIG_PATH, "w") as f:

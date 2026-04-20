@@ -8,7 +8,10 @@ Uses Microsoft Graph API via office365-rest-python-client with
 Azure CLI authentication (no app registration required).
 """
 
+import json
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
@@ -16,13 +19,53 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from office365.graph_client import GraphClient
 
+from link4000.utils.config import get_azure_cli_path
+
 _graph_client: Optional["GraphClient"] = None
+
+
+def _get_access_token() -> Optional[str]:
+    """Get an access token using Azure CLI with configurable executable path.
+
+    Returns:
+        Access token string, or None if authentication fails.
+    """
+    azure_cli_path = get_azure_cli_path()
+
+    az_executable = azure_cli_path
+    if os.path.isdir(azure_cli_path):
+        az_path = shutil.which("az", path=azure_cli_path)
+        az_executable = az_path if az_path else "az"
+    elif os.path.isfile(azure_cli_path):
+        az_executable = azure_cli_path
+
+    scopes = "https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Sites.Read.All"
+
+    if sys.platform.startswith("win"):
+        cmd = ["cmd", "/c", f'"{az_executable}" account get-access-token --output json --resource {scopes}']
+    else:
+        cmd = ["/bin/sh", "-c", f'"{az_executable}" account get-access-token --output json --resource {scopes}']
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=dict(os.environ, AZURE_CORE_NO_COLOR="true"),
+        )
+        if result.returncode != 0:
+            return None
+        token_data = json.loads(result.stdout)
+        return token_data.get("accessToken")
+    except (subprocess.SubprocessError, json.JSONDecodeError, KeyError):
+        return None
 
 
 def _get_graph_client() -> Optional["GraphClient"]:
     """Get or create the Microsoft Graph client using Azure CLI authentication.
 
-    Uses AzureCliCredential which automatically uses credentials from 'az login'.
+    Uses Azure CLI (configurable path) to get access token from 'az login'.
     No app registration required.
 
     Returns:
@@ -33,19 +76,17 @@ def _get_graph_client() -> Optional["GraphClient"]:
         return _graph_client
 
     try:
-        from azure.identity import AzureCliCredential
         from office365.graph_client import GraphClient
     except ImportError:
         return None
 
     try:
-        credential = AzureCliCredential()
-        token = credential.get_token(
-            "https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Sites.Read.All"
-        )
+        token = _get_access_token()
+        if not token:
+            return None
 
         def acquire_token():
-            return {"access_token": token.token}
+            return {"access_token": token}
 
         _graph_client = GraphClient(
             tenant="common",

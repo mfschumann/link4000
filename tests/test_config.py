@@ -277,3 +277,50 @@ class TestEnsureConfigExists:
         assert "[colors]" in content
         assert "tray_behavior" in content
         assert "enabled =" in content
+
+
+class TestGetAzureCliPath:
+    """Test get_azure_cli_path function."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a temporary config file."""
+        config_dir = tmp_path / ".link4000"
+        config_dir.mkdir()
+
+        original_path = config._CONFIG_PATH
+        config_file = config_dir / "config.toml"
+        config._CONFIG_PATH = str(config_file)
+        config._config = None
+
+        yield str(config_file)
+
+        config._CONFIG_PATH = original_path
+        config._config = None
+
+    def test_default_azure_cli_path(self, temp_config):
+        """Test that default azure_cli_path is 'az'."""
+        with open(temp_config, "w") as f:
+            f.write("")
+        path = config.get_azure_cli_path()
+        assert path == "az"
+
+    def test_custom_azure_cli_path(self, temp_config):
+        """Test custom azure_cli_path configuration."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[onedrive]
+azure_cli_path = "C:/Program Files/Azure/az.exe"
+""")
+        path = config.get_azure_cli_path()
+        assert path == "C:/Program Files/Azure/az.exe"
+
+    def test_custom_azure_cli_path_unix(self, temp_config):
+        """Test custom azure_cli_path with unix path."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[onedrive]
+azure_cli_path = "/usr/local/bin/az"
+""")
+        path = config.get_azure_cli_path()
+        assert path == "/usr/local/bin/az"

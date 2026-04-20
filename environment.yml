@@ -11,4 +11,3 @@ dependencies:
   - py-spy
   - ruff
   - office365-rest-python-client
-  - azure-identity

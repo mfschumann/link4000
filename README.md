@@ -167,10 +167,18 @@ enabled = true
 max_age_days = 30
 
 [onedrive]
-# OneDrive/SharePoint resolution: No configuration needed!
+# OneDrive/SharePoint resolution: No configuration needed by default!
 # Simply ensure Azure CLI is installed and user has run 'az login'.
 # The app will automatically use the credentials from Azure CLI.
 # If not logged in, run: az login
+
+# Optional: Override the path to Azure CLI executable
+# Default: "az" (uses PATH lookup)
+# Examples:
+# azure_cli_path = "az"
+# azure_cli_path = "C:/Program Files/Microsoft SDKs/Azure/az.exe"
+# azure_cli_path = "/usr/local/bin/az"
+# azure_cli_path = "/path/to/custom/directory"  # will use shutil.which("az", path=...)
 
 [colors]
 web = "#0066CC"
