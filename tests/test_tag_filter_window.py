@@ -74,9 +74,10 @@ class TestTagFilterWindowInit:
             selected_tags=set(),
             selected_types=set(),
         )
+        dynamic_tags = dlg._get_dynamic_tags()
         for i in range(dlg._tags_list.count()):
             item = dlg._tags_list.item(i)
-            if item.text() in ("recent", "favorite"):
+            if item.text() in dynamic_tags:
                 assert item.font().italic()
             else:
                 assert not item.font().italic()
@@ -89,8 +90,9 @@ class TestTagFilterWindowInit:
             selected_types=set(),
         )
         tags = [dlg._tags_list.item(i).text() for i in range(dlg._tags_list.count())]
-        dynamic = [t for t in tags if t in TagFilterWindow._dynamic_tags]
-        regular = [t for t in tags if t not in TagFilterWindow._dynamic_tags]
+        dynamic_tags = dlg._get_dynamic_tags()
+        dynamic = [t for t in tags if t in dynamic_tags]
+        regular = [t for t in tags if t not in dynamic_tags]
         assert dynamic == sorted(dynamic)
         assert regular == sorted(regular)
 

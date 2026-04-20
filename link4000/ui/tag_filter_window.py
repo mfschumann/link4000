@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QFont, QCloseEvent
 
+from link4000.data.source_registry import SourceRegistry
 from link4000.utils.config import get_color_for_link
 
 
@@ -35,21 +36,27 @@ class TagFilterWindow(QDialog):
             as (tags, match_all, types).
         filter_preview: Signal emitted on every selection change for live
             preview as (tags, match_all, types).
-        _dynamic_tags: Tuple of tag names that are dynamically generated
-            (e.g. "recent", "favorite") and displayed in italics.
         _link_types: Set of known link type strings.
     """
 
     tags_and_types_selected = Signal(set, bool, set)  # (tags, tag_match_all, types)
     filter_preview = Signal(set, bool, set)  # Preview filter as selection changes
-    _dynamic_tags = (
-        "favorite",  # from json_store
-        "recent",  # from recent_docs plugins
-        "office_recent",  # from office_recent_docs plugin
-        "edge_favorites",  # from edge_favorites plugin
-        "edge_history",  # from edge_history plugin
-    )
     _link_types = {"web", "folder", "file", "sharepoint", "unknown"}
+
+    def _get_dynamic_tags(self) -> tuple[str, ...]:
+        """Return tags from all registered source plugins plus built-in dynamic tags.
+
+        Queries the SourceRegistry to get the source_tag from all available
+        source plugins. These tags represent dynamically generated entries
+        and are displayed in italics.
+
+        Returns:
+            Tuple of source_tag strings from registered plugins plus 'favorite'.
+        """
+        SourceRegistry._ensure_plugins_loaded()
+        registered = SourceRegistry.get_registered_sources()
+        source_tags = tuple(source_class.source_tag for source_class in registered.values())
+        return source_tags + ("favorite",)
 
     def __init__(
         self,
@@ -110,8 +117,9 @@ class TagFilterWindow(QDialog):
         Returns:
             A sorted list of dynamic tags followed by sorted regular tags.
         """
-        dynamic = sorted([t for t in tags if t in self._dynamic_tags])
-        regular = sorted([t for t in tags if t not in self._dynamic_tags])
+        dynamic_tags = self._get_dynamic_tags()
+        dynamic = sorted([t for t in tags if t in dynamic_tags])
+        regular = sorted([t for t in tags if t not in dynamic_tags])
         return dynamic + regular
 
     def _setup_ui(self) -> None:
@@ -135,7 +143,7 @@ class TagFilterWindow(QDialog):
             item = self._tags_list.item(i)
             if item.text() in self._selected_tags:
                 item.setSelected(True)
-            if item.text() in self._dynamic_tags:
+            if item.text() in self._get_dynamic_tags():
                 font = QFont()
                 font.setItalic(True)
                 item.setFont(font)
