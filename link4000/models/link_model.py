@@ -63,12 +63,12 @@ class LinkTableModel(QAbstractTableModel):
         """Initializes the table model with empty link lists and column headers."""
         super().__init__(parent)
         self._links: List[Link] = []
-        self._recent_links: List[Link] = []
+        self._dynamic_links: List[Link] = []
         self._headers = ["Title", "Tags", "Last Accessed", "", ""]
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         """Returns the total number of rows (standard + recent links)."""
-        return len(self._links) + len(self._recent_links)
+        return len(self._links) + len(self._dynamic_links)
 
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
         """Returns the number of columns in the model."""
@@ -95,10 +95,8 @@ class LinkTableModel(QAbstractTableModel):
             if col == self.COL_TITLE:
                 return link.title
             elif col == self.COL_TAGS:
-                if link.is_recent:
-                    return "recent"
-                if link.is_favorite:
-                    return "favorite"
+                if link.source_tag:
+                    return link.source_tag
                 return ", ".join(link.tags)
             elif col == self.COL_LAST_ACCESSED:
                 return format_relative_date(link.last_accessed)
@@ -126,7 +124,7 @@ class LinkTableModel(QAbstractTableModel):
                 return "Click to copy URL"
 
         if role == Qt.ItemDataRole.FontRole:
-            if link.is_recent or link.is_favorite:
+            if link.source_tag:
                 font = QFont()
                 font.setItalic(True)
                 return font
@@ -178,10 +176,10 @@ class LinkTableModel(QAbstractTableModel):
         self._links = links
         self.endResetModel()
 
-    def set_recent_links(self, recent: List[Link]) -> None:
+    def set_dynamic_links(self, recent: List[Link]) -> None:
         """Replaces the recent links list with the given list."""
         self.beginResetModel()
-        self._recent_links = recent
+        self._dynamic_links = recent
         self.endResetModel()
 
     def append_links(self, links: List[Link]) -> None:
@@ -192,14 +190,14 @@ class LinkTableModel(QAbstractTableModel):
         self._links.extend(links)
         self.endInsertRows()
 
-    def append_recent_links(self, recent: List[Link]) -> None:
+    def append_dynamic_links(self, recent: List[Link]) -> None:
         """Appends links to the recent list, notifying the view of new rows."""
         self.beginInsertRows(
             QModelIndex(),
-            len(self._links) + len(self._recent_links),
-            len(self._links) + len(self._recent_links) + len(recent) - 1,
+            len(self._links) + len(self._dynamic_links),
+            len(self._links) + len(self._dynamic_links) + len(recent) - 1,
         )
-        self._recent_links.extend(recent)
+        self._dynamic_links.extend(recent)
         self.endInsertRows()
 
     def _link_for_row(self, row: int) -> Link | None:
@@ -208,8 +206,8 @@ class LinkTableModel(QAbstractTableModel):
         if row < n:
             return self._links[row]
         r = row - n
-        if 0 <= r < len(self._recent_links):
-            return self._recent_links[r]
+        if 0 <= r < len(self._dynamic_links):
+            return self._dynamic_links[r]
         return None
 
     def get_link(self, row: int) -> Link | None:
@@ -221,7 +219,7 @@ class LinkTableModel(QAbstractTableModel):
         for link in self._links:
             if link.id == link_id:
                 return link
-        for link in self._recent_links:
+        for link in self._dynamic_links:
             if link.id == link_id:
                 return link
         return None
@@ -244,10 +242,10 @@ class LinkTableModel(QAbstractTableModel):
                 self.endRemoveRows()
                 return True
         n = len(self._links)
-        for i, link in enumerate(self._recent_links):
+        for i, link in enumerate(self._dynamic_links):
             if link.id == link_id:
                 self.beginRemoveRows(QModelIndex(), n + i, n + i)
-                self._recent_links.pop(i)
+                self._dynamic_links.pop(i)
                 self.endRemoveRows()
                 return True
         return False
@@ -272,9 +270,9 @@ class LinkTableModel(QAbstractTableModel):
                 )
                 return True
         n = len(self._links)
-        for i, link in enumerate(self._recent_links):
+        for i, link in enumerate(self._dynamic_links):
             if link.id == updated_link.id:
-                self._recent_links[i] = updated_link
+                self._dynamic_links[i] = updated_link
                 self.dataChanged.emit(
                     self.index(n + i, 0),
                     self.index(n + i, self.columnCount() - 1),

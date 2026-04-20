@@ -65,13 +65,14 @@ class TestConfigDefaults:
         behavior = config.get_tray_behavior()
         assert behavior == "close_to_tray"
 
-    def test_default_load_recent_files(self):
-        """Test default load_recent_files value is True."""
-        assert config.get_load_recent_files() is True
-
-    def test_default_load_favorites(self):
-        """Test default load_favorites value is True."""
-        assert config.get_load_favorites() is True
+    def test_default_enabled_sources(self):
+        """Test default enabled sources list contains expected values."""
+        sources = config.get_enabled_sources()
+        assert isinstance(sources, list)
+        assert "recent_windows" in sources
+        assert "recent_linux_gnome" in sources
+        assert "office_recent" in sources
+        assert "edge_favorites" in sources
 
     def test_default_exclusion_patterns(self):
         """Test default exclusion_patterns is an empty list."""
@@ -167,25 +168,15 @@ tray_behavior = "invalid_value"
         behavior = config.get_tray_behavior()
         assert behavior == "close_to_tray"
 
-    def test_load_recent_files_disabled(self, temp_config):
-        """Test loading load_recent_files = false."""
+    def test_custom_enabled_sources(self, temp_config):
+        """Test loading custom enabled sources list."""
         with open(temp_config, "w") as f:
             f.write("""
-[global]
-load_recent_files = false
+[sources]
+enabled = ["json_store", "recent"]
 """)
 
-        assert config.get_load_recent_files() is False
-
-    def test_load_favorites_disabled(self, temp_config):
-        """Test loading load_favorites = false."""
-        with open(temp_config, "w") as f:
-            f.write("""
-[global]
-load_favorites = false
-""")
-
-        assert config.get_load_favorites() is False
+        assert config.get_enabled_sources() == ["json_store", "recent"]
 
     def test_custom_colors(self, temp_config):
         """Test loading custom colors."""
@@ -279,7 +270,7 @@ class TestEnsureConfigExists:
 
         content = config_file.read_text()
         assert "[global]" in content
+        assert "[sources]" in content
         assert "[colors]" in content
         assert "tray_behavior" in content
-        assert "load_recent_files" in content
-        assert "load_favorites" in content
+        assert "enabled =" in content

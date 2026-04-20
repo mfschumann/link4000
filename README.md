@@ -128,11 +128,29 @@ Configuration is stored in `~/.link4000/config.toml`:
 #   "normal"           - minimize to taskbar and close normally (no tray icon)
 # tray_behavior = "close_to_tray"
 
-# Load recent files from MS Office (Windows-only), Windows and Linux (Gnome)
-# load_recent_files = true
+[sources]
+# Enable/disable source plugins (json_store is always enabled via LinkStore).
+# Available sources:
+#   - recent_windows: Recent files on Windows
+#   - recent_linux_gnome: Recent files on Linux/GNOME
+#   - office_recent: Recent Office documents (Windows)
+#   - edge_favorites: Microsoft Edge browser favorites
+# enabled = ["recent_windows", "recent_linux_gnome", "office_recent", "edge_favorites"]
 
-# Load favorites from Edge browser
-# load_favorites = true
+# Per-source configuration options:
+# Each source can have its own config section under [sources.<source_name>]
+
+# Windows recent files - limit by age in days (0 = no limit)
+[sources.recent_windows]
+# max_age_days = 0
+
+# Linux/GNOME recent files - limit by age in days (0 = no limit)
+[sources.recent_linux_gnome]
+# max_age_days = 0
+
+# Office recent documents - limit by age in days (0 = no limit)
+[sources.office_recent]
+# max_age_days = 0
 
 [colors]
 web = "#0066CC"
@@ -173,7 +191,13 @@ link4000/
 │   └── path_utils.py    # URL/path utilities
 ├── data/
 │   ├── link_store.py    # Link persistence
-│   ├── recent_docs.py   # Recent files (Windows/Linux)
+│   ├── link_source.py   # Abstract base class for source plugins
+│   ├── source_registry.py # Plugin registry
+│   └── loader_types.py  # Source entry types
+├── source_plugins/  # Source plugin implementations
+│   ├── __init__.py  # Auto-registers all plugins
+│   ├── recent_docs_windows.py # Windows recent files
+│   ├── recent_docs_linux_gnome.py # Linux/GNOME recent files
 │   ├── edge_favorites.py # Edge browser favorites
 │   └── office_recent_docs.py # Office recent documents
 └── ui/
@@ -195,6 +219,7 @@ main.py                  # Application entry point
 - **Clipboard Integration**: Pre-fill URL from clipboard when adding links
 - **Drag & Drop**: (Planned) Import links by dragging files
 - **Import/Export**: JSON format for portability
+- **Source Plugins**: Configurable source plugins with per-source options (e.g., age limits for recent files)
 
 ## Platform-Specific Features
 
