@@ -209,7 +209,6 @@ class AddLinkDialog(QDialog):
         resolved = resolve_unc_path(path)
         self._url_input.setText(resolved)
         if not self._title_manually_set:
-            # Use Path.name - normalize separators for cross-platform compatibility
             resolved_path = Path(resolved) if resolved else Path()
             basename = lnk_title if lnk_title else resolved_path.name
             if basename:
