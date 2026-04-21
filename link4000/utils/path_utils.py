@@ -199,7 +199,9 @@ def resolve_lnk(lnk_path: Path) -> tuple[str, str]:
         shell = win32com.client.Dispatch("WScript.Shell")
         shortcut = shell.CreateShortCut(str(lnk_path))
         target = shortcut.TargetPath
-        title = shortcut.Description or lnk_path.stem
+        # Normalize backslashes so Path.stem works on non-Windows platforms
+        # (lnk_path.stem treats backslash as filename char on Linux).
+        title = shortcut.Description or Path(lnk_path.name.replace("\\", "/")).stem
 
         return target, title
     except Exception as e:
