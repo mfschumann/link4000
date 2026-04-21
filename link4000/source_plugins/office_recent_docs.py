@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 import re
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import PurePath
 from typing import Optional
 
 from link4000.data.loader_types import SourceEntry
@@ -207,14 +207,14 @@ class OfficeRecentSource(LinkSource):
         if not path:
             return None
 
-        path = resolve_unc_path(path)
+        path = resolve_unc_path(PurePath(path))
 
         timestamp = self._parse_mru_timestamp(value)
 
-        title = Path(path).name
+        title = path.name
 
         return SourceEntry(
-            url=path,
+            url=str(path),
             title=title,
             created_at=timestamp,
             updated_at=timestamp,

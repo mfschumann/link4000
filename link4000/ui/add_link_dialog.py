@@ -6,7 +6,7 @@ and tag auto-completion from existing tags. Also supports deleting an
 existing link in edit mode.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -206,10 +206,10 @@ class AddLinkDialog(QDialog):
             if target:
                 path = target
 
-        resolved = resolve_unc_path(path)
-        self._url_input.setText(resolved)
+        resolved = resolve_unc_path(PurePath(path))
+        self._url_input.setText(str(resolved))
         if not self._title_manually_set:
-            resolved_path = Path(resolved) if resolved else Path()
+            resolved_path = resolved if resolved else Path()
             basename = lnk_title if lnk_title else resolved_path.name
             if basename:
                 self._auto_filling_title = True
@@ -303,17 +303,17 @@ class AddLinkDialog(QDialog):
             return
 
         if is_file_path(url):
-            url = resolve_unc_path(url)
+            url = resolve_unc_path(PurePath(url))
 
         tags = [t.strip() for t in self._tags_input.text().split(",") if t.strip()]
 
         if self._is_edit:
             self._link.title = title
-            self._link.url = url
+            self._link.url = str(url)
             self._link.tags = tags
             self.link = self._link
         else:
-            self.link = Link(title=title, url=url, tags=tags)
+            self.link = Link(title=title, url=str(url), tags=tags)
 
         self.accept()
 

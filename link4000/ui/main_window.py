@@ -62,7 +62,7 @@ from link4000.utils.config import (
     get_enabled_sources,
 )
 from link4000.data.source_registry import SourceRegistry
-from pathlib import Path
+from pathlib import Path, PurePath
 
 
 class ButtonDelegate(QItemDelegate):
@@ -479,8 +479,8 @@ class MainWindow(QMainWindow):
                 entries = source.fetch()
                 for entry in entries:
                     url = entry.url
-                    if sys.platform == "win32" and is_file_path(url):
-                        url = resolve_unc_path(url)
+                    if is_file_path(url):
+                        url = str(resolve_unc_path(PurePath(url)))
                     if (
                         url.lower() in self._stored_urls
                         or url.lower() in self._excluded_urls_lower

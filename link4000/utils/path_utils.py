@@ -4,7 +4,7 @@ import os
 import re
 import sys
 import urllib.parse
-from pathlib import Path, PurePath, PureWindowsPath
+from pathlib import Path, PurePath
 from typing import Optional
 
 from link4000.utils.config import get_exclusion_patterns, get_sharepoint_patterns
@@ -136,7 +136,7 @@ def to_office_uri(url: str) -> str | None:
     return f"{scheme}{url}"
 
 
-def resolve_unc_path(path: str) -> str:
+def resolve_unc_path(path: PurePath) -> PurePath:
     """
     On Windows, if *path* starts with a mapped drive letter, replace the drive
     letter with its UNC equivalent and return the resolved path.
@@ -153,25 +153,20 @@ def resolve_unc_path(path: str) -> str:
     if sys.platform != "win32":
         return path
 
-    match = re.match(r"^([A-Za-z]):(.*)", path)
+    match = re.match(r"^([A-Za-z]):(.*)", str(path))
     if not match:
         # Already UNC or not a drive-letter path
         return path
 
     drive_letter = match.group(1).upper()
-    rest = match.group(2)  # e.g. \Reports\Q1.xlsx or /Reports/Q1.xlsx
-
-    # Use PureWindowsPath to normalize path separators to Windows format
-    # (Qt's QFileDialog returns forward slashes while .lnk files use backslashes)
-    rest = str(PureWindowsPath(rest))
+    rest = PurePath(match.group(2))  # e.g. \Reports\Q1.xlsx or /Reports/Q1.xlsx
 
     if drive_letter not in _drive_unc_cache:
         _drive_unc_cache[drive_letter] = _get_unc_for_drive(drive_letter)
 
     unc_root = _drive_unc_cache[drive_letter]
     if unc_root:
-        # Use string concatenation to preserve Windows path separators
-        return unc_root + rest
+        return PurePath(unc_root) / rest
     return path
 
 
@@ -230,7 +225,7 @@ def get_link_type(url: str) -> str:
         return "web"
 
     if is_file_path(url):
-        resolved = resolve_unc_path(url) if sys.platform == "win32" else url
+        resolved = resolve_unc_path(PurePath(url))
         if os.path.isdir(resolved):
             return "folder"
         if os.path.isfile(resolved):
@@ -261,7 +256,7 @@ def get_file_extension(url: str) -> str:
 def is_folder(url: str) -> bool:
     """Return True if the URL is a file path pointing to an existing directory."""
     if is_file_path(url):
-        resolved = resolve_unc_path(url) if sys.platform == "win32" else url
+        resolved = resolve_unc_path(PurePath(url))
         if os.path.isdir(resolved):
             return True
     return False

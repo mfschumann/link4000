@@ -2,7 +2,7 @@
 
 This module provides the RecentDocsWindowsSource class that fetches
 recently-opened files on Windows from the native recent-files infrastructure
-(%AppData%\Microsoft\Windows\Recent .lnk files via pywin32 IShellLinkW).
+(%AppData%\\Microsoft\\Windows\\Recent .lnk files via pywin32 IShellLinkW).
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from link4000.data.loader_types import SourceEntry
 from link4000.data.link_source import LinkSource
@@ -57,7 +57,7 @@ class RecentDocsWindowsSource(LinkSource):
             if not target:
                 continue
 
-            target = resolve_unc_path(target)
+            target = resolve_unc_path(PurePath(target))
 
             try:
                 mtime = datetime.fromtimestamp(lnk_path.stat().st_mtime)
@@ -66,7 +66,7 @@ class RecentDocsWindowsSource(LinkSource):
 
             entries.append(
                 SourceEntry(
-                    url=target,
+                    url=str(target),
                     title=title,
                     created_at=mtime,
                     updated_at=mtime,
