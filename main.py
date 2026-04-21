@@ -142,6 +142,25 @@ def _import_links(source_path: str, override: bool = False) -> int:
     return 0
 
 
+def _print_config_section(name: str, section: dict) -> None:
+    """Print a config section as TOML.
+
+    Args:
+        name: Section name (e.g., "global", "colors")
+        section: Dictionary of config values
+    """
+    print(f"[{name}]")
+    for key, value in section.items():
+        if isinstance(value, list):
+            print(f'{key} = {value!r}')
+        elif isinstance(value, bool):
+            print(f"{key} = {'true' if value else 'false'}")
+        elif isinstance(value, str):
+            print(f'{key} = "{value}"')
+        else:
+            print(f"{key} = {value!r}")
+
+
 def main() -> int:
     """Main entry point for the Link4000 application."""
     parser = argparse.ArgumentParser(
@@ -172,12 +191,45 @@ Examples:
         metavar="PATH",
         help="Path to the TOML config file (default: ~/.link4000/config.toml)",
     )
+    parser.add_argument(
+        "--show-config",
+        action="store_true",
+        help="Output the active configuration as TOML and exit",
+    )
     args = parser.parse_args()
 
     if args.config_file:
         from link4000.utils.config import set_config_path
 
         set_config_path(args.config_file)
+
+    if args.show_config:
+        from link4000.utils.config import get_full_config
+
+        full_cfg = get_full_config()
+        print("# Link4000 Active Configuration")
+        print("# This shows all config values with defaults merged with user settings")
+        print()
+        _print_config_section("global", full_cfg.get("global", {}))
+        print()
+        for source_name, source_cfg in full_cfg.get("sources", {}).items():
+            print(f"[sources.{source_name}]")
+            for key, value in source_cfg.items():
+                print(f"{key} = {value!r}")
+            print()
+        _print_config_section("colors", full_cfg.get("colors", {}))
+        print()
+        ext_cfg = full_cfg.get("extensions", {})
+        if ext_cfg:
+            _print_config_section("extensions", ext_cfg)
+            print()
+        onedrive_cfg = full_cfg.get("onedrive", {})
+        if onedrive_cfg:
+            print("[onedrive]")
+            for key, value in onedrive_cfg.items():
+                print(f"{key} = {value!r}")
+            print()
+        return 0
 
     if args.import_file:
         return _import_links(args.import_file, args.override_existing)

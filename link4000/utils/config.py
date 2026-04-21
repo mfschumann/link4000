@@ -248,6 +248,47 @@ def get_source_config(source_name: str) -> dict:
     return merged
 
 
+def get_azure_cli_path() -> str:
+    """Return the path to the Azure CLI executable.
+
+    Reads from [onedrive] azure_cli_path config option.
+    Defaults to "az" (PATH lookup) if not configured.
+
+    Returns:
+        Path to Azure CLI executable or "az" for PATH lookup.
+    """
+    cfg = _get_config()
+    onedrive_cfg = cfg.get("onedrive", {})
+    return onedrive_cfg.get("azure_cli_path", "az")
+
+
+def get_full_config() -> dict:
+    """Return the full configuration with defaults merged.
+
+    Returns a complete configuration dictionary with all default values,
+    where user-defined values override the defaults.
+
+    Returns:
+        Complete configuration dictionary with defaults merged.
+    """
+    import copy
+
+    user_cfg = _get_config()
+    full_cfg = copy.deepcopy(_DEFAULTS)
+
+    def merge_dict(base: dict, override: dict) -> dict:
+        """Recursively merge override dict into base dict."""
+        for key, value in override.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                merge_dict(base[key], value)
+            else:
+                base[key] = value
+        return base
+
+    merge_dict(full_cfg, user_cfg)
+    return full_cfg
+
+
 def ensure_config_exists() -> None:
     """Create default config.toml if it doesn't exist."""
     if os.path.exists(_CONFIG_PATH):
@@ -336,6 +377,11 @@ unknown = "#999999"
 # ".py" = "#008000"
 # ".txt" = "#757575"
 # ".md" = "#000000"
+
+# OneDrive/SharePoint resolution configuration
+# Optional: override the Azure CLI executable path
+# azure_cli_path = "az"  # Default: "az" (uses PATH lookup)
+# Examples: "C:/Program Files/Microsoft SDKs/Azure/az.exe", "/usr/local/bin/az"
 """
 
     with open(_CONFIG_PATH, "w") as f:
