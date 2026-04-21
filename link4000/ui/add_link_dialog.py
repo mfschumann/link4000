@@ -210,7 +210,7 @@ class AddLinkDialog(QDialog):
         self._url_input.setText(resolved)
         if not self._title_manually_set:
             # Use Path.name - normalize separators for cross-platform compatibility
-            resolved_path = Path(resolved.replace("\\", "/")) if resolved else Path()
+            resolved_path = Path(resolved) if resolved else Path()
             basename = lnk_title if lnk_title else resolved_path.name
             if basename:
                 self._auto_filling_title = True
