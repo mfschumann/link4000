@@ -324,3 +324,73 @@ azure_cli_path = "/usr/local/bin/az"
 """)
         path = config.get_azure_cli_path()
         assert path == "/usr/local/bin/az"
+
+
+class TestGetFullConfig:
+    """Test get_full_config function."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a temporary config file."""
+        config_dir = tmp_path / ".link4000"
+        config_dir.mkdir()
+
+        original_path = config._CONFIG_PATH
+        config_file = config_dir / "config.toml"
+        config._CONFIG_PATH = str(config_file)
+        config._config = None
+
+        yield str(config_file)
+
+        config._CONFIG_PATH = original_path
+        config._config = None
+
+    def test_full_config_returns_defaults(self, temp_config):
+        """Test that get_full_config returns defaults when no user config."""
+        with open(temp_config, "w") as f:
+            f.write("")
+        full_cfg = config.get_full_config()
+        assert full_cfg["global"]["theme"] == "light"
+        assert full_cfg["global"]["tray_behavior"] == "close_to_tray"
+        assert full_cfg["colors"]["web"] == "#0066CC"
+
+    def test_full_config_merges_user_config(self, temp_config):
+        """Test that user config overrides defaults."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[global]
+theme = "dark"
+
+[colors]
+web = "#FF0000"
+""")
+        full_cfg = config.get_full_config()
+        assert full_cfg["global"]["theme"] == "dark"
+        assert full_cfg["global"]["tray_behavior"] == "close_to_tray"  # default preserved
+        assert full_cfg["colors"]["web"] == "#FF0000"  # user override
+        assert full_cfg["colors"]["folder"] == "#FF9500"  # default preserved
+
+    def test_full_config_includes_all_sources(self, temp_config):
+        """Test that all source plugins are included."""
+        with open(temp_config, "w") as f:
+            f.write("")
+        full_cfg = config.get_full_config()
+        assert "recent_windows" in full_cfg["sources"]
+        assert "recent_linux_gnome" in full_cfg["sources"]
+        assert "office_recent" in full_cfg["sources"]
+        assert "edge_favorites" in full_cfg["sources"]
+        assert "edge_history" in full_cfg["sources"]
+
+    def test_full_config_user_source_config(self, temp_config):
+        """Test that user source config overrides defaults."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[sources.recent_windows]
+enabled = false
+max_age_days = 7
+""")
+        full_cfg = config.get_full_config()
+        assert full_cfg["sources"]["recent_windows"]["enabled"] is False
+        assert full_cfg["sources"]["recent_windows"]["max_age_days"] == 7
+        # Other sources should have defaults
+        assert full_cfg["sources"]["recent_linux_gnome"]["enabled"] is True

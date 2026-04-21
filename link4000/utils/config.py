@@ -262,6 +262,33 @@ def get_azure_cli_path() -> str:
     return onedrive_cfg.get("azure_cli_path", "az")
 
 
+def get_full_config() -> dict:
+    """Return the full configuration with defaults merged.
+
+    Returns a complete configuration dictionary with all default values,
+    where user-defined values override the defaults.
+
+    Returns:
+        Complete configuration dictionary with defaults merged.
+    """
+    import copy
+
+    user_cfg = _get_config()
+    full_cfg = copy.deepcopy(_DEFAULTS)
+
+    def merge_dict(base: dict, override: dict) -> dict:
+        """Recursively merge override dict into base dict."""
+        for key, value in override.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                merge_dict(base[key], value)
+            else:
+                base[key] = value
+        return base
+
+    merge_dict(full_cfg, user_cfg)
+    return full_cfg
+
+
 def ensure_config_exists() -> None:
     """Create default config.toml if it doesn't exist."""
     if os.path.exists(_CONFIG_PATH):
