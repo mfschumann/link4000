@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime
-from pathlib import Path, PurePath
+from pathlib import Path, PurePath, PureWindowsPath
 
 from link4000.data.loader_types import SourceEntry
 from link4000.data.link_source import LinkSource
@@ -53,7 +53,7 @@ class RecentDocsWindowsSource(LinkSource):
         for lnk_path in sorted(
             self._recent_folder.glob("*.lnk"), key=lambda p: p.stat().st_mtime, reverse=True
         ):
-            target, title = resolve_lnk(lnk_path)
+            target, title = resolve_lnk(PureWindowsPath(lnk_path))
             if not target:
                 continue
 

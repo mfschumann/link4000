@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 import re
 from datetime import datetime, timedelta, timezone
-from pathlib import PurePath
+from pathlib import PurePath, PureWindowsPath
 from typing import Optional
 
 from link4000.data.loader_types import SourceEntry

@@ -1,4 +1,5 @@
 """Unit tests for path utilities."""
+from pathlib import PureWindowsPath, PurePosixPath, PurePath
 
 import pytest
 from unittest.mock import patch
@@ -176,31 +177,31 @@ class TestResolveUncPath:
     def test_non_windows_returns_unchanged(self):
         """Tests that resolve_unc_path returns the path unchanged on non-Windows."""
         with patch("sys.platform", "linux"):
-            result = resolve_unc_path("/home/user/file.txt")
-            assert result == "/home/user/file.txt"
+            result = resolve_unc_path(PurePosixPath("/home/user/file.txt"))
+            assert result == PurePosixPath("/home/user/file.txt")
 
     @patch("sys.platform", "win32")
     @patch("link4000.utils.path_utils._get_unc_for_drive")
     def test_mapped_drive_to_unc(self, mock_get_unc):
         """Tests that a mapped drive letter is resolved to its UNC equivalent."""
         mock_get_unc.return_value = "\\\\fileserver\\share"
-        result = resolve_unc_path("Z:\\Docs\\file.txt")
-        assert result == "\\\\fileserver\\share\\Docs\\file.txt"
+        result = resolve_unc_path(PureWindowsPath("Z:\\Docs\\file.txt"))
+        assert result == PureWindowsPath("\\\\fileserver\\share\\Docs\\file.txt")
 
     @patch("sys.platform", "win32")
     @patch("link4000.utils.path_utils._get_unc_for_drive")
     def test_unc_path_unchanged(self, mock_get_unc):
         """Tests that an existing UNC path is returned unchanged on Windows."""
-        result = resolve_unc_path("\\\\server\\share\\file.txt")
-        assert result == "\\\\server\\share\\file.txt"
+        result = resolve_unc_path(PureWindowsPath("\\\\server\\share\\file.txt"))
+        assert result == PureWindowsPath("\\\\server\\share\\file.txt")
 
     @patch("sys.platform", "win32")
     @patch("link4000.utils.path_utils._get_unc_for_drive")
     def test_local_drive_returns_unchanged(self, mock_get_unc):
         """Tests that a local (non-mapped) drive returns the path unchanged on Windows."""
         mock_get_unc.return_value = None  # Local drive, not mapped
-        result = resolve_unc_path("C:\\Users\\file.txt")
-        assert result == "C:\\Users\\file.txt"
+        result = resolve_unc_path(PureWindowsPath("C:\\Users\\file.txt"))
+        assert result == PureWindowsPath("C:\\Users\\file.txt")
 
 
 class TestResolveLnk:
@@ -209,7 +210,7 @@ class TestResolveLnk:
     def test_resolves_shortcut_target_and_description(self):
         """Tests that resolve_lnk extracts TargetPath and Description from a .lnk file."""
         import sys
-        from pathlib import Path
+        from pathlib import PureWindowsPath
         from unittest.mock import MagicMock
 
         mock_client = MagicMock()
@@ -227,7 +228,7 @@ class TestResolveLnk:
             sys.modules,
             {"win32com": mock_win32com, "win32com.client": mock_client},
         ):
-            target, title = resolve_lnk(Path("C:\\Users\\Recent\\report.lnk"))
+            target, title = resolve_lnk(PureWindowsPath("C:\\Users\\Recent\\report.lnk"))
             assert target == "C:\\Users\\docs\\report.pdf"
             assert title == "Q4 Report"
             mock_shell.CreateShortCut.assert_called_once_with(
@@ -237,7 +238,7 @@ class TestResolveLnk:
     def test_falls_back_to_stem_when_no_description(self):
         """Tests that resolve_lnk uses the filename stem when Description is empty."""
         import sys
-        from pathlib import Path
+        from pathlib import PureWindowsPath
         from unittest.mock import MagicMock
 
         mock_client = MagicMock()
@@ -255,24 +256,24 @@ class TestResolveLnk:
             sys.modules,
             {"win32com": mock_win32com, "win32com.client": mock_client},
         ):
-            target, title = resolve_lnk(Path("D:\\Recent\\data.lnk"))
+            target, title = resolve_lnk(PureWindowsPath("D:\\Recent\\data.lnk"))
             assert target == "D:\\data.xlsx"
             assert title == "data"
 
     def test_returns_empty_on_import_error(self):
         """Tests that resolve_lnk returns empty strings when pywin32 is unavailable."""
         import sys
-        from pathlib import Path
+        from pathlib import PureWindowsPath
 
         with patch.dict(sys.modules, {"win32com": None, "win32com.client": None}):
-            target, title = resolve_lnk(Path("C:\\test.lnk"))
+            target, title = resolve_lnk(PureWindowsPath("C:\\test.lnk"))
             assert target == ""
             assert title == ""
 
     def test_returns_empty_on_com_error(self):
         """Tests that resolve_lnk returns empty strings on COM errors."""
         import sys
-        from pathlib import Path
+        from pathlib import PureWindowsPath
         from unittest.mock import MagicMock
 
         mock_client = MagicMock()
@@ -285,7 +286,7 @@ class TestResolveLnk:
             sys.modules,
             {"win32com": mock_win32com, "win32com.client": mock_client},
         ):
-            target, title = resolve_lnk(Path("C:\\broken.lnk"))
+            target, title = resolve_lnk(PureWindowsPath("C:\\broken.lnk"))
             assert target == ""
             assert title == ""
 

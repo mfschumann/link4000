@@ -4,7 +4,7 @@ import os
 import re
 import sys
 import urllib.parse
-from pathlib import Path, PurePath
+from pathlib import Path, PurePath, PureWindowsPath
 from typing import Optional
 
 from link4000.utils.config import get_exclusion_patterns, get_sharepoint_patterns
@@ -159,18 +159,18 @@ def resolve_unc_path(path: PurePath) -> PurePath:
         return path
 
     drive_letter = match.group(1).upper()
-    rest = PurePath(match.group(2))  # e.g. \Reports\Q1.xlsx or /Reports/Q1.xlsx
+    rest = PureWindowsPath(match.group(2))  # e.g. \Reports\Q1.xlsx or /Reports/Q1.xlsx
 
     if drive_letter not in _drive_unc_cache:
         _drive_unc_cache[drive_letter] = _get_unc_for_drive(drive_letter)
 
     unc_root = _drive_unc_cache[drive_letter]
     if unc_root:
-        return PurePath(unc_root) / rest
+        return PureWindowsPath(unc_root) / rest
     return path
 
 
-def resolve_lnk(lnk_path: Path) -> tuple[str, str]:
+def resolve_lnk(lnk_path: PureWindowsPath) -> tuple[str, str]:
     """Resolve a Windows .lnk shortcut file to its target path and description.
 
     Uses ``win32com.client`` (pywin32) to read the shortcut's target and
