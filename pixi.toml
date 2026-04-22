@@ -27,4 +27,5 @@ channels = ["conda-forge"]
 
 [environments]
 dev = ["run", "dev", "public-channels"]
+devs = ["run", "dev", "subscription-channels"]
 prod = ["run", "subscription-channels"]
