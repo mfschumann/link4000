@@ -1,5 +1,5 @@
 """Unit tests for path utilities."""
-from pathlib import PureWindowsPath, PurePosixPath, PurePath
+from pathlib import PureWindowsPath, PurePosixPath
 
 import pytest
 from unittest.mock import patch

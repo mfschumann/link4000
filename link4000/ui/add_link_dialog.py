@@ -5,7 +5,6 @@ Supports file/folder browsing, auto-filling the title from the URL/path,
 and tag auto-completion from existing tags. Also supports deleting an
 existing link in edit mode.
 """
-import sys
 from pathlib import Path, PurePath, PureWindowsPath
 
 from PySide6.QtWidgets import (

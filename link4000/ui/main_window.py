@@ -62,7 +62,7 @@ from link4000.utils.config import (
     get_enabled_sources,
 )
 from link4000.data.source_registry import SourceRegistry
-from pathlib import Path, PurePath, PureWindowsPath
+from pathlib import Path, PurePath
 
 
 class ButtonDelegate(QItemDelegate):
