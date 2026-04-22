@@ -1,7 +1,7 @@
 """Unit tests for AddLinkDialog."""
-
+import sys
 from unittest.mock import patch
-
+from pathlib import PurePath
 import pytest
 
 from link4000.models.link import Link
@@ -197,7 +197,7 @@ class TestAddLinkDialogLnkResolution:
         dlg = AddLinkDialog()
         dlg._set_path("C:\\Shortcuts\\Q1.lnk")
         assert dlg._url_input.text() == "\\\\fileserver\\Finance\\Reports\\Q1.xlsx"
-        mock_unc.assert_called_with("Z:\\Reports\\Q1.xlsx")
+        mock_unc.assert_called_with(PurePath("Z:\\Reports\\Q1.xlsx"))
 
     def test_set_path_non_lnk_file_unchanged(self):
         """Non-.lnk files are handled by the existing path logic without lnk resolution."""
@@ -206,8 +206,12 @@ class TestAddLinkDialogLnkResolution:
             side_effect=lambda p: p,
         ):
             dlg = AddLinkDialog()
-            dlg._set_path("/home/user/document.pdf")
-            assert dlg._url_input.text() == "/home/user/document.pdf"
+            if sys.platform=="win32":
+                dlg._set_path(r"C:\User\document.pdf")
+                assert dlg._url_input.text() == r"C:\User\document.pdf"
+            else:
+                dlg._set_path("/home/user/document.pdf")
+                assert dlg._url_input.text() == "/home/user/document.pdf"
             assert dlg._title_input.text() == "document.pdf"
 
 
