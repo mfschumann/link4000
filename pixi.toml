@@ -1,0 +1,30 @@
+[workspace]
+authors = ["Martin Schumann <mfs@mfs.name>"]
+channels = []
+name = "link4000"
+platforms = ["linux-64", "win-64"]
+version = "1.2.0"
+
+[feature.run.dependencies]
+python = "3.13.*"
+pyside6 = "*"
+
+[feature.run.target.win-64.dependencies]
+pywin32 = "*"
+
+[feature.dev.dependencies]
+pytest = "*"
+pytest-cov = "*"
+snakeviz = "*"
+py-spy = "*"
+ruff = "*"
+
+[feature.subscription-channels]
+channels = ["main", "services"]
+
+[feature.public-channels]
+channels = ["conda-forge"]
+
+[environments]
+dev = ["run", "dev", "public-channels"]
+prod = ["run", "subscription-channels"]

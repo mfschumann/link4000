@@ -31,4 +31,6 @@ Thumbs.db
 .coverage
 .kilo/plans/
 bin/
-*.log
+*.log# pixi environments
+.pixi/*
+!.pixi/config.toml
