@@ -1,5 +1,5 @@
 """Unit tests for AddLinkDialog."""
-
+import sys
 from unittest.mock import patch
 from pathlib import PurePath
 import pytest
@@ -206,8 +206,12 @@ class TestAddLinkDialogLnkResolution:
             side_effect=lambda p: p,
         ):
             dlg = AddLinkDialog()
-            dlg._set_path("/home/user/document.pdf")
-            assert dlg._url_input.text() == "/home/user/document.pdf"
+            if sys.platform=="win32":
+                dlg._set_path(r"C:\User\document.pdf")
+                assert dlg._url_input.text() == r"C:\User\document.pdf"
+            else:
+                dlg._set_path("/home/user/document.pdf")
+                assert dlg._url_input.text() == "/home/user/document.pdf"
             assert dlg._title_input.text() == "document.pdf"
 
 
