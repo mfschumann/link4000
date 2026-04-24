@@ -7,6 +7,7 @@ try:
     from PySide6.QtTest import QSignalSpy
 
     from link4000.ui.tag_filter_window import TagFilterWindow
+    from link4000.utils.enums import TagMatchMode
 
     _has_pyside6 = True
 except ImportError:
@@ -54,18 +55,25 @@ class TestTagFilterWindowInit:
         assert selected == {"web"}
 
     def test_match_all_radio_checked(self):
-        """The 'match all' radio button is checked when match_all is True."""
+        """The 'match all' radio button is checked when match_mode is AND."""
         dlg = TagFilterWindow(
-            all_tags={"a"}, selected_tags={"a"}, match_all=True, selected_types=set()
+            all_tags={"a"}, selected_tags={"a"}, match_mode=TagMatchMode.AND, selected_types=set()
         )
         assert dlg._tag_and_radio.isChecked()
 
     def test_match_any_radio_checked(self):
-        """The 'match any' radio button is checked when match_all is False."""
+        """The 'match any' radio button is checked when match_mode is OR."""
         dlg = TagFilterWindow(
-            all_tags={"a"}, selected_tags={"a"}, match_all=False, selected_types=set()
+            all_tags={"a"}, selected_tags={"a"}, match_mode=TagMatchMode.OR, selected_types=set()
         )
         assert dlg._tag_or_radio.isChecked()
+
+    def test_match_none_radio_checked(self):
+        """The 'match none' radio button is checked when match_mode is NONE."""
+        dlg = TagFilterWindow(
+            all_tags={"a"}, selected_tags={"a"}, match_mode=TagMatchMode.NONE, selected_types=set()
+        )
+        assert dlg._tag_none_radio.isChecked()
 
     def test_dynamic_tags_are_italic(self):
         """Dynamic tags (e.g. 'recent') are rendered in italic font."""
@@ -111,23 +119,36 @@ class TestTagFilterWindowSignals:
         spy = QSignalSpy(dlg.tags_and_types_selected)
         dlg._on_ok()
         assert spy.count() == 1
-        tags, match_all, types = spy.at(0)
+        tags, match_mode, types = spy.at(0)
         assert tags == {"work"}
-        assert match_all is False
+        assert match_mode == TagMatchMode.OR
         assert types == {"web"}
 
     def test_ok_with_match_all(self):
-        """OK emits signal with match_all=True when the AND radio is selected."""
+        """OK emits signal with match_mode=AND when the AND radio is selected."""
         dlg = TagFilterWindow(
             all_tags={"a", "b"},
             selected_tags={"a", "b"},
-            match_all=True,
+            match_mode=TagMatchMode.AND,
             selected_types=set(),
         )
         spy = QSignalSpy(dlg.tags_and_types_selected)
         dlg._on_ok()
-        tags, match_all, types = spy.at(0)
-        assert match_all is True
+        tags, match_mode, types = spy.at(0)
+        assert match_mode == TagMatchMode.AND
+
+    def test_ok_with_match_none(self):
+        """OK emits signal with match_mode=NONE when the NONE radio is selected."""
+        dlg = TagFilterWindow(
+            all_tags={"a", "b"},
+            selected_tags={"a", "b"},
+            match_mode=TagMatchMode.NONE,
+            selected_types=set(),
+        )
+        spy = QSignalSpy(dlg.tags_and_types_selected)
+        dlg._on_ok()
+        tags, match_mode, types = spy.at(0)
+        assert match_mode == TagMatchMode.NONE
 
     def test_selection_change_emits_filter_preview(self):
         """Changing tag selection emits the filter_preview signal with updated state."""
@@ -139,8 +160,21 @@ class TestTagFilterWindowSignals:
         spy = QSignalSpy(dlg.filter_preview)
         _select_items(dlg._tags_list, {"personal"})
         assert spy.count() >= 1
-        tags, match_all, types = spy.at(spy.count() - 1)
+        tags, match_mode, types = spy.at(spy.count() - 1)
         assert tags == {"personal"}
+        assert match_mode == TagMatchMode.OR
+
+    def test_selection_change_emits_match_none(self):
+        """Selecting NONE radio emits filter_preview with NONE mode."""
+        dlg = TagFilterWindow(
+            all_tags={"work", "personal"},
+            selected_tags=set(),
+            selected_types=set(),
+        )
+        spy = QSignalSpy(dlg.filter_preview)
+        dlg._tag_none_radio.setChecked(True)
+        tags, match_mode, types = spy.at(spy.count() - 1)
+        assert match_mode == TagMatchMode.NONE
 
     def test_clear_deselects_all(self):
         """Clicking Clear removes all tag and type selections."""
@@ -164,20 +198,21 @@ class TestTagFilterWindowSignals:
         spy = QSignalSpy(dlg.filter_preview)
         _select_items(dlg._tags_list, {"personal"})
         dlg._on_cancel()
-        tags, match_all, types = spy.at(spy.count() - 1)
+        tags, match_mode, types = spy.at(spy.count() - 1)
         assert tags == {"work"}
+        assert match_mode == TagMatchMode.OR
 
     def test_reject_restores_original(self):
         """Rejecting the dialog (e.g. pressing Escape) restores original selections."""
         dlg = TagFilterWindow(
             all_tags={"work", "personal"},
             selected_tags={"work"},
-            match_all=True,
+            match_mode=TagMatchMode.AND,
             selected_types=set(),
         )
         spy = QSignalSpy(dlg.filter_preview)
         _select_items(dlg._tags_list, {"personal"})
         dlg.reject()
-        tags, match_all, types = spy.at(spy.count() - 1)
+        tags, match_mode, types = spy.at(spy.count() - 1)
         assert tags == {"work"}
-        assert match_all is True
+        assert match_mode == TagMatchMode.AND

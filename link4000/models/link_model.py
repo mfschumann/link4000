@@ -11,6 +11,7 @@ from PySide6.QtCore import (
 from PySide6.QtWidgets import QWidget
 
 from link4000.models.link import Link
+from link4000.utils.enums import TagMatchMode
 from PySide6.QtGui import QFont
 from link4000.utils.config import get_color_for_link
 
@@ -290,7 +291,7 @@ class LinkSortFilterModel(QSortFilterProxyModel):
         self._search_text = ""
         self._search_terms = []
         self._selected_tags = set()
-        self._match_all = False
+        self._match_mode = TagMatchMode.OR
         self._selected_types = set()
 
     def set_search_text(self, text: str) -> None:
@@ -300,17 +301,17 @@ class LinkSortFilterModel(QSortFilterProxyModel):
         self.invalidateFilter()
 
     def set_selected_tags(
-        self, tags: set, match_all: bool = False, types: set | None = None
+        self, tags: set, match_mode: TagMatchMode, types: set | None = None
     ) -> None:
         """Sets tag and link-type filters and invalidates the current filter.
 
         Args:
             tags: Set of tag strings to filter on.
-            match_all: If True, a link must have every tag to be accepted.
+            match_mode: The tag match mode (TagMatchMode.OR/AND/NONE).
             types: Optional set of link type strings (or file extensions) to include.
         """
         self._selected_tags = tags
-        self._match_all = match_all
+        self._match_mode = match_mode
         self._selected_types = types if types is not None else set()
         self.invalidateFilter()
 
@@ -334,10 +335,13 @@ class LinkSortFilterModel(QSortFilterProxyModel):
                     return False
 
         if self._selected_tags:
-            if self._match_all:
+            if self._match_mode == TagMatchMode.AND:
                 if not all(tag in link.tags for tag in self._selected_tags):
                     return False
-            else:
+            elif self._match_mode == TagMatchMode.NONE:
+                if any(tag in link.tags for tag in self._selected_tags):
+                    return False
+            else:  # TagMatchMode.OR
                 if not any(tag in link.tags for tag in self._selected_tags):
                     return False
 
