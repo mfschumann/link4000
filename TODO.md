@@ -4,7 +4,6 @@
 
 ## TODO
 - resolve links on OneDrive to sharepoint URLs
-- add NOT filter option (match all tags NOT having tag)
 - add dialog for managing exclusions (separate dialog or main list with hidden items shown?)
 - UX: what buttons do we need in the main list?
 

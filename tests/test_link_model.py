@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from link4000.models.link import Link
+from link4000.utils.enums import TagMatchMode
 
 # Skip all tests if PySide6 is not available
 try:
@@ -395,7 +396,7 @@ class TestLinkSortFilterModel:
                 _make_link("C", tags=["work", "important"]),
             ]
         )
-        proxy.set_selected_tags({"work"}, match_all=False)
+        proxy.set_selected_tags({"work"}, match_mode=TagMatchMode.OR)
         assert proxy.rowCount() == 2
 
     def test_tag_filter_all(self):
@@ -407,7 +408,7 @@ class TestLinkSortFilterModel:
                 _make_link("C", tags=["work", "important"]),
             ]
         )
-        proxy.set_selected_tags({"work", "important"}, match_all=True)
+        proxy.set_selected_tags({"work", "important"}, match_mode=TagMatchMode.AND)
         assert proxy.rowCount() == 1
 
     def test_type_filter(self):
@@ -418,7 +419,7 @@ class TestLinkSortFilterModel:
                 _make_link("B", url="/some/folder"),
             ]
         )
-        proxy.set_selected_tags(set(), types={"web"})
+        proxy.set_selected_tags(set(), TagMatchMode.OR, types={"web"})
         assert proxy.rowCount() == 1
 
     def test_combined_search_and_tag_filter(self):
@@ -433,5 +434,31 @@ class TestLinkSortFilterModel:
             ]
         )
         proxy.set_search_text("python")
-        proxy.set_selected_tags({"work"}, match_all=False)
+        proxy.set_selected_tags({"work"}, match_mode=TagMatchMode.OR)
         assert proxy.rowCount() == 1
+
+    def test_tag_filter_none(self):
+        """Tests that 'none' tag filter shows links that have none of the selected tags."""
+        proxy, _ = self._make_model(
+            links=[
+                _make_link("A", tags=["work"]),
+                _make_link("B", tags=["personal"]),
+                _make_link("C", tags=["work", "important"]),
+                _make_link("D", tags=["other"]),
+            ]
+        )
+        # Filter by "work" and "important" - only D has neither
+        proxy.set_selected_tags({"work", "important"}, match_mode=TagMatchMode.NONE)
+        assert proxy.rowCount() == 2  # B and D survive
+
+    def test_tag_filter_none_single_tag(self):
+        """Tests 'none' mode with a single tag excludes all links containing that tag."""
+        proxy, _ = self._make_model(
+            links=[
+                _make_link("A", tags=["work"]),
+                _make_link("B", tags=["personal"]),
+                _make_link("C", tags=["work", "important"]),
+            ]
+        )
+        proxy.set_selected_tags({"work"}, match_mode=TagMatchMode.NONE)
+        assert proxy.rowCount() == 1  # Only B remains

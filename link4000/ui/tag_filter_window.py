@@ -1,9 +1,9 @@
 """Dialog for filtering links by tags and link types.
 
 Provides a two-list interface where users can select one or more tags
-and link types to filter the displayed links. Supports AND/OR matching
-for tags, live preview of the filter via signals, and restoring the
-original state on cancel or close.
+and link types to filter the displayed links. Supports AND/OR/NONE
+matching for tags, live preview of the filter via signals, and restoring
+the original state on cancel or close.
 """
 
 from PySide6.QtWidgets import (
@@ -21,26 +21,27 @@ from PySide6.QtGui import QFont, QCloseEvent
 
 from link4000.data.source_registry import SourceRegistry
 from link4000.utils.config import get_color_for_link
+from link4000.utils.enums import TagMatchMode
 
 
 class TagFilterWindow(QDialog):
     """Dialog for selecting tags and link types to filter the link list.
 
     Displays two list widgets side by side: one for tags and one for types.
-    Users can select multiple items in each list and choose between AND/OR
+    Users can select multiple items in each list and choose between AND/OR/NONE
     matching for tags. Selections are emitted as signals for live preview
     and final confirmation.
 
     Attributes:
         tags_and_types_selected: Signal emitted on OK with the final selection
-            as (tags, match_all, types).
+            as (tags, match_mode, types).
         filter_preview: Signal emitted on every selection change for live
-            preview as (tags, match_all, types).
+            preview as (tags, match_mode, types).
         _link_types: Set of known link type strings.
     """
 
-    tags_and_types_selected = Signal(set, bool, set)  # (tags, tag_match_all, types)
-    filter_preview = Signal(set, bool, set)  # Preview filter as selection changes
+    tags_and_types_selected = Signal(set, TagMatchMode, set)  # (tags, tag_match_mode, types)
+    filter_preview = Signal(set, TagMatchMode, set)  # Preview filter as selection changes
     _link_types = {"web", "folder", "file", "sharepoint", "unknown"}
 
     def _get_dynamic_tags(self) -> tuple[str, ...]:
@@ -64,7 +65,7 @@ class TagFilterWindow(QDialog):
         parent: QWidget | None = None,
         all_tags: set[str] | None = None,
         selected_tags: set[str] | None = None,
-        match_all: bool = False,
+        match_mode: TagMatchMode = TagMatchMode.OR,
         all_types: set[str] | None = None,
         selected_types: set[str] | None = None,
     ) -> None:
@@ -74,19 +75,19 @@ class TagFilterWindow(QDialog):
             parent: The parent widget.
             all_tags: Set of all available tag names.
             selected_tags: Set of tags that should be pre-selected.
-            match_all: If True, tags are matched with AND logic; otherwise OR.
+            match_mode: The tag match mode (TagMatchMode.OR, AND, or NONE).
             all_types: Set of all available link type names.
             selected_types: Set of types that should be pre-selected.
         """
         super().__init__(parent)
         self._all_tags = all_tags or set()
         self._selected_tags = selected_tags or set()
-        self._match_all = match_all
+        self._match_mode = match_mode
         self._all_types = all_types or set()
         self._selected_types = selected_types or set()
 
         self._original_tags = set(selected_tags)
-        self._original_match_all = match_all
+        self._original_match_mode = match_mode
         self._original_types = set(selected_types)
 
         self.setWindowTitle("Filter by Tags and Types")
@@ -152,13 +153,19 @@ class TagFilterWindow(QDialog):
 
         self._tag_and_radio = QRadioButton("Match ALL tags (AND)")
         self._tag_or_radio = QRadioButton("Match ANY tag (OR)")
+        self._tag_none_radio = QRadioButton("Match NONE of the selected tags")
         self._tag_and_radio.toggled.connect(self._on_selection_changed)
-        if self._match_all:
+        self._tag_or_radio.toggled.connect(self._on_selection_changed)
+        self._tag_none_radio.toggled.connect(self._on_selection_changed)
+        if self._match_mode == TagMatchMode.AND:
             self._tag_and_radio.setChecked(True)
-        else:
+        elif self._match_mode == TagMatchMode.NONE:
+            self._tag_none_radio.setChecked(True)
+        else:  # TagMatchMode.OR (default)
             self._tag_or_radio.setChecked(True)
         tags_layout.addWidget(self._tag_and_radio)
         tags_layout.addWidget(self._tag_or_radio)
+        tags_layout.addWidget(self._tag_none_radio)
 
         lists_layout.addWidget(tags_widget)
 
@@ -222,9 +229,11 @@ class TagFilterWindow(QDialog):
         for i in range(self._types_list.count()):
             item = self._types_list.item(i)
             item.setSelected(item.text() in self._original_types)
-        if self._original_match_all:
+        if self._original_match_mode == TagMatchMode.AND:
             self._tag_and_radio.setChecked(True)
-        else:
+        elif self._original_match_mode == TagMatchMode.NONE:
+            self._tag_none_radio.setChecked(True)
+        else:  # TagMatchMode.OR
             self._tag_or_radio.setChecked(True)
 
     def closeEvent(self, event: QCloseEvent) -> None:
@@ -235,7 +244,7 @@ class TagFilterWindow(QDialog):
         """
         self._restore_original_state()
         self.filter_preview.emit(
-            self._original_tags, self._original_match_all, self._original_types
+            self._original_tags, self._original_match_mode, self._original_types
         )
         super().reject()
         event.ignore()
@@ -244,7 +253,7 @@ class TagFilterWindow(QDialog):
         """Handle dialog rejection by restoring original state and emitting preview."""
         self._restore_original_state()
         self.filter_preview.emit(
-            self._original_tags, self._original_match_all, self._original_types
+            self._original_tags, self._original_match_mode, self._original_types
         )
         super().reject()
 
@@ -254,8 +263,13 @@ class TagFilterWindow(QDialog):
             return
         selected_tags = {item.text() for item in self._tags_list.selectedItems()}
         selected_types = {item.text() for item in self._types_list.selectedItems()}
-        tag_match_all = self._tag_and_radio.isChecked()
-        self.filter_preview.emit(selected_tags, tag_match_all, selected_types)
+        if self._tag_and_radio.isChecked():
+            match_mode = TagMatchMode.AND
+        elif self._tag_none_radio.isChecked():
+            match_mode = TagMatchMode.NONE
+        else:
+            match_mode = TagMatchMode.OR
+        self.filter_preview.emit(selected_tags, match_mode, selected_types)
 
     def _on_clear(self) -> None:
         """Deselect all items in both the tags and types list widgets."""
@@ -270,7 +284,7 @@ class TagFilterWindow(QDialog):
         """Handle cancel by restoring original state and rejecting the dialog."""
         self._restore_original_state()
         self.filter_preview.emit(
-            self._original_tags, self._original_match_all, self._original_types
+            self._original_tags, self._original_match_mode, self._original_types
         )
         self.reject()
 
@@ -278,8 +292,13 @@ class TagFilterWindow(QDialog):
         """Confirm the current selection and accept the dialog."""
         selected_tags = {item.text() for item in self._tags_list.selectedItems()}
         selected_types = {item.text() for item in self._types_list.selectedItems()}
-        tag_match_all = self._tag_and_radio.isChecked()
-        self.tags_and_types_selected.emit(selected_tags, tag_match_all, selected_types)
+        if self._tag_and_radio.isChecked():
+            match_mode = TagMatchMode.AND
+        elif self._tag_none_radio.isChecked():
+            match_mode = TagMatchMode.NONE
+        else:
+            match_mode = TagMatchMode.OR
+        self.tags_and_types_selected.emit(selected_tags, match_mode, selected_types)
         self.accept()
 
     def get_selected_tags(self) -> set[str]:

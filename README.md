@@ -229,6 +229,7 @@ main.py                  # Application entry point
 
 - **Tag Management**: Add, edit, and filter links by tags
 - **Search**: Find links by title, URL, or tags
+- **Filter Modes**: Tag filtering supports three modes: match ANY tag (OR), ALL tags (AND), or NONE of the selected tags
 - **Sorting**: Sort by created date, modified date, or last accessed
 - **System Tray**: Configurable close-to-tray and minimize-to-tray behavior
 - **Clipboard Integration**: Pre-fill URL from clipboard when adding links

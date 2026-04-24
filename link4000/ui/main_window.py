@@ -21,6 +21,7 @@ from link4000.utils.path_utils import (
     matches_exclusion_pattern,
 )
 from link4000.models.link import Link
+from link4000.utils.enums import TagMatchMode
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -182,7 +183,7 @@ class MainWindow(QMainWindow):
 
         self._store = LinkStore()
         self._selected_tags = set()
-        self._match_all = False
+        self._match_mode = TagMatchMode.OR
         self._all_tags = set()
         self._selected_types = set()
         self._all_types: set[str] | None = None
@@ -196,7 +197,7 @@ class MainWindow(QMainWindow):
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._apply_search)
 
-        self._pending_filter: tuple[set, bool, set] = (set(), False, set())
+        self._pending_filter: tuple[set, TagMatchMode, set] = (set(), TagMatchMode.OR, set())
         self._filter_timer = QTimer(self)
         self._filter_timer.setInterval(150)
         self._filter_timer.setSingleShot(True)
@@ -626,8 +627,8 @@ class MainWindow(QMainWindow):
         self._proxy_model.set_search_text("")
         self._selected_tags = set()
         self._selected_types = set()
-        self._match_all = False
-        self._proxy_model.set_selected_tags(set(), False, set())
+        self._match_mode = TagMatchMode.OR
+        self._proxy_model.set_selected_tags(set(), TagMatchMode.OR, set())
         self._update_tag_filter_button()
         self._update_status()
 
@@ -759,7 +760,7 @@ class MainWindow(QMainWindow):
             self,
             self._all_tags,
             self._selected_tags,
-            self._match_all,
+            self._match_mode,
             self._all_types,
             self._selected_types,
         )
@@ -768,7 +769,7 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _on_filter_preview(
-        self, selected_tags: set, tag_match_all: bool, selected_types: set
+        self, selected_tags: set, tag_match_mode: TagMatchMode, selected_types: set
     ) -> None:
         """Apply a live preview of tag/type filters from the filter dialog.
 
@@ -777,24 +778,24 @@ class MainWindow(QMainWindow):
 
         Args:
             selected_tags: The set of currently selected tag strings.
-            tag_match_all: If True, links must have all selected tags; otherwise any.
+            tag_match_mode: The tag match mode (OR/AND/NONE).
             selected_types: The set of currently selected type/extension strings.
         """
-        self._pending_filter = (selected_tags, tag_match_all, selected_types)
+        self._pending_filter = (selected_tags, tag_match_mode, selected_types)
         self._filter_timer.start()
 
     def _apply_filter_preview(self) -> None:
         """Apply the pending tag/type filter to the proxy model."""
         self._filter_timer.stop()
-        selected_tags, tag_match_all, selected_types = self._pending_filter
+        selected_tags, tag_match_mode, selected_types = self._pending_filter
         self._proxy_model.set_selected_tags(
-            selected_tags, tag_match_all, selected_types
+            selected_tags, tag_match_mode, selected_types
         )
         self._update_tag_filter_button()
         self._update_status()
 
     def _on_tags_and_types_selected(
-        self, selected_tags: set, tag_match_all: bool, selected_types: set
+        self, selected_tags: set, tag_match_mode: TagMatchMode, selected_types: set
     ) -> None:
         """Commit the final tag and type filter selection from the filter dialog.
 
@@ -803,14 +804,14 @@ class MainWindow(QMainWindow):
 
         Args:
             selected_tags: The set of selected tag strings to filter by.
-            tag_match_all: If True, links must match all selected tags.
+            tag_match_mode: The tag match mode (OR/AND/NONE).
             selected_types: The set of selected type/extension strings.
         """
         self._selected_tags = selected_tags
-        self._match_all = tag_match_all
+        self._match_mode = tag_match_mode
         self._selected_types = selected_types
         self._proxy_model.set_selected_tags(
-            selected_tags, tag_match_all, selected_types
+            selected_tags, tag_match_mode, selected_types
         )
         self._update_tag_filter_button()
         self._update_status()
