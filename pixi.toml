@@ -18,6 +18,7 @@ pytest-cov = "*"
 snakeviz = "*"
 py-spy = "*"
 ruff = "*"
+pixi-pycharm = "*"
 
 [feature.subscription-channels]
 channels = ["main", "services"]
@@ -27,5 +28,4 @@ channels = ["conda-forge"]
 
 [environments]
 dev = ["run", "dev", "public-channels"]
-devs = ["run", "dev", "subscription-channels"]
 prod = ["run", "subscription-channels"]
