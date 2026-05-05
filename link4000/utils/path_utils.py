@@ -166,7 +166,8 @@ def resolve_unc_path(path: PurePath) -> PurePath:
 
     unc_root = _drive_unc_cache[drive_letter]
     if unc_root:
-        return PureWindowsPath(unc_root) / rest
+        # remove global '/' prefix before appending to unc_root
+        return PureWindowsPath(unc_root) / rest.relative_to('/')
     return path
 
 
