@@ -17,34 +17,25 @@ Link4000 allows you to:
 
 ## Installation and Running
 
-### First time setup with conda-lock
-Assuming you have conda installed and channels configured in `~/.condarc`.
+### First time setup with pixi
+Assuming you have [pixi](https://pixi.sh) installed.
 
-Install conda-lock:
+Install dependencies and set up the environment:
 ```bash
-conda install -n base conda-lock
-```
-With access to an anaconda subscription, install the `conda-subscription` environment:
-```bash
-conda-lock install -n link4000 conda-subscription-lock.yml
-```
-Without access to an anaconda subscription, install the environment that uses `conda-forge` instead:
-```bash
-conda-lock install -n link4000 conda-forge-lock.yml
+pixi install
 ```
 
 ### Activate environment & run
 ```bash
-conda activate link4000
-python main.py
+pixi run -e dev python main.py
 ```
 
 ### Sync the environment
 After running `git pull` to update your repository, make sure to run
 ```bash
-conda-lock install -n link4000 conda-subscription-lock.yml
+pixi install
 ```
-(or the `forge` variant) in order to sync your environment to the lock file that may have been updated by pulling.
+in order to sync your environment to the lock file that may have been updated by pulling.
 
 ## Usage
 
