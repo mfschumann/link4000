@@ -10,12 +10,13 @@ on:
 
 jobs:
   test:
-    name: Unit Tests
+    name: Unit Tests (${{ matrix.environment }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        environment: [dev, prod]
 
     steps:
       - name: Checkout code
@@ -24,21 +25,23 @@ jobs:
       - name: Setup Pixi
         uses: prefix-dev/setup-pixi@v0.9.5
         with:
-          environments: dev
+          environments: ${{ matrix.environment }}
           cache: true
           frozen: true
 
       - name: Lint
+        if: matrix.environment == 'dev'
         run: pixi run -e dev ruff check .
 
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: pixi run -e dev pytest tests/ -v --cov=link4000 --cov-report=xml
+        run: pixi run -e ${{ matrix.environment }} pytest tests/ -v --cov=link4000 --cov-branch --cov-report=xml
 
       - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.environment == 'dev'
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
