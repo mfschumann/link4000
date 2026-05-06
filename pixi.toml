@@ -20,12 +20,18 @@ py-spy = "*"
 ruff = "*"
 pixi-pycharm = "*"
 
-[feature.subscription-channels]
+[feature.default-channels]
 channels = ["main", "services"]
 
-[feature.public-channels]
+[feature.forge-channels]
 channels = ["conda-forge"]
 
 [environments]
-dev = ["run", "dev", "public-channels"]
-prod = ["run", "subscription-channels"]
+dev = {
+    "features" = ["run", "dev", "forge-channels"],
+    "solve-group" = "forge"
+}
+prod = {
+    "features" = ["run", "default-channels"],
+    "solve-group" = "anaconda"
+}
