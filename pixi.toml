@@ -13,12 +13,14 @@ pyside6 = "*"
 pywin32 = "*"
 
 [feature.dev.dependencies]
-pytest = "*"
-pytest-cov = "*"
 snakeviz = "*"
 py-spy = "*"
 ruff = "*"
 pixi-pycharm = "*"
+
+[feature.test.dependencies]
+pytest = "*"
+pytest-cov = "*"
 
 [feature.default-channels]
 channels = ["main", "services"]
@@ -28,10 +30,14 @@ channels = ["conda-forge"]
 
 [environments]
 dev = {
-    "features" = ["run", "dev", "forge-channels"],
+    "features" = ["run", "test", "dev", "forge-channels"],
     "solve-group" = "forge"
 }
 prod = {
     "features" = ["run", "default-channels"],
+    "solve-group" = "anaconda"
+}
+prod-test = {
+    "features" = ["run", "test", "default-channels"],
     "solve-group" = "anaconda"
 }

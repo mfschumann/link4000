@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        environment: [dev, prod]
+        environment: [dev, prod-test]
 
     steps:
       - name: Checkout code
@@ -36,12 +36,17 @@ jobs:
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: pixi run -e ${{ matrix.environment }} pytest tests/ -v --cov=link4000 --cov-branch --cov-report=xml
+        run: pixi run -e ${{ matrix.environment }} pytest tests/ -v --cov=link4000 --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
-      - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.environment == 'dev'
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
           token: ${{ secrets.CODECOV_TOKEN }}
