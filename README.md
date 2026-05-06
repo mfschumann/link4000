@@ -25,17 +25,30 @@ Install dependencies and set up the environment:
 pixi install
 ```
 
+**Environments**
+
+This project defines two environments:
+
+- **dev**: Uses `conda-forge` channels only. For users without an Anaconda subscription.
+- **prod**: Uses Anaconda subscription channels (main, services). For users with an active Anaconda subscription.
+
+The `dev` environment is the default. To use the `prod` environment instead:
+```bash
+pixi install -e prod
+```
+
 ### Activate environment & run
 ```bash
 pixi run -e dev python main.py
 ```
+(Replace `dev` with `prod` if using the production environment.)
 
 ### Sync the environment
 After running `git pull` to update your repository, make sure to run
 ```bash
 pixi install
 ```
-in order to sync your environment to the lock file that may have been updated by pulling.
+(or `pixi install -e prod` if using the production environment) in order to sync your environment to the lock file that may have been updated by pulling.
 
 ## Usage
 
