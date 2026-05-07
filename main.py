@@ -52,7 +52,9 @@ class LinkManagerApp:
         self._app: QApplication = QApplication(sys.argv)
         self._app.setApplicationName("Link4000")
         self._app.setApplicationDisplayName("Link Manager")
-        self._app.setWindowIcon(_get_app_icon())
+        icon = _get_app_icon()
+        self._app.setWindowIcon(icon)
+        print(f"DEBUG: Set application icon: {icon} (isNull: {icon.isNull()})")
         self._window: Optional[MainWindow] = None
 
     def run(self) -> int:

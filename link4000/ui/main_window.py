@@ -178,6 +178,12 @@ class MainWindow(QMainWindow):
         and builds the UI and system tray.
         """
         super().__init__()
+        icon = self._get_icon()
+        if icon is not None:
+            self.setWindowIcon(icon)
+            print(f"DEBUG: MainWindow set window icon: {icon} (isNull: {icon.isNull()})")
+        else:
+            print("DEBUG: MainWindow _get_icon() returned None")
         self.setWindowTitle("Link4000 - Link Manager")
         self.setMinimumSize(800, 600)
 
