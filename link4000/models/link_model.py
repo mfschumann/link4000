@@ -298,7 +298,7 @@ class LinkSortFilterModel(QSortFilterProxyModel):
         """Sets the search text filter and invalidates the current filter."""
         self._search_text = text.lower()
         self._search_terms = [term for term in text.lower().split() if term]
-        self.invalidateFilter()
+        self.invalidate()
 
     def set_selected_tags(
         self, tags: set, match_mode: TagMatchMode, types: set | None = None
@@ -313,7 +313,7 @@ class LinkSortFilterModel(QSortFilterProxyModel):
         self._selected_tags = tags
         self._match_mode = match_mode
         self._selected_types = types if types is not None else set()
-        self.invalidateFilter()
+        self.invalidate()
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         """Returns True if the row passes all active filters (search, tags, types)."""
