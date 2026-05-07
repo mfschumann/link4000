@@ -224,6 +224,18 @@ class MainWindow(QMainWindow):
             self._setup_tray()
         self._load_links()
 
+    def showEvent(self, event) -> None:
+        """Handle the window show event to ensure taskbar icon is set correctly.
+        
+        This is a workaround for Qt/Windows where the taskbar icon may not
+        appear until the window is moved or resized.
+        """
+        super().showEvent(event)
+        icon = self._get_icon()
+        if icon is not None:
+            self.setWindowIcon(icon)
+            print(f"DEBUG: MainWindow refreshed window icon in showEvent: {icon} (isNull: {icon.isNull()})")
+
     @staticmethod
     def _get_icon() -> QIcon | None:
         """Load the application icon based on the current theme.
