@@ -152,11 +152,33 @@ def _print_config_section(name: str, section: dict) -> None:
     print(f"[{name}]")
     for key, value in section.items():
         if isinstance(value, list):
-            print(f'{key} = {value!r}')
+            if not value:  # empty list
+                print(f'{key} = []')
+            elif all(isinstance(item, str) for item in value):
+                # List of strings - need to escape quotes and backslashes for TOML
+                quoted = []
+                for item in value:
+                    # Escape backslashes first, then quotes
+                    escaped = item.replace('\\', '\\\\').replace('"', '\\"')
+                    quoted.append(f'"{escaped}"')
+                print(f'{key} = [{", ".join(quoted)}]')
+            elif all(isinstance(item, bool) for item in value):
+                # List of booleans
+                bool_strs = ["true" if item else "false" for item in value]
+                print(f'{key} = [{", ".join(bool_strs)}]')
+            elif all(isinstance(item, (int, float)) for item in value):
+                # List of numbers
+                num_strs = [str(item) for item in value]
+                print(f'{key} = [{", ".join(num_strs)}]')
+            else:
+                # Mixed or other types, fall back to repr
+                print(f'{key} = {value!r}')
         elif isinstance(value, bool):
             print(f"{key} = {'true' if value else 'false'}")
         elif isinstance(value, str):
-            print(f'{key} = "{value}"')
+            # Escape backslashes and quotes for TOML string
+            escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+            print(f'{key} = "{escaped}"')
         else:
             print(f"{key} = {value!r}")
 
@@ -172,6 +194,8 @@ Examples:
   python main.py --config ~/my.toml        Use a custom config file
   python main.py --import links.json       Import links from JSON file
   python main.py --import links.json --override-existing  Import and overwrite duplicates
+  python main.py --show-config             Output the active configuration
+  python main.py --show-default-config     Output the default configuration
         """,
     )
     parser.add_argument(
@@ -196,6 +220,11 @@ Examples:
         action="store_true",
         help="Output the active configuration as TOML and exit",
     )
+    parser.add_argument(
+        "--show-default-config",
+        action="store_true",
+        help="Output the default configuration as TOML and exit",
+    )
     args = parser.parse_args()
 
     if args.config_file:
@@ -215,7 +244,13 @@ Examples:
         for source_name, source_cfg in full_cfg.get("sources", {}).items():
             print(f"[sources.{source_name}]")
             for key, value in source_cfg.items():
-                print(f"{key} = {value!r}")
+                if isinstance(value, bool):
+                    print(f"{key} = {'true' if value else 'false'}")
+                elif isinstance(value, str):
+                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+                    print(f'{key} = "{escaped}"')
+                else:
+                    print(f"{key} = {value!r}")
             print()
         _print_config_section("colors", full_cfg.get("colors", {}))
         print()
@@ -227,7 +262,54 @@ Examples:
         if onedrive_cfg:
             print("[onedrive]")
             for key, value in onedrive_cfg.items():
-                print(f"{key} = {value!r}")
+                if isinstance(value, bool):
+                    print(f"{key} = {'true' if value else 'false'}")
+                elif isinstance(value, str):
+                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+                    print(f'{key} = "{escaped}"')
+                else:
+                    print(f"{key} = {value!r}")
+            print()
+        return 0
+
+    if args.show_default_config:
+        from link4000.utils.config import _DEFAULTS
+        import copy
+
+        # Print default configuration as TOML
+        print("# Link4000 Default Configuration")
+        print("# This shows the built-in default values")
+        print()
+        _print_config_section("global", _DEFAULTS.get("global", {}))
+        print()
+        for source_name, source_cfg in _DEFAULTS.get("sources", {}).items():
+            print(f"[sources.{source_name}]")
+            for key, value in source_cfg.items():
+                if isinstance(value, bool):
+                    print(f"{key} = {'true' if value else 'false'}")
+                elif isinstance(value, str):
+                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+                    print(f'{key} = "{escaped}"')
+                else:
+                    print(f"{key} = {value!r}")
+            print()
+        _print_config_section("colors", _DEFAULTS.get("colors", {}))
+        print()
+        ext_cfg = _DEFAULTS.get("extensions", {})
+        if ext_cfg:
+            _print_config_section("extensions", ext_cfg)
+            print()
+        onedrive_cfg = _DEFAULTS.get("onedrive", {})
+        if onedrive_cfg:
+            print("[onedrive]")
+            for key, value in onedrive_cfg.items():
+                if isinstance(value, bool):
+                    print(f"{key} = {'true' if value else 'false'}")
+                elif isinstance(value, str):
+                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+                    print(f'{key} = "{escaped}"')
+                else:
+                    print(f"{key} = {value!r}")
             print()
         return 0
 

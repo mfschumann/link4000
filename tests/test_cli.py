@@ -1,7 +1,16 @@
-"""Unit tests for --config CLI argument."""
+"""Unit tests for CLI arguments."""
 
+import sys
 import pytest
 from unittest.mock import patch
+
+try:
+    if hasattr(__import__('sys'), 'version_info') and sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
+except ImportError:
+    import tomli as tomllib
 
 from link4000.utils import config
 
@@ -65,3 +74,72 @@ class TestConfigCliArg:
             main()
 
         assert config._CONFIG_PATH == _DEFAULT_CONFIG_PATH
+
+    def test_show_default_config_outputs_valid_toml(self, tmp_path, capsys):
+        """--show-default-config outputs valid TOML that can be parsed."""
+        from main import main
+
+        with patch("sys.argv", ["main.py", "--show-default-config"]):
+            result = main()
+            
+        assert result == 0
+        
+        # Capture stdout and verify it's valid TOML
+        captured = capsys.readouterr()
+        output = captured.out
+        
+        # Write output to file and verify it's valid TOML
+        config_file = tmp_path / "default_config.toml"
+        config_file.write_text(output)
+        parsed = tomllib.load(open(config_file, "rb"))
+        
+        # Check that we got expected sections
+        assert "global" in parsed
+        assert "sources" in parsed
+        assert "colors" in parsed
+        assert parsed["global"]["theme"] == "light"
+        assert parsed["sources"]["edge_history"]["max_age_days"] == 30
+
+    def test_show_config_with_user_overrides(self, tmp_path, capsys):
+        """--show-config outputs valid TOML with user overrides when config file exists."""
+        from main import main
+        from link4000.utils.config import set_config_path
+
+        # Create a temporary config with user overrides
+        user_config = tmp_path / "user_config.toml"
+        user_config.write_text("""
+[global]
+theme = "dark"
+tray_behavior = "normal"
+
+[sources.edge_history]
+enabled = false
+max_age_days = 7
+""")
+        
+        # Set the config path to our user config
+        set_config_path(str(user_config))
+
+        with patch("sys.argv", ["main.py", "--show-config"]):
+            result = main()
+            
+        assert result == 0
+        
+        # Capture stdout and verify it's valid TOML
+        captured = capsys.readouterr()
+        output = captured.out
+        
+        # Write output to file and verify it's valid TOML
+        config_file = tmp_path / "active_config.toml"
+        config_file.write_text(output)
+        parsed = tomllib.load(open(config_file, "rb"))
+        
+        # Check that user overrides are present
+        assert parsed["global"]["theme"] == "dark"
+        assert parsed["global"]["tray_behavior"] == "normal"
+        assert parsed["sources"]["edge_history"]["enabled"] is False
+        assert parsed["sources"]["edge_history"]["max_age_days"] == 7
+        
+        # Check that defaults are still present for unspecified values
+        assert parsed["global"]["links_file"] == ""
+        assert parsed["sources"]["edge_favorites"]["enabled"] is True
