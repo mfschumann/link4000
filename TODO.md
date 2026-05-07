@@ -1,6 +1,5 @@
 ## FIXME
 - icon disappears sometimes (after reload? when moving window across monitors?)
-- when adding a file link using the file selector dialog on Windows, \ is converted to /, while it is not when the path is input manually
 
 ## TODO
 - resolve links on OneDrive to sharepoint URLs
