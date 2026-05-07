@@ -20,52 +20,50 @@ Link4000 allows you to:
 ### First time setup with pixi
 Assuming you have [pixi](https://pixi.sh) installed.
 
-Install dependencies and set up the environment:
+Install runtime dependencies and set up the default environment:
 ```bash
 pixi install
 ```
 
 **Environments**
 
-This project defines two environments:
+This project defines three environments:
 
-- **dev**: Uses `conda-forge` channels only. For users without an Anaconda subscription.
-- **prod**: Uses Anaconda subscription channels (main, services). For users with an active Anaconda subscription.
+- **default**: Installs all dependencies needed to _run_ link4000 from Anaconda default channels (main, services).
+- **test**: Similar to `default`, but with all dependencies needed to run the unit tests.
+- **dev**: Installs dependencies needed to _develop_ link4000 from `conda-forge`.
 
-The `dev` environment is the default. To use the `prod` environment instead:
+
+To install a non-default environment run (e.g. for the `dev` environment):
 ```bash
-pixi install -e prod
+pixi install -e dev
 ```
 
-### Activate environment & run
-```bash
-pixi run -e dev python main.py
-```
-(Replace `dev` with `prod` if using the production environment.)
+Note: All `pixi` commands shown below can be run in one of the two non-default environments by adding `-e dev` or `-e test`.
 
 ### Sync the environment
 After running `git pull` to update your repository, make sure to run
 ```bash
 pixi install
 ```
-(or `pixi install -e prod` if using the production environment) in order to sync your environment to the lock file that may have been updated by pulling.
+in order to sync your environment to the lock file that may have been updated by pulling.
 
 ## Usage
 
 ### Running the Application
 
 ```bash
-python main.py
+pixi run python main.py
 ```
 
 ### Command-Line Options
 
 ```bash
 # Import links from a JSON file
-python main.py --import links.json
+pixi run python main.py --import links.json
 
 # Import and overwrite existing links with the same URL
-python main.py --import links.json --override-existing
+pixi run python main.py --import links.json --override-existing
 ```
 
 ### JSON Import Format
@@ -103,7 +101,7 @@ The application supports two JSON formats:
 
 ## Configuration
 
-Configuration is stored in `~/.link4000/config.toml`:
+Configuration is stored in `~/.link4000/config.toml` (default) or in the path passed as the `--config` argument:
 
 ```toml
 [global]
@@ -183,18 +181,6 @@ unknown = "#999999"
 # ".docx" = "#1565C0"
 ```
 
-## Building a Single-File Windows Executable 
-
-Build the executable:
-```bash
-pyinstaller link4000.spec
-```
-
-The executable will be created at `dist/Link4000.exe`. 
-
-**Note**: The executable generated using this approach is only suitable 
-for your personal use. When redistributing it to others, make sure to 
-comply with all applicable licenses (e.g. LGPLv3 for redistribution of PySide6).  
 
 ## Project Structure
 
