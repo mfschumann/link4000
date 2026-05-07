@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        environment: [dev, prod-test]
+        environment: [dev, test]
 
     steps:
       - name: Checkout code

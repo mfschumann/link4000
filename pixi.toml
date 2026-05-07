@@ -3,14 +3,18 @@ authors = ["Martin Schumann <mfs@mfs.name>"]
 channels = []
 name = "link4000"
 platforms = ["linux-64", "win-64"]
-version = "1.2.0"
+version = "1.2.1"
 
-[feature.run.dependencies]
+[dependencies]
 python = "3.13.*"
 pyside6 = "*"
 
-[feature.run.target.win-64.dependencies]
+[target.win-64.dependencies]
 pywin32 = "*"
+
+[feature.test.dependencies]
+pytest = "*"
+pytest-cov = "*"
 
 [feature.dev.dependencies]
 snakeviz = "*"
@@ -18,26 +22,20 @@ py-spy = "*"
 ruff = "*"
 pixi-pycharm = "*"
 
-[feature.test.dependencies]
-pytest = "*"
-pytest-cov = "*"
-
 [feature.default-channels]
 channels = ["main", "services"]
 
 [feature.forge-channels]
 channels = ["conda-forge"]
 
-[environments]
-dev = {
-    "features" = ["run", "test", "dev", "forge-channels"],
-    "solve-group" = "forge"
-}
-prod = {
-    "features" = ["run", "default-channels"],
-    "solve-group" = "anaconda"
-}
-prod-test = {
-    "features" = ["run", "test", "default-channels"],
-    "solve-group" = "anaconda"
-}
+[environments.default]
+features = ["default-channels"]
+solve-group = "anaconda"
+
+[environments.test]
+features = ["test", "default-channels"]
+solve-group = "anaconda"
+
+[environments.dev]
+features = ["test", "dev", "forge-channels"]
+solve-group = "forge"
