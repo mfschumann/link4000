@@ -58,12 +58,24 @@ pixi run python main.py
 
 ### Command-Line Options
 
+Use a non-default config file:
 ```bash
-# Import links from a JSON file
-pixi run python main.py --import links.json
+pixi run python main.py --config path/to/config.toml
+```
 
-# Import and overwrite existing links with the same URL
+Import links from a JSON file:
+```bash
+pixi run python main.py --import links.json
+```
+
+Import and overwrite existing links with the same URL:
+```bash
 pixi run python main.py --import links.json --override-existing
+```
+
+All available command line arguments:
+```bash
+pixi run python main.py --help
 ```
 
 ### JSON Import Format
@@ -101,7 +113,7 @@ The application supports two JSON formats:
 
 ## Configuration
 
-Configuration is stored in `~/.link4000/config.toml` (default) or in the path passed as the `--config` argument:
+Configuration is stored in `~/.link4000/config.toml` (default) or in the path passed as the `--config` command line argument:
 
 ```toml
 [global]
