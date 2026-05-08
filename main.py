@@ -274,7 +274,6 @@ Examples:
 
     if args.show_default_config:
         from link4000.utils.config import _DEFAULTS
-        import copy
 
         # Print default configuration as TOML
         print("# Link4000 Default Configuration")
