@@ -10,6 +10,8 @@ import json
 import argparse
 from typing import Optional
 
+import tomli_w
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QFile, QDir
@@ -142,47 +144,6 @@ def _import_links(source_path: str, override: bool = False) -> int:
     return 0
 
 
-def _print_config_section(name: str, section: dict) -> None:
-    """Print a config section as TOML.
-
-    Args:
-        name: Section name (e.g., "global", "colors")
-        section: Dictionary of config values
-    """
-    print(f"[{name}]")
-    for key, value in section.items():
-        if isinstance(value, list):
-            if not value:  # empty list
-                print(f'{key} = []')
-            elif all(isinstance(item, str) for item in value):
-                # List of strings - need to escape quotes and backslashes for TOML
-                quoted = []
-                for item in value:
-                    # Escape backslashes first, then quotes
-                    escaped = item.replace('\\', '\\\\').replace('"', '\\"')
-                    quoted.append(f'"{escaped}"')
-                print(f'{key} = [{", ".join(quoted)}]')
-            elif all(isinstance(item, bool) for item in value):
-                # List of booleans
-                bool_strs = ["true" if item else "false" for item in value]
-                print(f'{key} = [{", ".join(bool_strs)}]')
-            elif all(isinstance(item, (int, float)) for item in value):
-                # List of numbers
-                num_strs = [str(item) for item in value]
-                print(f'{key} = [{", ".join(num_strs)}]')
-            else:
-                # Mixed or other types, fall back to repr
-                print(f'{key} = {value!r}')
-        elif isinstance(value, bool):
-            print(f"{key} = {'true' if value else 'false'}")
-        elif isinstance(value, str):
-            # Escape backslashes and quotes for TOML string
-            escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-            print(f'{key} = "{escaped}"')
-        else:
-            print(f"{key} = {value!r}")
-
-
 def main() -> int:
     """Main entry point for the Link4000 application."""
     parser = argparse.ArgumentParser(
@@ -239,77 +200,16 @@ Examples:
         print("# Link4000 Active Configuration")
         print("# This shows all config values with defaults merged with user settings")
         print()
-        _print_config_section("global", full_cfg.get("global", {}))
-        print()
-        for source_name, source_cfg in full_cfg.get("sources", {}).items():
-            print(f"[sources.{source_name}]")
-            for key, value in source_cfg.items():
-                if isinstance(value, bool):
-                    print(f"{key} = {'true' if value else 'false'}")
-                elif isinstance(value, str):
-                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                    print(f'{key} = "{escaped}"')
-                else:
-                    print(f"{key} = {value!r}")
-            print()
-        _print_config_section("colors", full_cfg.get("colors", {}))
-        print()
-        ext_cfg = full_cfg.get("extensions", {})
-        if ext_cfg:
-            _print_config_section("extensions", ext_cfg)
-            print()
-        onedrive_cfg = full_cfg.get("onedrive", {})
-        if onedrive_cfg:
-            print("[onedrive]")
-            for key, value in onedrive_cfg.items():
-                if isinstance(value, bool):
-                    print(f"{key} = {'true' if value else 'false'}")
-                elif isinstance(value, str):
-                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                    print(f'{key} = "{escaped}"')
-                else:
-                    print(f"{key} = {value!r}")
-            print()
+        print(tomli_w.dumps(full_cfg))
         return 0
 
     if args.show_default_config:
         from link4000.utils.config import _DEFAULTS
 
-        # Print default configuration as TOML
         print("# Link4000 Default Configuration")
         print("# This shows the built-in default values")
         print()
-        _print_config_section("global", _DEFAULTS.get("global", {}))
-        print()
-        for source_name, source_cfg in _DEFAULTS.get("sources", {}).items():
-            print(f"[sources.{source_name}]")
-            for key, value in source_cfg.items():
-                if isinstance(value, bool):
-                    print(f"{key} = {'true' if value else 'false'}")
-                elif isinstance(value, str):
-                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                    print(f'{key} = "{escaped}"')
-                else:
-                    print(f"{key} = {value!r}")
-            print()
-        _print_config_section("colors", _DEFAULTS.get("colors", {}))
-        print()
-        ext_cfg = _DEFAULTS.get("extensions", {})
-        if ext_cfg:
-            _print_config_section("extensions", ext_cfg)
-            print()
-        onedrive_cfg = _DEFAULTS.get("onedrive", {})
-        if onedrive_cfg:
-            print("[onedrive]")
-            for key, value in onedrive_cfg.items():
-                if isinstance(value, bool):
-                    print(f"{key} = {'true' if value else 'false'}")
-                elif isinstance(value, str):
-                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                    print(f'{key} = "{escaped}"')
-                else:
-                    print(f"{key} = {value!r}")
-            print()
+        print(tomli_w.dumps(_DEFAULTS))
         return 0
 
     if args.import_file:

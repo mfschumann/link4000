@@ -8,6 +8,7 @@ version = "1.2.1"
 [dependencies]
 python = "3.13.*"
 pyside6 = "*"
+tomli-w = "*"
 
 [target.win-64.dependencies]
 pywin32 = "*"
