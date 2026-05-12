@@ -178,6 +178,9 @@ class MainWindow(QMainWindow):
         and builds the UI and system tray.
         """
         super().__init__()
+        icon = self._get_icon()
+        if icon is not None:
+            self.setWindowIcon(icon)
         self.setWindowTitle("Link4000 - Link Manager")
         self.setMinimumSize(800, 600)
 
@@ -217,6 +220,17 @@ class MainWindow(QMainWindow):
         if self._tray_behavior != "normal":
             self._setup_tray()
         self._load_links()
+
+    def showEvent(self, event) -> None:
+        """Handle the window show event to ensure taskbar icon is set correctly.
+        
+        This is a workaround for Qt/Windows where the taskbar icon may not
+        appear until the window is moved or resized.
+        """
+        super().showEvent(event)
+        icon = self._get_icon()
+        if icon is not None:
+            self.setWindowIcon(icon)
 
     @staticmethod
     def _get_icon() -> QIcon | None:
