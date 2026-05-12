@@ -22,6 +22,7 @@ _DEFAULTS = {
         "exclusion_patterns": [],
         "theme": "light",
         "tray_behavior": "close_to_tray",
+        "reload_interval_minutes": 15,
     },
     "sources": {
         "recent_windows": {"enabled": True, "max_age_days": 0},
@@ -248,6 +249,28 @@ def get_source_config(source_name: str) -> dict:
     return merged
 
 
+def get_reload_interval_minutes() -> int:
+    """Return the reload interval in minutes for auto-reloading dynamic sources.
+
+    A value of 0 disables automatic reloading. Negative values are clamped
+    to 0. User-defined values from config.toml [global] override the default.
+
+    Returns:
+        The reload interval in minutes (>= 0).
+    """
+    cfg = _get_config()
+    global_cfg = cfg.get("global", {})
+    value = global_cfg.get(
+        "reload_interval_minutes", _DEFAULTS["global"]["reload_interval_minutes"]
+    )
+    if not isinstance(value, int):
+        # Non-integer values fall back to default
+        return _DEFAULTS["global"]["reload_interval_minutes"]
+    if value < 0:
+        return 0
+    return value
+
+
 def get_azure_cli_path() -> str:
     """Return the path to the Azure CLI executable.
 
@@ -323,6 +346,10 @@ def ensure_config_exists() -> None:
 #   "minimize_to_tray" - minimize hides to tray, X button closes normally
 #   "normal"           - minimize to taskbar and close normally (no tray icon)
 # tray_behavior = "close_to_tray"
+
+# Auto-reload interval for dynamic sources in minutes (default 15).
+# Set to 0 to disable automatic reloading.
+# reload_interval_minutes = 15
 
 # Per-source configuration options:
 # Each source can have its own config section under [sources.<source_name>]
