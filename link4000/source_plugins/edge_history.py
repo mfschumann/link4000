@@ -50,10 +50,11 @@ class EdgeHistorySource(LinkSource):
         return path if path.exists() else None
 
     def _parse_timestamp(self, microseconds: int) -> datetime:
-        """Convert Edge's WebKit timestamp (microseconds since 1601-01-01) to datetime."""
+        """Convert Edge's WebKit timestamp (microseconds since 1601-01-01) to naive local datetime."""
         try:
             unix_timestamp = (microseconds / 1_000_000) - 11644473600
-            return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc).replace(
+            # Convert UTC aware datetime to local naive datetime to match other sources
+            return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc).astimezone().replace(
                 tzinfo=None
             )
         except (ValueError, OSError):
