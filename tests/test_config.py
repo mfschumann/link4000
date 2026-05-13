@@ -65,6 +65,13 @@ class TestConfigDefaults:
         behavior = config.get_tray_behavior()
         assert behavior == "close_to_tray"
 
+    def test_default_reload_interval_minutes(self):
+        """Test default reload_interval_minutes value."""
+        from link4000.utils.config import get_reload_interval_minutes
+
+        interval = get_reload_interval_minutes()
+        assert interval == 15
+
     def test_default_enabled_sources(self):
         """Test default enabled sources list contains expected values."""
         sources = config.get_enabled_sources()
@@ -204,6 +211,42 @@ folder = "#00FF00"
 
         color = config.get_color_for_link("file.pdf", "file", ".pdf")
         assert color.name() == "#ff5500"
+
+    def test_custom_reload_interval_minutes(self, temp_config):
+        """Test loading custom reload_interval_minutes."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[global]
+reload_interval_minutes = 30
+""")
+        from link4000.utils.config import get_reload_interval_minutes
+
+        interval = get_reload_interval_minutes()
+        assert interval == 30
+
+    def test_negative_reload_interval_clamped_to_zero(self, temp_config):
+        """Test that negative reload_interval_minutes is clamped to zero."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[global]
+reload_interval_minutes = -5
+""")
+        from link4000.utils.config import get_reload_interval_minutes
+
+        interval = get_reload_interval_minutes()
+        assert interval == 0
+
+    def test_invalid_reload_interval_fallback_to_default(self, temp_config):
+        """Test that non-integer reload_interval_minutes falls back to default."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[global]
+reload_interval_minutes = "invalid"
+""")
+        from link4000.utils.config import get_reload_interval_minutes
+
+        interval = get_reload_interval_minutes()
+        assert interval == 15  # default
 
 
 class TestSetConfigPath:
@@ -366,7 +409,9 @@ web = "#FF0000"
 """)
         full_cfg = config.get_full_config()
         assert full_cfg["global"]["theme"] == "dark"
-        assert full_cfg["global"]["tray_behavior"] == "close_to_tray"  # default preserved
+        assert (
+            full_cfg["global"]["tray_behavior"] == "close_to_tray"
+        )  # default preserved
         assert full_cfg["colors"]["web"] == "#FF0000"  # user override
         assert full_cfg["colors"]["folder"] == "#FF9500"  # default preserved
 

@@ -142,6 +142,10 @@ Configuration is stored in `~/.link4000/config.toml` (default) or in the path pa
 #   "normal"           - minimize to taskbar and close normally (no tray icon)
 # tray_behavior = "close_to_tray"
 
+# Auto-reload interval for dynamic sources in minutes (default 15).
+# Set to 0 to disable automatic reloading.
+# reload_interval_minutes = 15
+
 [sources]
 # Source plugins configuration.
 # Set enabled = false to disable a source (defaults to true).

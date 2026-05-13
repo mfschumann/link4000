@@ -61,6 +61,7 @@ from link4000.utils.config import (
     get_theme,
     get_tray_behavior,
     get_enabled_sources,
+    get_reload_interval_minutes,
 )
 from link4000.data.source_registry import SourceRegistry
 from pathlib import Path, PurePath
@@ -200,7 +201,11 @@ class MainWindow(QMainWindow):
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._apply_search)
 
-        self._pending_filter: tuple[set, TagMatchMode, set] = (set(), TagMatchMode.OR, set())
+        self._pending_filter: tuple[set, TagMatchMode, set] = (
+            set(),
+            TagMatchMode.OR,
+            set(),
+        )
         self._filter_timer = QTimer(self)
         self._filter_timer.setInterval(150)
         self._filter_timer.setSingleShot(True)
@@ -211,6 +216,8 @@ class MainWindow(QMainWindow):
         self._click_timer.setSingleShot(True)
         self._click_timer.timeout.connect(self._execute_delayed_click)
         self._pending_click_index: QModelIndex | None = None
+
+        self._auto_reload_timer: QTimer | None = None
 
         ensure_config_exists()
         self._tray_behavior = get_tray_behavior()
@@ -223,7 +230,7 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, event) -> None:
         """Handle the window show event to ensure taskbar icon is set correctly.
-        
+
         This is a workaround for Qt/Windows where the taskbar icon may not
         appear until the window is moved or resized.
         """
@@ -307,6 +314,28 @@ class MainWindow(QMainWindow):
 
         sys.exit(0)
 
+    def _ensure_auto_reload_timer_running(self) -> None:
+        """Stop any existing timer and (re)start auto-reload if configured.
+
+        Creates a repeating QTimer that triggers `_load_dynamic_sources` at
+        the configured interval. Only started if `reload_interval_minutes` > 0
+        and at least one dynamic source is enabled.
+        """
+        self._stop_auto_reload_timer()
+
+        interval = get_reload_interval_minutes()
+        if interval > 0 and self._enabled_sources:
+            self._auto_reload_timer = QTimer(self)
+            self._auto_reload_timer.setSingleShot(False)
+            self._auto_reload_timer.timeout.connect(self._load_dynamic_sources)
+            self._auto_reload_timer.start(interval * 60 * 1000)
+
+    def _stop_auto_reload_timer(self) -> None:
+        """Stop the auto-reload timer if it is active."""
+        if self._auto_reload_timer is not None:
+            self._auto_reload_timer.stop()
+            self._auto_reload_timer = None
+
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle the close event based on tray_behavior configuration.
 
@@ -316,6 +345,7 @@ class MainWindow(QMainWindow):
         Args:
             event: The QCloseEvent to handle.
         """
+        self._stop_auto_reload_timer()
         if self._tray_behavior == "close_to_tray":
             event.ignore()
             self.hide()
@@ -477,6 +507,8 @@ class MainWindow(QMainWindow):
         if self._enabled_sources:
             QTimer.singleShot(0, self._load_dynamic_sources)
 
+        self._ensure_auto_reload_timer_running()
+
     def _load_dynamic_sources(self) -> None:
         """Fetch entries from all enabled dynamic sources.
 
@@ -489,6 +521,7 @@ class MainWindow(QMainWindow):
         def fetch_and_process():
             sources = SourceRegistry.get_enabled_sources()
             all_links = []
+            seen_urls: set[str] = set()  # deduplicate within this fetch batch
 
             for source in sources:
                 entries = source.fetch()
@@ -496,13 +529,15 @@ class MainWindow(QMainWindow):
                     url = entry.url
                     if is_file_path(url):
                         url = str(resolve_unc_path(PurePath(url)))
+                    url_lower = url.lower()
                     if (
-                        url.lower() in self._stored_urls
-                        or url.lower() in self._excluded_urls_lower
+                        url_lower in seen_urls
+                        or url_lower in self._stored_urls
+                        or url_lower in self._excluded_urls_lower
                         or matches_exclusion_pattern(url)
                     ):
                         continue
-                    self._stored_urls.add(url.lower())
+                    seen_urls.add(url_lower)
                     link = Link(
                         title=entry.title,
                         url=url,
