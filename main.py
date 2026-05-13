@@ -56,7 +56,6 @@ class LinkManagerApp:
         self._app.setApplicationDisplayName("Link Manager")
         icon = _get_app_icon()
         self._app.setWindowIcon(icon)
-        print(f"DEBUG: Set application icon: {icon} (isNull: {icon.isNull()})")
         self._window: Optional[MainWindow] = None
 
     def run(self) -> int:
