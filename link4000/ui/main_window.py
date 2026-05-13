@@ -521,6 +521,7 @@ class MainWindow(QMainWindow):
         def fetch_and_process():
             sources = SourceRegistry.get_enabled_sources()
             all_links = []
+            seen_urls: set[str] = set()  # deduplicate within this fetch batch
 
             for source in sources:
                 entries = source.fetch()
@@ -528,13 +529,15 @@ class MainWindow(QMainWindow):
                     url = entry.url
                     if is_file_path(url):
                         url = str(resolve_unc_path(PurePath(url)))
+                    url_lower = url.lower()
                     if (
-                        url.lower() in self._stored_urls
-                        or url.lower() in self._excluded_urls_lower
+                        url_lower in seen_urls
+                        or url_lower in self._stored_urls
+                        or url_lower in self._excluded_urls_lower
                         or matches_exclusion_pattern(url)
                     ):
                         continue
-                    self._stored_urls.add(url.lower())
+                    seen_urls.add(url_lower)
                     link = Link(
                         title=entry.title,
                         url=url,
