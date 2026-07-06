@@ -439,3 +439,79 @@ max_age_days = 7
         assert full_cfg["sources"]["recent_windows"]["max_age_days"] == 7
         # Other sources should have defaults
         assert full_cfg["sources"]["recent_linux_gnome"]["enabled"] is True
+
+
+class TestStoresAndSyncConfig:
+    """Test get_stores() and get_sync_config()."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a temporary config file."""
+        config_dir = tmp_path / ".link4000"
+        config_dir.mkdir()
+
+        original_path = config._CONFIG_PATH
+        config_file = config_dir / "config.toml"
+        config._CONFIG_PATH = str(config_file)
+        config._config = None
+
+        yield str(config_file)
+
+        config._CONFIG_PATH = original_path
+        config._config = None
+
+    def test_default_stores_fallback(self, temp_config):
+        """Without [stores], a single local store is synthesized."""
+        with open(temp_config, "w") as f:
+            f.write("")
+        stores = config.get_stores()
+        assert len(stores) == 1
+        assert stores[0]["name"] == "Local"
+        assert stores[0]["shared"] is False
+        assert stores[0]["path"].endswith("links.json")
+
+    def test_custom_stores(self, temp_config):
+        """A [[stores]] list is returned as configured."""
+        with open(temp_config, "w") as f:
+            f.write(
+                """
+[[stores]]
+name = "Local"
+path = ""
+shared = false
+
+[[stores]]
+name = "Team"
+path = "Z:/share/links.team.json"
+shared = true
+"""
+            )
+        stores = config.get_stores()
+        assert [s["name"] for s in stores] == ["Local", "Team"]
+        assert stores[1]["shared"] is True
+        assert stores[1]["path"] == "Z:/share/links.team.json"
+
+    def test_default_sync_config(self, temp_config):
+        """Default [sync] values are present."""
+        with open(temp_config, "w") as f:
+            f.write("")
+        sync = config.get_sync_config()
+        assert sync["enabled"] is True
+        assert sync["sync_interval_minutes"] == 15
+        assert sync["on_change_debounce_seconds"] == 5
+        assert sync["tombstone_retention_days"] == 30
+
+    def test_custom_sync_config(self, temp_config):
+        """User [sync] overrides are merged with defaults."""
+        with open(temp_config, "w") as f:
+            f.write(
+                """
+[sync]
+enabled = false
+sync_interval_minutes = 30
+"""
+            )
+        sync = config.get_sync_config()
+        assert sync["enabled"] is False
+        assert sync["sync_interval_minutes"] == 30
+        assert sync["on_change_debounce_seconds"] == 5

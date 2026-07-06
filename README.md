@@ -195,6 +195,31 @@ unknown = "#999999"
 # [extensions]
 # ".pdf" = "#E53935"
 # ".docx" = "#1565C0"
+
+# ----------------------------------------------------------------------------
+# Multi-store / shared links
+# ----------------------------------------------------------------------------
+# Define named JSON stores. Each user starts with a single local "Local" store.
+# To share links with a group, add a store whose path points at a common
+# network share (SMB) location and set shared = true. Shared stores are
+# synchronized with a 3-way merge (tombstones + last-synced baseline) and a
+# conflict-resolution dialog.
+#
+# [[stores]]
+# name = "Local"
+# path = ""            # empty -> default ~/.link4000/links.json
+# shared = false
+#
+# [[stores]]
+# name = "Team"
+# path = "Z:/share/links.team.json"
+# shared = true
+#
+# [sync]
+# enabled = true
+# sync_interval_minutes = 15
+# on_change_debounce_seconds = 5
+# tombstone_retention_days = 30
 ```
 
 
@@ -233,6 +258,14 @@ main.py                  # Application entry point
 
 ## Features
 
+- **Multi-Store Support**: Links live in named JSON "stores", shown as filterable
+  sources in the UI. Add links to any store via the store picker in the add/edit dialog.
+- **Shared Stores (Group Sharing)**: Point a store at a common network share (SMB)
+  and mark it `shared = true`. Link4000 synchronizes it automatically using a
+  3-way merge (tombstones + a last-synced baseline) with `portalocker` file locking
+  and atomic writes. Conflicts (same link edited on both sides, or a delete vs an
+  edit) are surfaced in a dialog where you choose to keep local, keep remote, or
+  keep both. `last_accessed` and excluded recent URLs stay local to each user.
 - **Tag Management**: Add, edit, and filter links by tags
 - **Search**: Find links by title, URL, or tags
 - **Filter Modes**: Tag filtering supports three modes: match ANY tag (OR), ALL tags (AND), or NONE of the selected tags

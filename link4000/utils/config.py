@@ -39,6 +39,19 @@ _DEFAULTS = {
         "unknown": "#999999",
     },
     "extensions": {},
+    "stores": [
+        {
+            "name": "Local",
+            "path": "",
+            "shared": False,
+        }
+    ],
+    "sync": {
+        "enabled": True,
+        "sync_interval_minutes": 15,
+        "on_change_debounce_seconds": 5,
+        "tombstone_retention_days": 30,
+    },
 }
 
 
@@ -312,6 +325,55 @@ def get_full_config() -> dict:
     return full_cfg
 
 
+def get_stores() -> list:
+    """Return the list of configured link stores.
+
+    Each entry is a dict with ``name``, ``path``, and ``shared`` keys. When the
+    ``[stores]`` configuration is absent, a single local store is synthesized
+    from the legacy ``[global] links_file`` setting (or the default
+    ``~/.link4000/links.json``), preserving pre-multi-store behavior.
+
+    Returns:
+        A list of store configuration dicts.
+    """
+    cfg = _get_config()
+    stores_cfg = cfg.get("stores")
+    if stores_cfg is not None:
+        result = []
+        for entry in stores_cfg:
+            result.append(
+                {
+                    "name": entry.get("name", "Local"),
+                    "path": os.path.expanduser(entry.get("path", "")),
+                    "shared": bool(entry.get("shared", False)),
+                }
+            )
+        return result
+
+    # Legacy fallback: synthesize a single local store.
+    return [
+        {
+            "name": "Local",
+            "path": get_links_file_path(),
+            "shared": False,
+        }
+    ]
+
+
+def get_sync_config() -> dict:
+    """Return the ``[sync]`` configuration merged with defaults.
+
+    Returns:
+        Dict with keys ``enabled``, ``sync_interval_minutes``,
+        ``on_change_debounce_seconds``, and ``tombstone_retention_days``.
+    """
+    cfg = _get_config()
+    sync_cfg = cfg.get("sync", {})
+    merged = _DEFAULTS["sync"].copy()
+    merged.update(sync_cfg)
+    return merged
+
+
 def ensure_config_exists() -> None:
     """Create default config.toml if it doesn't exist."""
     if os.path.exists(_CONFIG_PATH):
@@ -350,6 +412,31 @@ def ensure_config_exists() -> None:
 # Auto-reload interval for dynamic sources in minutes (default 15).
 # Set to 0 to disable automatic reloading.
 # reload_interval_minutes = 15
+
+# ----------------------------------------------------------------------------
+# Multi-store / shared links configuration
+# ----------------------------------------------------------------------------
+# Define named JSON stores. Each user starts with a single local "Local" store.
+# To share links with a group, add a store whose path points at a common
+# network share (SMB) location and set shared = true. Shared stores are
+# synchronized using a 3-way merge (tombstones + last-synced baseline).
+#
+# [[stores]]
+# name = "Local"
+# path = ""            # empty -> default ~/.link4000/links.json
+# shared = false
+#
+# [[stores]]
+# name = "Team"
+# path = "Z:/share/links.team.json"
+# shared = true
+
+# Sync behavior (applies to shared stores):
+# [sync]
+# enabled = true
+# sync_interval_minutes = 15
+# on_change_debounce_seconds = 5
+# tombstone_retention_days = 30
 
 # Per-source configuration options:
 # Each source can have its own config section under [sources.<source_name>]

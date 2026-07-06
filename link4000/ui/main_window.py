@@ -51,17 +51,21 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QAction, QPainter, QColor, QFont, QIcon, QCloseEvent
 
-from link4000.data.link_store import LinkStore
+from link4000.data.store_registry import StoreRegistry
+from link4000.data.sync import SyncEngine
+from link4000.data.sync_scheduler import SyncScheduler
 from link4000.models.link_model import LinkTableModel, LinkSortFilterModel
 from link4000.ui.add_link_dialog import AddLinkDialog
 from link4000.ui.bulk_edit_tags_dialog import BulkEditTagsDialog
 from link4000.ui.tag_filter_window import TagFilterWindow
+from link4000.ui.sync_conflict_dialog import SyncConflictDialog
 from link4000.utils.config import (
     ensure_config_exists,
     get_theme,
     get_tray_behavior,
     get_enabled_sources,
     get_reload_interval_minutes,
+    get_sync_config,
 )
 from link4000.data.source_registry import SourceRegistry
 from pathlib import Path, PurePath
@@ -185,7 +189,13 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Link4000 - Link Manager")
         self.setMinimumSize(800, 600)
 
-        self._store = LinkStore()
+        self._registry = StoreRegistry()
+        self._scheduler = SyncScheduler(
+            self._registry,
+            on_sync_finished=self._on_sync_finished,
+            on_conflicts=self._on_conflicts,
+        )
+        self._active_store_filter = ""
         self._selected_tags = set()
         self._match_mode = TagMatchMode.OR
         self._all_tags = set()
@@ -227,6 +237,9 @@ class MainWindow(QMainWindow):
         if self._tray_behavior != "normal":
             self._setup_tray()
         self._load_links()
+        # Synchronize shared stores at startup, then keep them in sync.
+        self._scheduler.startup_sync()
+        self._scheduler.start_periodic()
 
     def showEvent(self, event) -> None:
         """Handle the window show event to ensure taskbar icon is set correctly.
@@ -350,6 +363,10 @@ class MainWindow(QMainWindow):
             event.ignore()
             self.hide()
         else:
+            try:
+                self._scheduler.shutdown_sync()
+            except Exception:
+                pass
             event.accept()
 
     def changeEvent(self, event: QEvent) -> None:
@@ -397,6 +414,14 @@ class MainWindow(QMainWindow):
         self._clear_button.clicked.connect(self._on_clear_clicked)
         toolbar_layout.addWidget(self._clear_button)
 
+        self._store_filter = QComboBox()
+        self._store_filter.addItem("All Stores")
+        for name in self._registry.get_store_names():
+            self._store_filter.addItem(name)
+        self._store_filter.setToolTip("Filter by store / source")
+        self._store_filter.currentTextChanged.connect(self._on_store_filter_changed)
+        toolbar_layout.addWidget(self._store_filter)
+
         self._sort_combo = QComboBox()
         self._sort_combo.addItems(["Sort by", "Created", "Modified"])
         self._sort_combo.currentTextChanged.connect(self._on_sort_changed)
@@ -418,6 +443,11 @@ class MainWindow(QMainWindow):
         )
         self._reload_button.clicked.connect(self._load_links)
         toolbar_layout.addWidget(self._reload_button)
+
+        self._sync_button = QPushButton("Sync")
+        self._sync_button.setToolTip("Synchronize shared stores now")
+        self._sync_button.clicked.connect(lambda: self._scheduler.sync_now())
+        toolbar_layout.addWidget(self._sync_button)
 
         layout.addWidget(toolbar)
 
@@ -471,7 +501,9 @@ class MainWindow(QMainWindow):
         and schedules asynchronous loading of dynamic source entries.
         """
         self._status_bar.showMessage("Loading stored links...")
-        stored = self._store.get_all()
+        stored = self._registry.get_all_links()
+        if self._active_store_filter:
+            stored = [link for link in stored if link.store == self._active_store_filter]
         self._model.set_links(stored)
 
         # Pre-compute link types in background to avoid GUI freeze when
@@ -500,7 +532,7 @@ class MainWindow(QMainWindow):
         self._update_status()
 
         self._excluded_urls_lower = {
-            url.lower() for url in self._store.get_excluded_recent_urls()
+            url.lower() for url in self._registry.get_excluded_recent_urls()
         }
         self._stored_urls = {link.url.lower() for link in stored}
 
@@ -508,6 +540,73 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, self._load_dynamic_sources)
 
         self._ensure_auto_reload_timer_running()
+
+    def _on_store_filter_changed(self, text: str) -> None:
+        """Filter the displayed links by the selected store / source.
+
+        "All Stores" clears the filter; any other value restricts the table
+        to links owned by that store.
+
+        Args:
+            text: The newly selected combo box text.
+        """
+        self._active_store_filter = "" if text == "All Stores" else text
+        self._load_links()
+
+    def _on_sync_finished(self, results: list) -> None:
+        """Handle the result of a synchronization pass.
+
+        Reloads the link table so pulled/merged changes appear, and surfaces a
+        short status summary (including any sync errors).
+
+        Args:
+            results: List of :class:`SyncResult` objects from the scheduler.
+        """
+        if not results:
+            return
+        pushed = sum(r.pushed for r in results)
+        pulled = sum(r.pulled for r in results)
+        deleted = sum(r.deleted_local for r in results)
+        errors = [e for r in results for e in r.errors]
+        if errors:
+            self._status_bar.showMessage(
+                "Sync error: " + "; ".join(errors[:2]), 5000
+            )
+        else:
+            self._status_bar.showMessage(
+                f"Synced: {pushed} pushed, {pulled} pulled, {deleted} deleted",
+                4000,
+            )
+        self._load_links()
+
+    def _on_conflicts(self, conflicts: list) -> None:
+        """Open the conflict-resolution dialog and re-sync with the choices.
+
+        Args:
+            conflicts: Aggregated list of :class:`ConflictRecord` objects.
+        """
+        if not conflicts:
+            return
+        dialog = SyncConflictDialog(self, conflicts)
+        if dialog.exec():
+            choices = dialog.get_choices()
+            self._resolve_and_resync(choices)
+
+    def _resolve_and_resync(self, choices: dict) -> None:
+        """Re-run sync for all shared stores applying the user's choices.
+
+        Args:
+            choices: Mapping of link id -> "local" | "remote" | "keep_both".
+        """
+        retention = get_sync_config().get("tombstone_retention_days", 30)
+        for store in self._registry.shared_stores():
+            engine = SyncEngine(store, str(store.filepath), retention)
+
+            def resolver(crs, _choices=choices):
+                return {c.link_id: _choices.get(c.link_id, "remote") for c in crs}
+
+            engine.sync_store(conflict_resolver=resolver)
+        self._load_links()
 
     def _load_dynamic_sources(self) -> None:
         """Fetch entries from all enabled dynamic sources.
@@ -566,9 +665,9 @@ class MainWindow(QMainWindow):
         provide immediate feedback while loading items asynchronously.
         """
         self._excluded_urls_lower = {
-            url.lower() for url in self._store.get_excluded_recent_urls()
+            url.lower() for url in self._registry.get_excluded_recent_urls()
         }
-        stored = self._store.get_all()
+        stored = self._registry.get_all_links()
         self._stored_urls = {link.url.lower() for link in stored}
         if self._enabled_sources:
             QTimer.singleShot(0, self._load_dynamic_sources)
@@ -788,7 +887,7 @@ class MainWindow(QMainWindow):
             types found in the store (e.g. file extensions or URL types).
         """
         types = set()
-        for link in self._store.get_all():
+        for link in self._registry.get_all_links():
             link_ext = link.file_extension
             if link_ext:
                 types.add(link_ext)
@@ -899,23 +998,34 @@ class MainWindow(QMainWindow):
         ):
             prefilled_url = clipboard_text
 
-        dialog = AddLinkDialog(self, url=prefilled_url, all_tags=self._all_tags)
+        target_store = self._active_store_filter or self._registry.get_default_store_name()
+        dialog = AddLinkDialog(
+            self, url=prefilled_url, all_tags=self._all_tags, store_name=target_store
+        )
         if dialog.exec():
             link = dialog.get_link()
             if link is None:
                 return
-            if not self._confirm_if_duplicate(link.url):
+            if not self._confirm_if_duplicate(link.url, dialog.get_store_name()):
                 return
-            self._store.add(link)
+            self._registry.add_link(link, dialog.get_store_name())
+            self._scheduler.notify_local_change()
             self._load_links()
 
-    def _confirm_if_duplicate(self, url: str) -> bool:
+    def _confirm_if_duplicate(self, url: str, store_name: str = "") -> bool:
         """
         Check whether *url* is already stored.  If it is, ask the user for
         confirmation.  Return True when the caller should proceed with saving,
         False when the user chose to abort.
         """
-        existing = self._store.find_by_url(url)
+        url_lower = url.lower()
+        existing = None
+        for link in self._registry.get_all_links():
+            if store_name and link.store != store_name:
+                continue
+            if link.url.lower() == url_lower:
+                existing = link
+                break
         if existing is None:
             return True
         reply = QMessageBox.question(
@@ -930,7 +1040,7 @@ class MainWindow(QMainWindow):
 
     def _open_link(self, link):
         """Open *link* in the appropriate application (browser, file manager, etc.)."""
-        self._store.update_last_accessed(link.id)
+        self._registry.update_last_accessed(link.id)
         link.last_accessed = datetime.now()
         target = link.url
         if sys.platform == "win32":
@@ -974,12 +1084,16 @@ class MainWindow(QMainWindow):
             id="",  # empty id signals store.add() to generate a fresh UUID
             source_tag="",
         )
-        dialog = AddLinkDialog(self, link=promoted, all_tags=self._all_tags)
+        target_store = self._active_store_filter or self._registry.get_default_store_name()
+        dialog = AddLinkDialog(
+            self, link=promoted, all_tags=self._all_tags, store_name=target_store
+        )
         if dialog.exec():
             saved = dialog.get_link()
             if saved is not None:
-                self._store.add(saved)
-                self._store.update_last_accessed(saved.id)
+                self._registry.add_link(saved, dialog.get_store_name())
+                self._registry.update_last_accessed(saved.id)
+                self._scheduler.notify_local_change()
                 self._load_links()
 
     def _promote_favorite(self, link):
@@ -1081,7 +1195,7 @@ class MainWindow(QMainWindow):
             clipboard.setText(link.url)
             self._status_bar.showMessage(f"Copied: {link.url}", 2000)
             if not link.source_tag:
-                self._store.update_last_accessed(link.id)
+                self._registry.update_last_accessed(link.id)
                 link.last_accessed = datetime.now()
 
     def _copy_url(self, link: Link) -> None:
@@ -1221,8 +1335,8 @@ class MainWindow(QMainWindow):
         """Add tags to multiple links at once.
 
         Opens a bulk edit dialog for tag addition. Stored links are updated
-        in-place, while recent/favorite entries are promoted to stored links
-        with the new tags applied.
+        in-place (grouped by their owning store), while recent/favorite
+        entries are promoted to stored links with the new tags applied.
 
         Args:
             links: A list of Link objects to add tags to.
@@ -1234,9 +1348,14 @@ class MainWindow(QMainWindow):
             tags_to_add = dialog.get_tags()
             if tags_to_add:
                 stored_links = [link for link in links if not link.source_tag]
-                link_ids = [link.id for link in stored_links]
-                if link_ids:
-                    self._store.bulk_update_tags(link_ids, tags_to_add, [])
+                by_store: dict[str, list[str]] = {}
+                for link in stored_links:
+                    store_name = self._registry.find_store_of_link(link.id) or ""
+                    by_store.setdefault(store_name, []).append(link.id)
+                for store_name, link_ids in by_store.items():
+                    store = self._registry.get_store(store_name)
+                    if store is not None:
+                        store.bulk_update_tags(link_ids, tags_to_add, [])
 
                 for link in links:
                     if link.source_tag:
@@ -1251,16 +1370,21 @@ class MainWindow(QMainWindow):
                             id="",
                             source_tag="",
                         )
-                        self._store.add(promoted)
+                        target = (
+                            self._active_store_filter
+                            or self._registry.get_default_store_name()
+                        )
+                        self._registry.add_link(promoted, target)
 
+                self._scheduler.notify_local_change()
                 self._load_links()
 
     def _bulk_remove_tags(self, links: list[Link]) -> None:
         """Remove tags from multiple links at once.
 
         Opens a bulk edit dialog for tag removal. Stored links are updated
-        in-place, while recent/favorite entries are promoted to stored links
-        with the specified tags removed.
+        in-place (grouped by their owning store), while recent/favorite
+        entries are promoted to stored links with the specified tags removed.
 
         Args:
             links: A list of Link objects to remove tags from.
@@ -1272,9 +1396,14 @@ class MainWindow(QMainWindow):
             tags_to_remove = dialog.get_tags()
             if tags_to_remove:
                 stored_links = [link for link in links if not link.source_tag]
-                link_ids = [link.id for link in stored_links]
-                if link_ids:
-                    self._store.bulk_update_tags(link_ids, [], tags_to_remove)
+                by_store: dict[str, list[str]] = {}
+                for link in stored_links:
+                    store_name = self._registry.find_store_of_link(link.id) or ""
+                    by_store.setdefault(store_name, []).append(link.id)
+                for store_name, link_ids in by_store.items():
+                    store = self._registry.get_store(store_name)
+                    if store is not None:
+                        store.bulk_update_tags(link_ids, [], tags_to_remove)
 
                 for link in links:
                     if link.source_tag:
@@ -1289,17 +1418,22 @@ class MainWindow(QMainWindow):
                             id="",
                             source_tag="",
                         )
-                        self._store.add(promoted)
+                        target = (
+                            self._active_store_filter
+                            or self._registry.get_default_store_name()
+                        )
+                        self._registry.add_link(promoted, target)
 
+                self._scheduler.notify_local_change()
                 self._load_links()
 
     def _bulk_delete(self, links):
         """Delete multiple links after user confirmation.
 
-        Stored links are deleted from the store. Recent and favorite entries
-        are excluded from future loads by adding their URLs to the exclusion
-        list. The list is updated immediately and dynamic entries are refreshed
-        in the background.
+        Stored links are deleted from their owning store. Recent and favorite
+        entries are excluded from future loads by adding their URLs to the
+        exclusion list. The list is updated immediately and dynamic entries
+        are refreshed in the background.
 
         Args:
             links: A list of Link objects to delete.
@@ -1312,14 +1446,20 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            link_ids = [link.id for link in links if not link.source_tag]
-            if link_ids:
-                self._store.bulk_delete(link_ids)
+            by_store: dict[str, list[str]] = {}
             for link in links:
                 if link.source_tag:
-                    self._store.add_excluded_recent_url(link.url)
+                    continue
+                store_name = self._registry.find_store_of_link(link.id) or ""
+                by_store.setdefault(store_name, []).append(link.id)
+            for store_name, link_ids in by_store.items():
+                self._registry.bulk_delete(link_ids, store_name)
+            for link in links:
+                if link.source_tag:
+                    self._registry.add_excluded_recent_url(link.url)
                 self._model.remove_link(link.id)
             self._update_status()
+            self._scheduler.notify_local_change()
             self._refresh_recent_background()
 
     def _edit_link(self, link):
@@ -1332,36 +1472,45 @@ class MainWindow(QMainWindow):
         Args:
             link: The Link object to edit.
         """
-        dialog = AddLinkDialog(self, link=link, all_tags=self._all_tags)
+        dialog = AddLinkDialog(
+            self,
+            link=link,
+            all_tags=self._all_tags,
+            store_name=link.store or self._registry.get_default_store_name(),
+        )
         dialog.delete_requested.connect(lambda: self._handle_delete_from_edit(link))
         if dialog.exec():
             updated = dialog.get_link()
             if updated is not None:
-                self._store.update(updated)
+                self._registry.update_link(updated, dialog.get_store_name())
                 self._model.update_link(updated)
                 self._update_all_tags()
+                self._scheduler.notify_local_change()
 
     def _handle_delete_from_edit(self, link: Link) -> None:
         """Handle deletion triggered from within the edit dialog.
 
-        Removes the link from the model immediately and refreshes recent
+        Removes the link from its store immediately and refreshes recent
         entries in the background.
 
         Args:
             link: The Link object being deleted.
         """
-        self._store.delete(link.id)
+        store_name = self._registry.find_store_of_link(link.id)
+        if store_name:
+            self._registry.delete_link(link.id, store_name)
         self._model.remove_link(link.id)
         self._update_status()
+        self._scheduler.notify_local_change()
         self._refresh_recent_background()
 
     def _delete_link(self, link):
         """Delete a single link after user confirmation.
 
-        Stored links are removed from the store. Recent and favorite entries
-        are excluded from future loads by adding their URLs to the exclusion
-        list. The list is updated immediately and dynamic entries are refreshed
-        in the background.
+        Stored links are removed from their owning store. Recent and favorite
+        entries are excluded from future loads by adding their URLs to the
+        exclusion list. The list is updated immediately and dynamic entries
+        are refreshed in the background.
 
         Args:
             link: The Link object to delete.
@@ -1374,9 +1523,12 @@ class MainWindow(QMainWindow):
         )
         if reply == QMessageBox.StandardButton.Yes:
             if link.source_tag:
-                self._store.add_excluded_recent_url(link.url)
+                self._registry.add_excluded_recent_url(link.url)
             else:
-                self._store.delete(link.id)
+                store_name = self._registry.find_store_of_link(link.id)
+                if store_name:
+                    self._registry.delete_link(link.id, store_name)
             self._model.remove_link(link.id)
             self._update_status()
+            self._scheduler.notify_local_change()
             self._refresh_recent_background()

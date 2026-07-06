@@ -37,6 +37,9 @@ class Link:
     source_tag: str = field(default="")
     _cached_link_type: Optional[str] = field(default=None, repr=False)
     _cached_file_extension: Optional[str] = field(default=None, repr=False)
+    # Name of the store this link belongs to. Not serialized into the shared
+    # file; used by the multi-store registry and UI for routing/targeting.
+    store: str = field(default="", repr=False)
 
     @property
     def link_type(self) -> str:
@@ -65,6 +68,26 @@ class Link:
             "source_tag": self.source_tag,
         }
 
+    def to_shared_dict(self) -> dict:
+        """Serialize the shareable portion of a link for a shared store file.
+
+        Excludes per-user fields (``last_accessed``) and runtime fields
+        (``store``). Shared stores hold only the canonical link content so
+        each user can keep their own ``last_accessed`` locally.
+
+        Returns:
+            A dict with id, title, url, tags, created_at, updated_at, source_tag.
+        """
+        return {
+            "id": self.id,
+            "title": self.title,
+            "url": self.url,
+            "tags": self.tags,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "source_tag": self.source_tag,
+        }
+
     @classmethod
     def from_dict(cls, data: dict) -> "Link":
         """Creates a Link instance from a dictionary produced by to_dict.
@@ -86,6 +109,30 @@ class Link:
             ),
             last_accessed=datetime.fromisoformat(
                 data.get("last_accessed", datetime.now().isoformat())
+            ),
+        )
+
+    @classmethod
+    def from_shared_dict(cls, data: dict) -> "Link":
+        """Create a Link from the shareable payload (no last_accessed/store).
+
+        Used when loading links from a shared store file during sync. The
+        per-user ``last_accessed`` is initialized to now locally.
+
+        Args:
+            data: Dictionary with shared link fields (ISO timestamps).
+        """
+        return cls(
+            id=data.get("id", str(uuid.uuid4())),
+            title=data.get("title", ""),
+            url=data.get("url", ""),
+            tags=data.get("tags", []),
+            source_tag=data.get("source_tag", ""),
+            created_at=datetime.fromisoformat(
+                data.get("created_at", datetime.now().isoformat())
+            ),
+            updated_at=datetime.fromisoformat(
+                data.get("updated_at", datetime.now().isoformat())
             ),
         )
 

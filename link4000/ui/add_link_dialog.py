@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QCompleter,
     QFileDialog,
     QMenu,
+    QComboBox,
     QWidget,
 )
 from typing import Optional
@@ -53,6 +54,7 @@ class AddLinkDialog(QDialog):
         link: Link | None = None,
         url: str = "",
         all_tags: set[str] | None = None,
+        store_name: str = "",
     ) -> None:
         """Initialize the add/edit link dialog.
 
@@ -61,6 +63,8 @@ class AddLinkDialog(QDialog):
             link: An existing Link to edit, or None for creating a new link.
             url: Optional pre-filled URL or file path.
             all_tags: Set of existing tag names for auto-completion.
+            store_name: Name of the target store for this link. When non-empty
+                a "Store" selector is shown; otherwise no selector is displayed.
         """
         super().__init__(parent)
         self._link = link
@@ -69,11 +73,25 @@ class AddLinkDialog(QDialog):
         self._deleted = False
         self._title_manually_set = False
         self._auto_filling_title = False
+        self._store_name = store_name
 
         self.setWindowTitle("Edit Link" if self._is_edit else "Add Link")
         self.setMinimumWidth(400)
 
         layout = QVBoxLayout(self)
+
+        if store_name:
+            from link4000.utils.config import get_stores
+
+            store_names = [s["name"] for s in get_stores()]
+            store_layout = QHBoxLayout()
+            store_layout.addWidget(QLabel("Store:"))
+            self._store_combo = QComboBox()
+            self._store_combo.addItems(store_names)
+            if store_name in store_names:
+                self._store_combo.setCurrentText(store_name)
+            store_layout.addWidget(self._store_combo)
+            layout.addLayout(store_layout)
 
         title_layout = QHBoxLayout()
         title_layout.addWidget(QLabel("Title:"))
@@ -341,3 +359,17 @@ class AddLinkDialog(QDialog):
             user chose to delete the link.
         """
         return None if self._deleted else self.link
+
+    def get_store_name(self) -> str:
+        """Return the selected target store name for this link.
+
+        Returns:
+            The store name chosen in the dialog's store selector, or the
+            default store name passed at construction when no selector is
+            shown.
+        """
+        if getattr(self, "_store_name", ""):
+            if hasattr(self, "_store_combo"):
+                return self._store_combo.currentText()
+            return self._store_name
+        return ""

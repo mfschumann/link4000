@@ -3,13 +3,17 @@
 Provides the ``LinkStore`` class which handles CRUD operations, search, bulk
 tag management, import/export, and an exclusion list for recently-seen URLs.
 All data is persisted to ``~/.link4000/links.json`` by default.
+
+A ``LinkStore`` is the unit of one named JSON file (a "store"). Shared stores
+add tombstone tracking so that deletions propagate correctly through
+synchronization (see ``link4000.data.sync``).
 """
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from link4000.models.link import Link
 from link4000.utils.config import get_links_file_path
@@ -20,20 +24,27 @@ class LinkStore:
 
     Supports CRUD operations, full-text search, bulk tag updates, link
     import, and an exclusion list for URLs sourced from recent-docs or
-    favorites integrations.
+    favorites integrations. For shared stores, deletions are recorded as
+    tombstones so that synchronization can propagate them.
 
     Attributes:
         _filepath: Path to the JSON storage file.
         _links: In-memory list of Link objects.
         _excluded_recent_urls: Set of URLs excluded from recent-docs import.
+        _tombstones: Map of deleted link id -> deletion timestamp (shared only).
+        shared: Whether this store is a shared/group store (enables tombstones).
     """
 
-    def __init__(self, filepath: Optional[str] = None) -> None:
+    def __init__(
+        self, filepath: Optional[str] = None, shared: bool = False
+    ) -> None:
         """Initialize the store and load existing data.
 
         Args:
             filepath: Path to the JSON file. If None, uses the path from
                 the application config (typically ``~/.link4000/links.json``).
+            shared: If True, this store participates in synchronization and
+                deletions are recorded as tombstones.
         """
         if filepath is None:
             links_path = get_links_file_path()
@@ -44,15 +55,23 @@ class LinkStore:
             self._filepath = Path(filepath)
             self._dir = self._filepath.parent
 
+        self.shared = shared
         self._links: List[Link] = []
         self._excluded_recent_urls: set[str] = set()
+        self._tombstones: Dict[str, datetime] = {}
         self._load()
+
+    @property
+    def filepath(self) -> Path:
+        """Return the JSON file path backing this store."""
+        return self._filepath
 
     def _load(self) -> None:
         """Load links and excluded URLs from the JSON file into memory.
 
         If the file does not exist or contains invalid JSON, both lists are
-        reset to empty.
+        reset to empty. Tombstones (for shared stores) are also loaded when
+        present.
         """
         if self._filepath.exists():
             try:
@@ -63,12 +82,20 @@ class LinkStore:
                     self._excluded_recent_urls = set(
                         data.get("excluded_recent_urls", [])
                     )
+                    tombstones_data = data.get("tombstones", {})
+                    for tid, ts in tombstones_data.items():
+                        try:
+                            self._tombstones[tid] = datetime.fromisoformat(ts)
+                        except (ValueError, TypeError):
+                            self._tombstones[tid] = datetime.now()
             except (json.JSONDecodeError, IOError):
                 self._links = []
                 self._excluded_recent_urls = set()
+                self._tombstones = {}
         else:
             self._links = []
             self._excluded_recent_urls = set()
+            self._tombstones = {}
 
     def save(self) -> None:
         """Persist the current state of links and excluded URLs to the JSON file."""
@@ -76,8 +103,85 @@ class LinkStore:
             "links": [link.to_dict() for link in self._links],
             "excluded_recent_urls": sorted(self._excluded_recent_urls),
         }
+        if self.shared:
+            data["tombstones"] = {
+                tid: ts.isoformat() for tid, ts in self._tombstones.items()
+            }
         with open(self._filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+    # ------------------------------------------------------------------
+    # Shared-payload (de)serialization used by sync
+    # ------------------------------------------------------------------
+    def shared_payload(self) -> dict:
+        """Return the on-disk payload for a shared store (links + tombstones).
+
+        The local-only ``excluded_recent_urls`` are intentionally excluded;
+        only the canonical link content and tombstones travel between users.
+
+        Returns:
+            A dict with ``links`` and ``tombstones`` keys.
+        """
+        return {
+            "links": [link.to_shared_dict() for link in self._links],
+            "tombstones": {
+                tid: ts.isoformat() for tid, ts in self._tombstones.items()
+            },
+        }
+
+    def load_shared_payload(self, payload: dict) -> None:
+        """Replace in-memory links/tombstones from a shared payload dict.
+
+        The per-user ``last_accessed`` is preserved: the value of any link
+        whose id already exists in memory is kept rather than reset to now.
+
+        Args:
+            payload: Dict with ``links`` and ``tombstones`` keys.
+        """
+        prior_access: Dict[str, datetime] = {
+            link.id: link.last_accessed for link in self._links
+        }
+        self._links = []
+        for d in payload.get("links", []):
+            link = Link.from_shared_dict(d)
+            if link.id in prior_access:
+                link.last_accessed = prior_access[link.id]
+            self._links.append(link)
+        self._tombstones = {}
+        for tid, ts in payload.get("tombstones", {}).items():
+            try:
+                self._tombstones[tid] = datetime.fromisoformat(ts)
+            except (ValueError, TypeError):
+                self._tombstones[tid] = datetime.now()
+
+    # ------------------------------------------------------------------
+    # Tombstones
+    # ------------------------------------------------------------------
+    def add_tombstone(self, link_id: str) -> None:
+        """Record a deletion tombstone for *link_id* (shared stores only)."""
+        if self.shared:
+            self._tombstones[link_id] = datetime.now()
+
+    def is_tombstoned(self, link_id: str) -> bool:
+        """Return True if *link_id* is recorded as deleted (tombstoned)."""
+        return link_id in self._tombstones
+
+    def get_tombstones(self) -> Dict[str, datetime]:
+        """Return a copy of the tombstone map (id -> deletion timestamp)."""
+        return dict(self._tombstones)
+
+    def prune_tombstones(self, retention_days: int) -> None:
+        """Remove tombstones older than *retention_days*.
+
+        Args:
+            retention_days: Tombstones older than this many days are removed.
+        """
+        if retention_days <= 0:
+            return
+        cutoff = datetime.now() - timedelta(days=retention_days)
+        self._tombstones = {
+            tid: ts for tid, ts in self._tombstones.items() if ts >= cutoff
+        }
 
     def get_all(self) -> List[Link]:
         """Return a shallow copy of all stored links.
@@ -118,12 +222,16 @@ class LinkStore:
     def delete(self, link_id: str) -> None:
         """Remove a link by its id and persist.
 
+        For shared stores, the deletion is also recorded as a tombstone so
+        that synchronization can propagate it to other clients.
+
         Args:
             link_id: The unique identifier of the link to remove.
         """
         self._links = [
             link_item for link_item in self._links if link_item.id != link_id
         ]
+        self.add_tombstone(link_id)
         self.save()
 
     def update_last_accessed(self, link_id: str) -> None:
@@ -237,14 +345,19 @@ class LinkStore:
         """
         Delete multiple links by their IDs.
 
+        For shared stores, each deletion is recorded as a tombstone.
+
         Args:
             link_ids: List of link IDs to delete
         """
         if not link_ids:
             return
+        id_set = set(link_ids)
         self._links = [
-            link_item for link_item in self._links if link_item.id not in link_ids
+            link_item for link_item in self._links if link_item.id not in id_set
         ]
+        for link_id in id_set:
+            self.add_tombstone(link_id)
         self.save()
 
     def add_excluded_recent_url(self, url: str) -> None:
