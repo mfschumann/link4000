@@ -9,6 +9,7 @@ version = "1.2.1"
 python = "3.13.*"
 pyside6 = "*"
 tomli-w = "*"
+portalocker = "*"
 
 [target.win-64.dependencies]
 pywin32 = "*"
