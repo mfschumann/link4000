@@ -90,6 +90,17 @@ class TestGetLinkType:
         result = get_link_type("https://company.sharepoint.com/sites/test/doc.docx")
         assert result == "file"
 
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_doc_aspx_file_param(self, mock_sp):
+        """Tests that a SharePoint Doc.aspx URL with file= is classified as 'file'."""
+        url = (
+            "https://some.sharepoint.com/:p:/r/Sites/202384/Sustaining/"
+            "_layouts/15/Doc.aspx?sourcedoc=%7B49C4329E-6B72-4FD5-B83F-7AC8D4A9BB75%7D"
+            "&file=some_file.pptx&action=edit&mobileredirect=true"
+        )
+        result = get_link_type(url)
+        assert result == "file"
+
     @patch("os.path.isdir")
     @patch("os.path.isfile")
     def test_existing_folder(self, mock_isfile, mock_isdir):
@@ -136,13 +147,22 @@ class TestGetFileExtension:
         assert get_file_extension("https://example.com") == ""
 
     @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
-    @patch(
-        "link4000.utils.path_utils.get_sharepoint_file_extension", return_value=".docx"
-    )
-    def test_sharepoint_file_extension(self, mock_sp_ext, mock_sp):
+    def test_sharepoint_file_extension(self, mock_sp):
         """Tests that SharePoint file extensions are extracted via the dedicated helper."""
-        result = get_file_extension("https://company.sharepoint.com/file.docx")
+        # SharePoint URL with file extension in path
+        result = get_file_extension("https://company.sharepoint.com/sites/test/doc.docx")
         assert result == ".docx"
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_doc_aspx_file_param(self, mock_sp):
+        """Tests that the file extension is read from the file= query parameter for Doc.aspx URLs."""
+        url = (
+            "https://some.sharepoint.com/:p:/r/Sites/202384/Sustaining/"
+            "_layouts/15/Doc.aspx?sourcedoc=%7B49C4329E-6B72-4FD5-B83F-7AC8D4A9BB75%7D"
+            "&file=some_file.pptx&action=edit&mobileredirect=true"
+        )
+        result = get_file_extension(url)
+        assert result == ".pptx"
 
 
 class TestToOfficeUri:

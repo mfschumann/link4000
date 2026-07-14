@@ -93,7 +93,11 @@ def matches_exclusion_pattern(url_or_path: str) -> bool:
 
 def get_sharepoint_file_extension(url: str) -> str:
     """
-    Extract the file extension from a SharePoint URL's path.
+    Extract the file extension from a SharePoint URL.
+
+    For normal SharePoint file URLs the extension is taken from the URL path.
+    For SharePoint "Doc.aspx" URLs (e.g. ``_layouts/15/Doc.aspx?file=...``),
+    the extension is extracted from the ``file`` query parameter instead.
     Returns the extension (lowercase, with leading dot) or empty string if none.
     """
     if not is_sharepoint_url(url):
@@ -101,6 +105,14 @@ def get_sharepoint_file_extension(url: str) -> str:
 
     parsed = urllib.parse.urlparse(url)
     path = urllib.parse.unquote(parsed.path)
+
+    # Modern SharePoint document links use a generic Doc.aspx page with the
+    # real filename supplied in the file= query parameter.
+    if Path(path).name.lower() == "doc.aspx":
+        query = urllib.parse.parse_qs(parsed.query)
+        file_param = query.get("file", [""])[0]
+        if file_param:
+            return Path(file_param).suffix.lower()
 
     ext = Path(path).suffix
     return ext.lower()

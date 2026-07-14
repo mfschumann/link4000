@@ -52,6 +52,15 @@ class Link:
             self._cached_file_extension = _get_file_extension(self.url)
         return self._cached_file_extension
 
+    def reset_type_cache(self) -> None:
+        """Invalidate the cached link type and file extension.
+
+        Should be called after mutating ``url`` so that the type is
+        re-evaluated on the next access.
+        """
+        self._cached_link_type = None
+        self._cached_file_extension = None
+
     def to_dict(self) -> dict:
         """Serializes the link to a dictionary with ISO-formatted timestamps."""
         return {

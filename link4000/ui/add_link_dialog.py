@@ -313,6 +313,7 @@ class AddLinkDialog(QDialog):
             self._link.title = title
             self._link.url = str(url)
             self._link.tags = tags
+            self._link.reset_type_cache()
             self.link = self._link
         else:
             self.link = Link(title=title, url=str(url), tags=tags)
