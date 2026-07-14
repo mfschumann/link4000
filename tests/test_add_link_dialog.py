@@ -135,10 +135,9 @@ class TestAddLinkDialogEditMode:
         with patch("link4000.models.link._get_link_type", return_value="file"):
             with patch("link4000.models.link._get_file_extension", return_value=".txt"):
                 dlg._on_save()
-
-        assert link.url == str(PurePath("/some/path/file.txt"))
-        assert link.link_type == "file"
-        assert link.file_extension == ".txt"
+                assert link.url == str(PurePath("/some/path/file.txt"))
+                assert link.link_type == "file"
+                assert link.file_extension == ".txt"
 
     def test_has_delete_button_in_edit_mode(self):
         """Edit mode includes a delete button."""
