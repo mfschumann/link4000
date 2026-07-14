@@ -122,6 +122,21 @@ class TestAddLinkDialogEditMode:
         assert link.url == "https://new.com"
         assert link.tags == ["updated"]
 
+    def test_edit_re_evaluates_link_type(self):
+        """Changing the URL when editing re-evaluates the cached link type."""
+        link = Link(title="Old", url="https://old.com", tags=[])
+        assert link.link_type == "web"
+
+        dlg = AddLinkDialog(link=link)
+        dlg._title_input.setText("New")
+        dlg._url_input.setText("/some/path/file.txt")
+        dlg._tags_input.setText("updated")
+        dlg._on_save()
+
+        assert link.url == "/some/path/file.txt"
+        assert link.link_type == "file"
+        assert link.file_extension == ".txt"
+
     def test_has_delete_button_in_edit_mode(self):
         """Edit mode includes a delete button."""
         link = Link(title="X", url="https://x.com")

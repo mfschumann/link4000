@@ -128,6 +128,28 @@ class TestLink:
         assert type1 == type2
         assert type1 in ["web", "folder", "file", "sharepoint", "unknown"]
 
+    def test_reset_type_cache_re_evaluates(self):
+        """Test reset_type_cache invalidates the cached type."""
+        link = Link(title="Test", url="https://example.com")
+        original_type = link.link_type
+
+        link.url = "/some/path/file.txt"
+        link.reset_type_cache()
+
+        assert original_type == "web"
+        assert link.link_type == "file"
+
+    def test_reset_type_cache_re_evaluates_file_extension(self):
+        """Test reset_type_cache invalidates the cached file extension."""
+        link = Link(title="Test", url="https://example.com")
+        original_ext = link.file_extension
+
+        link.url = "/some/path/file.txt"
+        link.reset_type_cache()
+
+        assert original_ext == ""
+        assert link.file_extension == ".txt"
+
     def test_repr_excludes_internal_fields(self):
         """Test that repr doesn't include private fields."""
         link = Link(title="Test", url="https://example.com")
