@@ -133,7 +133,7 @@ class TestAddLinkDialogEditMode:
         dlg._tags_input.setText("updated")
         dlg._on_save()
 
-        assert link.url == "/some/path/file.txt"
+        assert link.url == str(PurePath("/some/path/file.txt"))
         assert link.link_type == "file"
         assert link.file_extension == ".txt"
 
