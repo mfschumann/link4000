@@ -131,7 +131,10 @@ class TestAddLinkDialogEditMode:
         dlg._title_input.setText("New")
         dlg._url_input.setText("/some/path/file.txt")
         dlg._tags_input.setText("updated")
-        dlg._on_save()
+
+        with patch("link4000.models.link._get_link_type", return_value="file"):
+            with patch("link4000.models.link._get_file_extension", return_value=".txt"):
+                dlg._on_save()
 
         assert link.url == str(PurePath("/some/path/file.txt"))
         assert link.link_type == "file"
