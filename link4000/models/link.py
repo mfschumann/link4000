@@ -19,6 +19,7 @@ class Link:
         title: Display title of the link.
         url: The URL or path the link points to.
         tags: List of tags associated with the link.
+        description: Optional free-text description of the link.
         id: Unique identifier (UUID string).
         created_at: Timestamp when the link was created.
         updated_at: Timestamp when the link was last modified.
@@ -30,6 +31,7 @@ class Link:
     title: str
     url: str
     tags: List[str] = field(default_factory=list)
+    description: str = field(default="")
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
@@ -68,6 +70,7 @@ class Link:
             "title": self.title,
             "url": self.url,
             "tags": self.tags,
+            "description": self.description,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "last_accessed": self.last_accessed.isoformat(),
@@ -86,6 +89,7 @@ class Link:
             title=data.get("title", ""),
             url=data.get("url", ""),
             tags=data.get("tags", []),
+            description=data.get("description", ""),
             source_tag=data.get("source_tag", ""),
             created_at=datetime.fromisoformat(
                 data.get("created_at", datetime.now().isoformat())
