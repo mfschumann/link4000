@@ -60,6 +60,7 @@ class TestLink:
             "title": "Test",
             "url": "https://example.com",
             "tags": ["tag1"],
+            "description": "",
             "created_at": "2024-01-01T12:00:00",
             "updated_at": "2024-01-02T12:00:00",
             "last_accessed": "2024-01-03T12:00:00",
@@ -73,6 +74,7 @@ class TestLink:
             "title": "Test Link",
             "url": "https://example.com",
             "tags": ["work", "important"],
+            "description": "A note about this link",
             "created_at": "2024-01-01T12:00:00",
             "updated_at": "2024-01-02T12:00:00",
             "last_accessed": "2024-01-03T12:00:00",
@@ -84,6 +86,7 @@ class TestLink:
         assert link.title == "Test Link"
         assert link.url == "https://example.com"
         assert link.tags == ["work", "important"]
+        assert link.description == "A note about this link"
         assert link.created_at == datetime(2024, 1, 1, 12, 0, 0)
         assert link.updated_at == datetime(2024, 1, 2, 12, 0, 0)
         assert link.last_accessed == datetime(2024, 1, 3, 12, 0, 0)
@@ -159,3 +162,21 @@ class TestLink:
         assert "_cached_link_type" not in repr_str
         # source_tag should be present (no repr=False)
         assert "source_tag" in repr_str
+
+    def test_description_default_empty(self):
+        """Test that description defaults to an empty string."""
+        link = Link(title="Test", url="https://example.com")
+        assert link.description == ""
+
+    def test_description_round_trip(self):
+        """Test that description is serialized and restored via to_dict/from_dict."""
+        link = Link(
+            title="Test",
+            url="https://example.com",
+            description="Optional note",
+        )
+
+        restored = Link.from_dict(link.to_dict())
+
+        assert restored.description == "Optional note"
+        assert restored.to_dict() == link.to_dict()

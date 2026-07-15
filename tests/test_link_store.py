@@ -103,8 +103,21 @@ class TestLinkStore:
         """Test searching by tag."""
         store.add(Link(title="Link1", url="https://example1.com", tags=["work"]))
         store.add(Link(title="Link2", url="https://example2.com", tags=["personal"]))
-        
+
         results = store.search("work")
+        assert len(results) == 1
+        assert results[0].title == "Link1"
+
+    def test_search_by_description(self, store):
+        """Test searching matches the link description text."""
+        store.add(
+            Link(title="Link1", url="https://example1.com", description="quarterly report")
+        )
+        store.add(
+            Link(title="Link2", url="https://example2.com", description="budget plan")
+        )
+
+        results = store.search("report")
         assert len(results) == 1
         assert results[0].title == "Link1"
 

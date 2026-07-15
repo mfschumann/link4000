@@ -68,6 +68,17 @@ class TestAddLinkDialogAddMode:
         link = dlg.get_link()
         assert link.tags == ["work", "important"]
 
+    def test_description_saved_on_add(self):
+        """The description entered in add mode is stored on the new link."""
+        dlg = AddLinkDialog()
+        dlg._title_input.setText("My Link")
+        dlg._url_input.setText("https://example.com")
+        dlg._description_input.setPlainText("A short note")
+        dlg._on_save()
+        link = dlg.get_link()
+        assert link is not None
+        assert link.description == "A short note"
+
     def test_validation_empty_title(self):
         """Saving with an empty title shows a warning and does not accept the dialog."""
         dlg = AddLinkDialog()
@@ -109,6 +120,18 @@ class TestAddLinkDialogEditMode:
         assert dlg._title_input.text() == "Edit Me"
         assert dlg._url_input.text() == "https://example.com"
         assert dlg._tags_input.text() == "a, b"
+        assert dlg._description_input.toPlainText() == ""
+
+    def test_fields_populated_from_link_with_description(self):
+        """Input fields include the link's description in edit mode."""
+        link = Link(
+            title="Edit Me",
+            url="https://example.com",
+            tags=["a", "b"],
+            description="Existing note",
+        )
+        dlg = AddLinkDialog(link=link)
+        assert dlg._description_input.toPlainText() == "Existing note"
 
     def test_edit_updates_original_link(self):
         """Saving edits mutates the original link object in place."""
@@ -121,6 +144,18 @@ class TestAddLinkDialogEditMode:
         assert link.title == "New"
         assert link.url == "https://new.com"
         assert link.tags == ["updated"]
+        assert link.description == ""
+
+    def test_edit_updates_description(self):
+        """Saving edits stores the description on the original link."""
+        link = Link(title="Old", url="https://old.com", tags=[], description="old")
+        dlg = AddLinkDialog(link=link)
+        dlg._title_input.setText("New")
+        dlg._url_input.setText("https://new.com")
+        dlg._tags_input.setText("updated")
+        dlg._description_input.setPlainText("new description")
+        dlg._on_save()
+        assert link.description == "new description"
 
     def test_edit_re_evaluates_link_type(self):
         """Changing the URL when editing re-evaluates the cached link type."""

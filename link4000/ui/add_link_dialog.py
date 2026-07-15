@@ -1,9 +1,9 @@
 """Dialog for adding or editing a single link entry.
 
-Provides input fields for title, URL/path, and comma-separated tags.
-Supports file/folder browsing, auto-filling the title from the URL/path,
-and tag auto-completion from existing tags. Also supports deleting an
-existing link in edit mode.
+Provides input fields for title, URL/path, an optional description, and
+comma-separated tags. Supports file/folder browsing, auto-filling the title
+from the URL/path, and tag auto-completion from existing tags. Also supports
+deleting an existing link in edit mode.
 """
 from pathlib import Path, PurePath, PureWindowsPath
 
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QTextEdit,
     QPushButton,
     QMessageBox,
     QCompleter,
@@ -97,6 +98,15 @@ class AddLinkDialog(QDialog):
 
         layout.addLayout(url_layout)
 
+        description_layout = QVBoxLayout()
+        description_layout.addWidget(QLabel("Description:"))
+        self._description_input = QTextEdit()
+        self._description_input.setAcceptRichText(False)
+        self._description_input.setPlaceholderText("Optional description")
+        self._description_input.setMinimumHeight(60)
+        description_layout.addWidget(self._description_input)
+        layout.addLayout(description_layout)
+
         tags_layout = QHBoxLayout()
         tags_layout.addWidget(QLabel("Tags:"))
         self._tags_input = QLineEdit()
@@ -138,6 +148,7 @@ class AddLinkDialog(QDialog):
             self._title_input.setText(link.title)
             self._url_input.setText(link.url)
             self._tags_input.setText(", ".join(link.tags))
+            self._description_input.setPlainText(link.description)
         elif url:
             self._url_input.setText(url)
             url = url.strip('"')
@@ -308,15 +319,19 @@ class AddLinkDialog(QDialog):
             url = resolve_unc_path(PurePath(url))
 
         tags = [t.strip() for t in self._tags_input.text().split(",") if t.strip()]
+        description = self._description_input.toPlainText().strip()
 
         if self._is_edit:
             self._link.title = title
             self._link.url = str(url)
             self._link.tags = tags
+            self._link.description = description
             self._link.reset_type_cache()
             self.link = self._link
         else:
-            self.link = Link(title=title, url=str(url), tags=tags)
+            self.link = Link(
+                title=title, url=str(url), tags=tags, description=description
+            )
 
         self.accept()
 

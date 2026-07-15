@@ -106,7 +106,10 @@ class LinkTableModel(QAbstractTableModel):
 
         if role == Qt.ItemDataRole.ToolTipRole:
             if col == self.COL_TITLE:
-                tooltip = link.url
+                tooltip = ""
+                if link.description:
+                    tooltip += f"{link.description}\n\n"
+                tooltip += link.url
                 tooltip += (
                     f"\n\nCreated: {link.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
                 )
@@ -331,6 +334,7 @@ class LinkSortFilterModel(QSortFilterProxyModel):
                     term in link.title.lower()
                     or term in link.url.lower()
                     or any(term in t.lower() for t in link.tags)
+                    or term in link.description.lower()
                 ):
                     return False
 

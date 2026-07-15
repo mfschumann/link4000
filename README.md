@@ -91,6 +91,7 @@ The application supports two JSON formats:
       "title": "Example",
       "url": "https://example.com",
       "tags": ["work", "important"],
+      "description": "Optional free-text description of the link",
       "created_at": "2024-01-01T00:00:00",
       "updated_at": "2024-01-02T00:00:00",
       "last_accessed": "2024-01-03T00:00:00"
@@ -234,7 +235,7 @@ main.py                  # Application entry point
 ## Features
 
 - **Tag Management**: Add, edit, and filter links by tags
-- **Search**: Find links by title, URL, or tags
+- **Search**: Find links by title, URL, tags, or description
 - **Filter Modes**: Tag filtering supports three modes: match ANY tag (OR), ALL tags (AND), or NONE of the selected tags
 - **Sorting**: Sort by created date, modified date, or last accessed
 - **System Tray**: Configurable close-to-tray and minimize-to-tray behavior

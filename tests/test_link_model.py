@@ -368,6 +368,17 @@ class TestLinkSortFilterModel:
         proxy.set_search_text("work")
         assert proxy.rowCount() == 1
 
+    def test_search_filters_by_description(self):
+        """Tests that search text filters links by their description."""
+        proxy, _ = self._make_model(
+            links=[
+                Link(title="A", url="https://a.com", description="meeting notes"),
+                Link(title="B", url="https://b.com", description="budget plan"),
+            ]
+        )
+        proxy.set_search_text("notes")
+        assert proxy.rowCount() == 1
+
     def test_search_multiple_terms(self):
         """Tests that multiple search terms are combined with AND logic."""
         proxy, _ = self._make_model(

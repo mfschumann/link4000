@@ -164,6 +164,7 @@ class LinkStore:
             if q in link_item.title.lower()
             or q in link_item.url.lower()
             or any(q in t.lower() for t in link_item.tags)
+            or q in link_item.description.lower()
         ]
 
     def import_links(
