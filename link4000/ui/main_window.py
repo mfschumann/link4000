@@ -391,11 +391,11 @@ class MainWindow(QMainWindow):
         self._search_input.textChanged.connect(self._on_search_changed)
         toolbar_layout.addWidget(self._search_input)
 
-        self._clear_button = QPushButton("✕")
-        self._clear_button.setToolTip("Clear search and filters")
-        self._clear_button.setFixedWidth(30)
-        self._clear_button.clicked.connect(self._on_clear_clicked)
-        toolbar_layout.addWidget(self._clear_button)
+        self._clear_search_button = QPushButton("✕")
+        self._clear_search_button.setToolTip("Clear search")
+        self._clear_search_button.setFixedWidth(30)
+        self._clear_search_button.clicked.connect(self._on_clear_search_clicked)
+        toolbar_layout.addWidget(self._clear_search_button)
 
         self._sort_combo = QComboBox()
         self._sort_combo.addItems(["Sort by", "Created", "Modified"])
@@ -405,8 +405,15 @@ class MainWindow(QMainWindow):
         self._sort_combo.setCurrentText("Sort by")
 
         self._tag_filter_button = QPushButton("Filter")
+        self._tag_filter_button.setToolTip("Filter by tags and types")
         self._tag_filter_button.clicked.connect(self._on_tag_filter_clicked)
         toolbar_layout.addWidget(self._tag_filter_button)
+
+        self._clear_filters_button = QPushButton("✕")
+        self._clear_filters_button.setToolTip("Clear filters")
+        self._clear_filters_button.setFixedWidth(30)
+        self._clear_filters_button.clicked.connect(self._on_clear_filters_clicked)
+        toolbar_layout.addWidget(self._clear_filters_button)
 
         self._add_button = QPushButton("Add")
         self._add_button.clicked.connect(self._on_add_clicked)
@@ -670,10 +677,15 @@ class MainWindow(QMainWindow):
         self._proxy_model.set_search_text(self._pending_search_text)
         self._update_status()
 
-    def _on_clear_clicked(self) -> None:
-        """Clear search text and active filters."""
+    def _on_clear_search_clicked(self) -> None:
+        """Clear only the search text and apply the empty search."""
         self._search_input.clear()
+        self._search_timer.stop()
         self._proxy_model.set_search_text("")
+        self._update_status()
+
+    def _on_clear_filters_clicked(self) -> None:
+        """Clear only tag/type filters and apply the empty filter set."""
         self._selected_tags = set()
         self._selected_types = set()
         self._match_mode = TagMatchMode.OR
@@ -868,10 +880,10 @@ class MainWindow(QMainWindow):
     def _update_tag_filter_button(self) -> None:
         """Update the filter button font to indicate active filters.
 
-        Sets the button text to bold when tags are selected, and normal
-        weight when no filters are active.
+        Sets the button text to bold when either tags or types are selected,
+        and normal weight when no filters are active.
         """
-        if self._selected_tags:
+        if self._selected_tags or self._selected_types:
             font = QFont()
             font.setBold(True)
             self._tag_filter_button.setFont(font)
