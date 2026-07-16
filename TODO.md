@@ -7,6 +7,7 @@
 - UX: what buttons do we need in the main list?
 
 ## DONE (not yet tested)
+- fix SharePoint Doc.aspx title pre-fill to use `file=` filename instead of `Doc.aspx`
 
 ## NOT PLANNED
 - add auto-update mechanism ← this needs public distribution of a binary which introduces licensing issues

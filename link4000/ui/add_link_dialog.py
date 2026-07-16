@@ -32,6 +32,7 @@ from link4000.utils.path_utils import (
     resolve_unc_path,
     is_sharepoint_url,
     get_sharepoint_file_extension,
+    get_sharepoint_filename,
 )
 
 
@@ -155,11 +156,7 @@ class AddLinkDialog(QDialog):
             if is_sharepoint_url(url):
                 ext = get_sharepoint_file_extension(url)
                 if ext:
-                    import urllib.parse
-
-                    parsed = urllib.parse.urlparse(url)
-                    path = urllib.parse.unquote(parsed.path)
-                    filename = path.rsplit("/", 1)[-1] if "/" in path else path
+                    filename = get_sharepoint_filename(url)
                     if filename:
                         self._auto_filling_title = True
                         self._title_input.setText(filename)
@@ -237,7 +234,15 @@ class AddLinkDialog(QDialog):
         """
         if not self._title_manually_set and not self._is_edit:
             text = text.strip('"')
-            if is_file_path(text):
+            if is_sharepoint_url(text):
+                ext = get_sharepoint_file_extension(text)
+                if ext:
+                    filename = get_sharepoint_filename(text)
+                    if filename:
+                        self._auto_filling_title = True
+                        self._title_input.setText(filename)
+                        self._auto_filling_title = False
+            elif is_file_path(text):
                 basename = Path(text).name
                 if basename:
                     self._auto_filling_title = True

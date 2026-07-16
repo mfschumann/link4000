@@ -9,6 +9,7 @@ from link4000.utils.path_utils import (
     is_file_path,
     get_link_type,
     get_file_extension,
+    get_sharepoint_filename,
     to_office_uri,
     resolve_unc_path,
     resolve_lnk,
@@ -163,6 +164,59 @@ class TestGetFileExtension:
         )
         result = get_file_extension(url)
         assert result == ".pptx"
+
+
+class TestGetSharepointFilename:
+    """Tests for get_sharepoint_filename function."""
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_path_file_url(self, mock_sp):
+        """Tests that the filename is extracted from the path of a normal SharePoint file URL."""
+        url = "https://company.sharepoint.com/sites/test/doc.docx"
+        result = get_sharepoint_filename(url)
+        assert result == "doc.docx"
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_doc_aspx_file_param(self, mock_sp):
+        """Tests that the filename is read from the file= query parameter for Doc.aspx URLs."""
+        url = (
+            "https://some.sharepoint.com/:p:/r/Sites/202384/Sustaining/"
+            "_layouts/15/Doc.aspx?sourcedoc=%7B49C4329E-6B72-4FD5-B83F-7AC8D4A9BB75%7D"
+            "&file=some_file.pptx&action=edit&mobileredirect=true"
+        )
+        result = get_sharepoint_filename(url)
+        assert result == "some_file.pptx"
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_doc_aspx_encoded_file_param(self, mock_sp):
+        """Tests that percent-encoded filenames are decoded in the file= parameter."""
+        url = (
+            "https://some.sharepoint.com/sites/test/"
+            "_layouts/15/Doc.aspx?file=Some%20File.pptx"
+        )
+        result = get_sharepoint_filename(url)
+        assert result == "Some File.pptx"
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_doc_aspx_file_param_with_path(self, mock_sp):
+        """Tests that only the basename is returned when file= contains a path."""
+        url = (
+            "https://some.sharepoint.com/sites/test/"
+            "_layouts/15/Doc.aspx?file=folder%2Fsome_file.pptx"
+        )
+        result = get_sharepoint_filename(url)
+        assert result == "some_file.pptx"
+
+    def test_non_sharepoint_url_returns_empty(self):
+        """Tests that a non-SharePoint URL returns an empty string."""
+        result = get_sharepoint_filename("https://example.com/file.txt")
+        assert result == ""
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_folder_url_returns_last_segment(self, mock_sp):
+        """Tests that a SharePoint URL without a file extension returns the last path segment."""
+        result = get_sharepoint_filename("https://company.sharepoint.com/sites/test")
+        assert result == "test"
 
 
 class TestToOfficeUri:
