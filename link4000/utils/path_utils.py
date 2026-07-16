@@ -103,19 +103,36 @@ def get_sharepoint_file_extension(url: str) -> str:
     if not is_sharepoint_url(url):
         return ""
 
+    filename = get_sharepoint_filename(url)
+    if filename:
+        return Path(filename).suffix.lower()
+
+    return ""
+
+
+def get_sharepoint_filename(url: str) -> str:
+    """
+    Extract the filename from a SharePoint URL.
+
+    For normal SharePoint file URLs the filename is the basename of the URL path.
+    For SharePoint "Doc.aspx" URLs (e.g. ``_layouts/15/Doc.aspx?file=...``),
+    the filename is taken from the ``file`` query parameter instead.
+    Returns the filename or empty string if none could be determined.
+    """
+    if not is_sharepoint_url(url):
+        return ""
+
     parsed = urllib.parse.urlparse(url)
     path = urllib.parse.unquote(parsed.path)
 
-    # Modern SharePoint document links use a generic Doc.aspx page with the
-    # real filename supplied in the file= query parameter.
     if Path(path).name.lower() == "doc.aspx":
         query = urllib.parse.parse_qs(parsed.query)
         file_param = query.get("file", [""])[0]
         if file_param:
-            return Path(file_param).suffix.lower()
+            return Path(file_param).name
 
-    ext = Path(path).suffix
-    return ext.lower()
+    filename = path.rsplit("/", 1)[-1] if "/" in path else path
+    return filename
 
 
 def get_office_scheme(extension: str) -> str | None:

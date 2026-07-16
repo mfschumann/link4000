@@ -45,6 +45,61 @@ class TestAddLinkDialogAddMode:
         dlg = AddLinkDialog(url="/some/path/document.pdf")
         assert dlg._title_input.text() == "document.pdf"
 
+    @patch("link4000.ui.add_link_dialog.get_sharepoint_file_extension", return_value=".pptx")
+    @patch("link4000.ui.add_link_dialog.get_sharepoint_filename", return_value="some_file.pptx")
+    @patch("link4000.ui.add_link_dialog.is_sharepoint_url", return_value=True)
+    def test_constructor_prefills_sharepoint_doc_aspx_title(self, mock_sp, mock_fn, mock_ext):
+        """A SharePoint Doc.aspx URL pre-fills the title from the file= parameter."""
+        url = (
+            "https://some.sharepoint.com/:p:/r/Sites/202384/Sustaining/"
+            "_layouts/15/Doc.aspx?sourcedoc=%7B49C4329E-6B72-4FD5-B83F-7AC8D4A9BB75%7D"
+            "&file=some_file.pptx&action=edit&mobileredirect=true"
+        )
+        dlg = AddLinkDialog(url=url)
+        assert dlg._title_input.text() == "some_file.pptx"
+
+    def test_url_changed_auto_fills_title_from_sharepoint(self):
+        """Typing a SharePoint Doc.aspx URL auto-fills the title when not manually set."""
+        dlg = AddLinkDialog()
+        dlg._title_manually_set = False
+        url = (
+            "https://some.sharepoint.com/:p:/r/Sites/202384/Sustaining/"
+            "_layouts/15/Doc.aspx?sourcedoc=%7B49C4329E-6B72-4FD5-B83F-7AC8D4A9BB75%7D"
+            "&file=some_file.pptx&action=edit&mobileredirect=true"
+        )
+        with patch(
+            "link4000.ui.add_link_dialog.is_sharepoint_url", return_value=True
+        ), patch(
+            "link4000.ui.add_link_dialog.get_sharepoint_file_extension",
+            return_value=".pptx",
+        ), patch(
+            "link4000.ui.add_link_dialog.get_sharepoint_filename",
+            return_value="some_file.pptx",
+        ):
+            dlg._on_url_changed(url)
+        assert dlg._title_input.text() == "some_file.pptx"
+
+    def test_manual_title_not_overwritten_by_sharepoint_url_change(self):
+        """Manually entered titles are preserved when the URL changes."""
+        dlg = AddLinkDialog()
+        dlg._title_input.setText("My Custom Title")
+        dlg._on_title_changed("My Custom Title")
+        url = (
+            "https://some.sharepoint.com/:p:/r/Sites/202384/Sustaining/"
+            "_layouts/15/Doc.aspx?file=some_file.pptx"
+        )
+        with patch(
+            "link4000.ui.add_link_dialog.is_sharepoint_url", return_value=True
+        ), patch(
+            "link4000.ui.add_link_dialog.get_sharepoint_file_extension",
+            return_value=".pptx",
+        ), patch(
+            "link4000.ui.add_link_dialog.get_sharepoint_filename",
+            return_value="some_file.pptx",
+        ):
+            dlg._on_url_changed(url)
+        assert dlg._title_input.text() == "My Custom Title"
+
     def test_get_link_after_save(self):
         """After saving, get_link returns a Link with correct title, URL, and tags."""
         dlg = AddLinkDialog()
