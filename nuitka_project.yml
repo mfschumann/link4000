@@ -1,0 +1,57 @@
+# Nuitka build configuration for Link4000
+#
+# This file is used by Nuitka 2.x+ when running `nuitka` in the project root.
+# For manual builds, use the command documented in scripts/build-nuitka-windows.sh
+
+[nuitka]
+# Entry point
+module = main
+
+# Build mode: standalone bundle with all dependencies
+standalone = true
+
+# Output configuration
+output-dir = dist
+output-filename = Link4000.exe
+
+# Windows-specific settings
+windows-console-mode = disable
+windows-icon-from-ico = resources/icon.ico
+windows-company-name = Link4000
+windows-product-name = Link4000
+windows-file-version = 1.2.1
+windows-product-version = 1.2.1
+
+# Qt/PySide6 plugin support
+enable-plugin = pyside6
+include-qt-plugins = platforms,imageformats
+
+# Include data files
+include-data-dir = resources=resources
+
+# Include Windows COM modules (for .lnk resolution)
+include-module = win32com
+include-module = win32com.shell
+include-module = win32com.shell.shell
+include-module = win32com.shell.shellcon
+include-module = win32com.storagecon
+include-module = pythoncom
+include-module = pywintypes
+
+# Include all link4000 modules explicitly
+include-package = link4000
+include-package = link4000.ui
+include-package = link4000.models
+include-package = link4000.utils
+include-package = link4000.data
+include-package = link4000.source_plugins
+
+# Performance and optimization
+assume-yes-for-downloads = true
+remove-output = false
+show-progress = true
+show-scons = false
+
+# LTO and optimization (slower build, faster runtime)
+lto = true
+jobs = 4
