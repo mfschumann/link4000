@@ -97,6 +97,7 @@ nuitka \
     --include-qt-plugins=platforms,imageformats \
     --include-data-dir=resources=resources \
     --include-package=link4000 \
+    --nofollow-import-to=_pyrepl \
     "${PLATFORM_FLAGS[@]}" \
     --lto=yes \
     --jobs=4 \
