@@ -22,6 +22,7 @@ snakeviz = "*"
 py-spy = "*"
 ruff = "*"
 pixi-pycharm = "*"
+nuitka = ">=4.1.3,<5"
 
 [feature.default-channels]
 channels = ["main", "services"]
