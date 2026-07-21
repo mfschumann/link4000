@@ -23,7 +23,6 @@ set -euo pipefail
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
   PLATFORM="windows"
   OUTPUT_NAME="Link4000.exe"
-  PLUGIN_SRC_DIR=".pixi/envs/dev/Library/qt6/plugins"
   PLATFORM_FLAGS=(
     --windows-console-mode=disable
     --windows-icon-from-ico=resources/icon.ico
@@ -40,15 +39,21 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
 else
   PLATFORM="linux"
   OUTPUT_NAME="Link4000"
-  PLUGIN_SRC_DIR=".pixi/envs/dev/lib/qt6/plugins"
   PLATFORM_FLAGS=()
 fi
 
-# Bundle Qt platform + imageformat plugins individually (bash glob does not
-# expand inside array assignments with = in the word).
+# Bundle Qt platform + imageformat plugins. Use absolute paths because Nuitka
+# resolves --include-data-dir relative to its own CWD, which may differ from
+# the script's CWD when invoked via `pixi run`.
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ "$PLATFORM" == "windows" ]]; then
+  PLUGIN_SRC_DIR="${PROJECT_ROOT}/.pixi/envs/dev/Library/qt6/plugins"
+else
+  PLUGIN_SRC_DIR="${PROJECT_ROOT}/.pixi/envs/dev/lib/qt6/plugins"
+fi
 for plugin_dir in "$PLUGIN_SRC_DIR/platforms" "$PLUGIN_SRC_DIR/imageformats"; do
   if [[ -d "$plugin_dir" ]]; then
-    rel="${plugin_dir#$PLUGIN_SRC_DIR/}"
+    rel="$(basename "$plugin_dir")"
     PLATFORM_FLAGS+=("--include-data-dir=${plugin_dir}=qt6_plugins/${rel}")
   fi
 done
@@ -115,9 +120,9 @@ pixi run -e dev nuitka \
     --standalone \
     --onefile \
     --output-filename="$OUTPUT_NAME" \
-    --output-dir=dist \
+    --output-dir="${PROJECT_ROOT}/dist" \
     --include-package=PySide6 \
-    --include-data-dir=resources=resources \
+    --include-data-dir="${PROJECT_ROOT}/resources=resources" \
     --include-package=link4000 \
     --nofollow-import-to=_pyrepl \
     "${PLATFORM_FLAGS[@]}" \
@@ -126,7 +131,7 @@ pixi run -e dev nuitka \
     --assume-yes-for-downloads \
     --remove-output \
     --show-progress \
-    main.py
+    "${PROJECT_ROOT}/main.py"
 
 echo
 echo "Build complete: dist/$OUTPUT_NAME"
