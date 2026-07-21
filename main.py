@@ -24,7 +24,14 @@ from link4000.data.link_store import LinkStore
 
 
 def _setup_resources_path() -> None:
-    """Configure Qt resource search path for bundled resources."""
+    """Configure Qt resource search path for bundled resources.
+
+    Handles three runtime contexts:
+    - PyInstaller: sys._MEIPASS points to the extracted bundle directory
+    - Nuitka onefile: __file__ is inside the extracted temp dir, resources/
+      is a sibling directory
+    - Regular Python: resources/ is alongside main.py
+    """
     if getattr(sys, "_MEIPASS", None):
         base_path: str = sys._MEIPASS
     else:
@@ -32,6 +39,12 @@ def _setup_resources_path() -> None:
     resources_path = os.path.join(base_path, "resources")
     if QDir(resources_path).exists():
         QDir.addSearchPath("resources", resources_path)
+
+    # When bundled, PySide6's Qt plugins (libqxcb.so, image formats, etc.)
+    # sit in a qt6_plugins/ sibling directory. Tell Qt where to find them.
+    qt_plugins_path = os.path.join(base_path, "qt6_plugins")
+    if os.path.isdir(qt_plugins_path):
+        os.environ["QT_PLUGIN_PATH"] = qt_plugins_path
 
 
 # Initialize resource paths on module load

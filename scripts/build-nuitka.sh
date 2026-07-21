@@ -30,6 +30,7 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
     --windows-product-name=Link4000
     --windows-file-version=1.2.1
     --windows-product-version=1.2.1
+    --include-data-dir=.pixi/envs/dev/Library/qt6/plugins=qt6_plugins
     --include-module=win32com.shell.shell
     --include-module=win32com.shell.shellcon
     --include-module=win32com.storagecon
@@ -39,7 +40,9 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
 else
   PLATFORM="linux"
   OUTPUT_NAME="Link4000"
-  PLATFORM_FLAGS=()
+  PLATFORM_FLAGS=(
+    --include-data-dir=.pixi/envs/dev/lib/qt6/plugins=qt6_plugins
+  )
 fi
 
 echo "Building Link4000 with Nuitka ($PLATFORM)..."
@@ -52,6 +55,9 @@ echo
 # QObject.connect() and is incompatible with Python 3.13 + recent PySide6.
 # Instead, we manually include PySide6 and Qt plugins.
 #
+# Qt plugins (platform, imageformats) are included via --include-data-dir
+# pointing to the Qt plugins directory in the pixi environment.
+#
 # Linux:
 #   nuitka \
 #     --standalone \
@@ -59,7 +65,7 @@ echo
 #     --output-filename=Link4000 \
 #     --output-dir=dist \
 #     --include-package=PySide6 \
-#     --include-qt-plugins=platforms,imageformats \
+#     --include-data-dir=.pixi/envs/dev/lib/qt6/plugins=qt6_plugins \
 #     --include-data-dir=resources=resources \
 #     --include-package=link4000 \
 #     --nofollow-import-to=_pyrepl \
@@ -79,7 +85,7 @@ echo
 #     --windows-console-mode=disable ^
 #     --windows-icon-from-ico=resources/icon.ico ^
 #     --include-package=PySide6 ^
-#     --include-qt-plugins=platforms,imageformats ^
+#     --include-data-dir=.pixi/envs/dev/Library/qt6/plugins=qt6_plugins ^
 #     --include-data-dir=resources=resources ^
 #     --include-package=link4000 ^
 #     --include-module=win32com.shell.shell ^
@@ -101,7 +107,6 @@ pixi run -e dev nuitka \
     --output-filename="$OUTPUT_NAME" \
     --output-dir=dist \
     --include-package=PySide6 \
-    --include-qt-plugins=platforms,imageformats \
     --include-data-dir=resources=resources \
     --include-package=link4000 \
     --nofollow-import-to=_pyrepl \
