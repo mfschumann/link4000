@@ -7,6 +7,8 @@ A desktop application for managing bookmarks/links with tagging support.
 import sys
 import os
 import json
+import logging
+import traceback
 import argparse
 from typing import Optional
 
@@ -34,6 +36,36 @@ def _setup_resources_path() -> None:
 
 # Initialize resource paths on module load
 _setup_resources_path()
+
+
+def _setup_logging() -> None:
+    """Configure file and stderr logging, plus an unhandled-exception hook."""
+    log_dir = os.path.join(os.path.expanduser("~"), ".link4000")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "link4000.log")
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(sys.stderr),
+        ],
+    )
+    logging.info("Log file: %s", log_file)
+
+    original_excepthook = sys.excepthook
+
+    def excepthook(exc_type, exc_value, exc_tb):
+        tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        logging.critical("Unhandled exception:\n%s", tb_text)
+        original_excepthook(exc_type, exc_value, exc_tb)
+
+    sys.excepthook = excepthook
+
+
+# Initialize logging before QApplication and UI setup
+_setup_logging()
 
 
 def _get_app_icon() -> QIcon:

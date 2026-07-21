@@ -7,6 +7,7 @@ for managing stored, recent, and favorite links.
 
 import os
 import sys
+import logging
 import subprocess
 import webbrowser
 import threading
@@ -65,6 +66,8 @@ from link4000.utils.config import (
 )
 from link4000.data.source_registry import SourceRegistry
 from pathlib import Path, PurePath
+
+_logger = logging.getLogger(__name__)
 
 
 class ButtonDelegate(QItemDelegate):
@@ -952,11 +955,13 @@ class MainWindow(QMainWindow):
             try:
                 os.startfile(target)
             except Exception:
+                _logger.exception("os.startfile failed for target=%r (url=%r)", target, link.url)
                 webbrowser.open(target)
         else:
             try:
                 subprocess.run(["xdg-open", target], check=True)
             except Exception:
+                _logger.exception("xdg-open failed for target=%r (url=%r)", target, link.url)
                 webbrowser.open(target)
 
     @staticmethod
@@ -970,11 +975,13 @@ class MainWindow(QMainWindow):
             try:
                 os.startfile(target)
             except Exception:
+                _logger.exception("os.startfile (recent) failed for target=%r (url=%r)", target, link.url)
                 webbrowser.open(target)
         else:
             try:
                 subprocess.run(["xdg-open", target], check=True)
             except Exception:
+                _logger.exception("xdg-open (recent) failed for target=%r (url=%r)", target, link.url)
                 webbrowser.open(target)
 
     def _promote_recent(self, link):
@@ -1004,10 +1011,13 @@ class MainWindow(QMainWindow):
         path = str(Path(link.url).parent)
         if not path:
             return
-        if sys.platform == "win32":
-            os.startfile(path)
-        else:
-            subprocess.run(["xdg-open", path], check=True)
+        try:
+            if sys.platform == "win32":
+                os.startfile(path)
+            else:
+                subprocess.run(["xdg-open", path], check=True)
+        except Exception:
+            _logger.exception("Failed to open parent folder for link url=%r, path=%r", link.url, path)
 
     def _on_cell_clicked(self, index: QModelIndex) -> None:
         """Handle single clicks on table cells.
@@ -1036,10 +1046,15 @@ class MainWindow(QMainWindow):
             if link_id:
                 link = self._model.get_link_by_id(link_id)
                 if link:
+                    _logger.debug("Delayed click: id=%s url=%r source_tag=%s", link_id, link.url, link.source_tag)
                     if link.source_tag:
                         self._open_recent(link)
                     else:
                         self._open_link(link)
+                else:
+                    _logger.warning("Delayed click: link not found for id=%s", link_id)
+            else:
+                _logger.debug("Delayed click: no link_id in index")
             self._pending_click_index = None
 
     def _on_cell_double_clicked(self, index: QModelIndex) -> None:
