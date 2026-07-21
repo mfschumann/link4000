@@ -21,25 +21,25 @@ set -euo pipefail
 
 # Detect platform
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    PLATFORM="windows"
-    OUTPUT_NAME="Link4000.exe"
-    PLATFORM_FLAGS=(
-        --windows-console-mode=disable
-        --windows-icon-from-ico=resources/icon.ico
-        --windows-company-name=Link4000
-        --windows-product-name=Link4000
-        --windows-file-version=1.2.1
-        --windows-product-version=1.2.1
-        --include-module=win32com.shell.shell
-        --include-module=win32com.shell.shellcon
-        --include-module=win32com.storagecon
-        --include-module=pythoncom
-        --include-module=pywintypes
-    )
+  PLATFORM="windows"
+  OUTPUT_NAME="Link4000.exe"
+  PLATFORM_FLAGS=(
+    --windows-console-mode=disable
+    --windows-icon-from-ico=resources/icon.ico
+    --windows-company-name=Link4000
+    --windows-product-name=Link4000
+    --windows-file-version=1.2.1
+    --windows-product-version=1.2.1
+    --include-module=win32com.shell.shell
+    --include-module=win32com.shell.shellcon
+    --include-module=win32com.storagecon
+    --include-module=pythoncom
+    --include-module=pywintypes
+  )
 else
-    PLATFORM="linux"
-    OUTPUT_NAME="Link4000"
-    PLATFORM_FLAGS=()
+  PLATFORM="linux"
+  OUTPUT_NAME="Link4000"
+  PLATFORM_FLAGS=()
 fi
 
 echo "Building Link4000 with Nuitka ($PLATFORM)..."
@@ -88,7 +88,7 @@ echo
 #     --show-progress ^
 #     main.py
 
-nuitka \
+pixi run -e dev nuitka \
     --standalone \
     --onefile \
     --output-filename="$OUTPUT_NAME" \
