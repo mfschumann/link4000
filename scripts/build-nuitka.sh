@@ -47,16 +47,22 @@ echo
 
 # Manual Nuitka command (equivalent to what this script does):
 #
+# Note: We do NOT use --enable-plugin=pyside6 because Nuitka's PySide6
+# plugin generates a post-load hook (PySide6-postLoad.py) that patches
+# QObject.connect() and is incompatible with Python 3.13 + recent PySide6.
+# Instead, we manually include PySide6 and Qt plugins.
+#
 # Linux:
 #   nuitka \
 #     --standalone \
 #     --onefile \
 #     --output-filename=Link4000 \
 #     --output-dir=dist \
-#     --enable-plugin=pyside6 \
+#     --include-package=PySide6 \
 #     --include-qt-plugins=platforms,imageformats \
 #     --include-data-dir=resources=resources \
 #     --include-package=link4000 \
+#     --nofollow-import-to=_pyrepl \
 #     --lto=yes \
 #     --jobs=4 \
 #     --assume-yes-for-downloads \
@@ -72,7 +78,7 @@ echo
 #     --output-dir=dist ^
 #     --windows-console-mode=disable ^
 #     --windows-icon-from-ico=resources/icon.ico ^
-#     --enable-plugin=pyside6 ^
+#     --include-package=PySide6 ^
 #     --include-qt-plugins=platforms,imageformats ^
 #     --include-data-dir=resources=resources ^
 #     --include-package=link4000 ^
@@ -81,6 +87,7 @@ echo
 #     --include-module=win32com.storagecon ^
 #     --include-module=pythoncom ^
 #     --include-module=pywintypes ^
+#     --nofollow-import-to=_pyrepl ^
 #     --lto=yes ^
 #     --jobs=4 ^
 #     --assume-yes-for-downloads ^
@@ -93,7 +100,7 @@ pixi run -e dev nuitka \
     --onefile \
     --output-filename="$OUTPUT_NAME" \
     --output-dir=dist \
-    --enable-plugin=pyside6 \
+    --include-package=PySide6 \
     --include-qt-plugins=platforms,imageformats \
     --include-data-dir=resources=resources \
     --include-package=link4000 \
