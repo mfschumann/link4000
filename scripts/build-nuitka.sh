@@ -45,6 +45,9 @@ fi
 # Bundle Qt platform + imageformat plugins. Use absolute paths because Nuitka
 # resolves --include-data-dir relative to its own CWD, which may differ from
 # the script's CWD when invoked via `pixi run`.
+#
+# Use --include-data-files with explicit patterns because --include-data-dir
+# may filter out .so files (treating them as binaries rather than data).
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if [[ "$PLATFORM" == "windows" ]]; then
   PLUGIN_SRC_DIR="${PROJECT_ROOT}/.pixi/envs/dev/Library/qt6/plugins"
@@ -54,7 +57,13 @@ fi
 for plugin_dir in "$PLUGIN_SRC_DIR/platforms" "$PLUGIN_SRC_DIR/imageformats"; do
   if [[ -d "$plugin_dir" ]]; then
     rel="$(basename "$plugin_dir")"
-    PLATFORM_FLAGS+=("--include-data-dir=${plugin_dir}=qt6_plugins/${rel}")
+    # Include all .so files explicitly
+    for so_file in "$plugin_dir"/*.so; do
+      if [[ -f "$so_file" ]]; then
+        filename="$(basename "$so_file")"
+        PLATFORM_FLAGS+=("--include-data-files=${so_file}=qt6_plugins/${rel}/${filename}")
+      fi
+    done
   fi
 done
 
