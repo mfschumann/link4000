@@ -23,6 +23,7 @@ set -euo pipefail
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
   PLATFORM="windows"
   OUTPUT_NAME="Link4000.exe"
+  PLUGIN_SRC_DIR=".pixi/envs/dev/Library/qt6/plugins"
   PLATFORM_FLAGS=(
     --windows-console-mode=disable
     --windows-icon-from-ico=resources/icon.ico
@@ -30,7 +31,6 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
     --windows-product-name=Link4000
     --windows-file-version=1.2.1
     --windows-product-version=1.2.1
-    --include-data-dir=.pixi/envs/dev/Library/qt6/plugins=qt6_plugins
     --include-module=win32com.shell.shell
     --include-module=win32com.shell.shellcon
     --include-module=win32com.storagecon
@@ -40,10 +40,18 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
 else
   PLATFORM="linux"
   OUTPUT_NAME="Link4000"
-  PLATFORM_FLAGS=(
-    --include-data-dir=.pixi/envs/dev/lib/qt6/plugins=qt6_plugins
-  )
+  PLUGIN_SRC_DIR=".pixi/envs/dev/lib/qt6/plugins"
+  PLATFORM_FLAGS=()
 fi
+
+# Bundle Qt platform + imageformat plugins individually (bash glob does not
+# expand inside array assignments with = in the word).
+for plugin_dir in "$PLUGIN_SRC_DIR/platforms" "$PLUGIN_SRC_DIR/imageformats"; do
+  if [[ -d "$plugin_dir" ]]; then
+    rel="${plugin_dir#$PLUGIN_SRC_DIR/}"
+    PLATFORM_FLAGS+=("--include-data-dir=${plugin_dir}=qt6_plugins/${rel}")
+  fi
+done
 
 echo "Building Link4000 with Nuitka ($PLATFORM)..."
 echo
@@ -65,7 +73,8 @@ echo
 #     --output-filename=Link4000 \
 #     --output-dir=dist \
 #     --include-package=PySide6 \
-#     --include-data-dir=.pixi/envs/dev/lib/qt6/plugins=qt6_plugins \
+#     --include-data-dir=.pixi/envs/dev/lib/qt6/plugins/platforms=qt6_plugins/platforms \
+#     --include-data-dir=.pixi/envs/dev/lib/qt6/plugins/imageformats=qt6_plugins/imageformats \
 #     --include-data-dir=resources=resources \
 #     --include-package=link4000 \
 #     --nofollow-import-to=_pyrepl \
@@ -85,7 +94,8 @@ echo
 #     --windows-console-mode=disable ^
 #     --windows-icon-from-ico=resources/icon.ico ^
 #     --include-package=PySide6 ^
-#     --include-data-dir=.pixi/envs/dev/Library/qt6/plugins=qt6_plugins ^
+#     --include-data-dir=.pixi/envs/dev/Library/qt6/plugins/platforms=qt6_plugins/platforms ^
+#     --include-data-dir=.pixi/envs/dev/Library/qt6/plugins/imageformats=qt6_plugins/imageformats ^
 #     --include-data-dir=resources=resources ^
 #     --include-package=link4000 ^
 #     --include-module=win32com.shell.shell ^
