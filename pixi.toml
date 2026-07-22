@@ -22,6 +22,7 @@ snakeviz = "*"
 py-spy = "*"
 ruff = "*"
 pixi-pycharm = "*"
+pyinstaller = ">=6.21.0,<7"
 
 [feature.default-channels]
 channels = ["main", "services"]
