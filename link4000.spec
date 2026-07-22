@@ -57,12 +57,14 @@ exe = EXE(
     upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    # Link4000 is a hybrid CLI/GUI application. console=True is required so
-    # commands like ``link4000.exe --show-config`` can write to stdout. The
-    # side effect is that a console window is also shown when the EXE is
-    # launched from Explorer; if a GUI-only launcher is desired, build a
-    # second EXE target with console=False.
+    # Link4000 is a hybrid CLI/GUI application.
+    # console=True          → stdout/stderr work for CLI commands like --show-config
+    # hide_console='hide-early' → the bootloader hides the console before Python
+    #   starts, so double-clicking the EXE from Explorer shows no console window.
+    #   Limitation: on Windows 11 with Windows Terminal (wt.exe) the console may
+    #   still flash briefly (PyInstaller issue #8022).
     console=True,
+    hide_console='hide-early',
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
