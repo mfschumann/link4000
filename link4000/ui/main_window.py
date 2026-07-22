@@ -50,7 +50,7 @@ from PySide6.QtCore import (
     QAbstractItemModel,
     QModelIndex,
 )
-from PySide6.QtGui import QAction, QPainter, QColor, QFont, QIcon, QCloseEvent
+from PySide6.QtGui import QAction, QPainter, QColor, QFont, QIcon, QCloseEvent, QResizeEvent
 
 from link4000.data.link_store import LinkStore
 from link4000.models.link_model import LinkTableModel, LinkSortFilterModel
@@ -221,6 +221,7 @@ class MainWindow(QMainWindow):
         self._pending_click_index: QModelIndex | None = None
 
         self._auto_reload_timer: QTimer | None = None
+        self._header_user_resized = False
 
         ensure_config_exists()
         self._tray_behavior = get_tray_behavior()
@@ -339,6 +340,34 @@ class MainWindow(QMainWindow):
             self._auto_reload_timer.stop()
             self._auto_reload_timer = None
 
+    def _on_header_section_resized(self, _logical_index: int) -> None:
+        """Track that the user manually resized a header section."""
+        self._header_user_resized = True
+
+    def _redistribute_header_widths(self) -> None:
+        """Distribute available table width proportionally across text columns."""
+        viewport_width = self._table_view.viewport().width()
+        text_columns = [0, 1, 2]
+        current_widths = [self._header.sectionSize(i) for i in text_columns]
+        total_text = sum(current_widths)
+
+        if total_text <= 0:
+            return
+
+        fixed_width = 60
+        available = max(viewport_width - fixed_width, 0)
+        scale = available / total_text
+
+        for col, current in zip(text_columns, current_widths):
+            new_width = max(int(current * scale), 60)
+            self._header.resizeSection(col, new_width)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        """Redistribute header widths when the window is resized."""
+        super().resizeEvent(event)
+        if self._header_user_resized:
+            self._redistribute_header_widths()
+
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle the close event based on tray_behavior configuration.
 
@@ -450,8 +479,7 @@ class MainWindow(QMainWindow):
         self._header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self._table_view.setColumnWidth(3, 30)
         self._table_view.setColumnWidth(4, 30)
-        self._table_view.setColumnWidth(3, 30)
-        self._table_view.setColumnWidth(4, 30)
+        self._header.sectionResized.connect(self._on_header_section_resized)
 
         edit_delegate = ButtonDelegate(
             self._table_view, LinkTableModel.COL_EDIT, self._on_edit_button_clicked
