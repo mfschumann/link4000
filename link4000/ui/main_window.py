@@ -439,7 +439,8 @@ class MainWindow(QMainWindow):
 
         self._header = self._table_view.horizontalHeader()
         self._header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self._header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self._header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        self._header.resizeSection(1, 160)
         self._header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self._header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         self._header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
