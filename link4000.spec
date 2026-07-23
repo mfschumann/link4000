@@ -5,11 +5,6 @@
 # Build command:
 #   pyinstaller link4000.spec
 #
-# Note: For Windows icon, you can use either:
-#   - An .ico file directly (recommended)
-#   - A PNG file (PyInstaller will convert it)
-#   - Current config uses icon_128dp48.png which PyInstaller converts to .ico
-#
 
 block_cipher = None
 
