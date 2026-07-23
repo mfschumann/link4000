@@ -23,6 +23,7 @@ py-spy = "*"
 ruff = "*"
 pixi-pycharm = "*"
 pyinstaller = ">=6.21.0,<7"
+markdown = "*"
 
 [feature.default-channels]
 channels = ["main", "services"]
