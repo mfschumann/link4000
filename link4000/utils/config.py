@@ -20,7 +20,7 @@ _DEFAULTS = {
             r"onedrive\.live\.com/.*",
         ],
         "exclusion_patterns": [],
-        "theme": "light",
+        "theme": "system",
         "tray_behavior": "close_to_tray",
         "reload_interval_minutes": 15,
     },
@@ -38,7 +38,15 @@ _DEFAULTS = {
         "sharepoint": "#7038C8",
         "unknown": "#999999",
     },
+    "colors_dark": {
+        "web": "#4DA6FF",
+        "folder": "#FFB340",
+        "file": "#CCCCCC",
+        "sharepoint": "#9B6FE0",
+        "unknown": "#BBBBBB",
+    },
     "extensions": {},
+    "extensions_dark": {},
 }
 
 
@@ -96,9 +104,37 @@ def _get_config() -> dict:
     return _config
 
 
+def detect_system_theme() -> str:
+    """Return "dark" or "light" based on the OS color scheme.
+
+    Queries Qt's style hints to determine the system-wide color scheme.
+    Falls back to "light" if no QApplication exists or the API is unavailable.
+
+    Returns:
+        "dark" if the system is in dark mode, "light" otherwise.
+    """
+    try:
+        from PySide6.QtGui import QGuiApplication, Qt
+
+        app = QGuiApplication.instance()
+        if app is None:
+            return "light"
+        hints = app.styleHints()
+        if hints is None or not hasattr(hints, "colorScheme"):
+            return "light"
+        if hints.colorScheme() == Qt.ColorScheme.Dark:
+            return "dark"
+        return "light"
+    except Exception:
+        return "light"
+
+
 def get_color_for_link(url: str, link_type: str, extension: str = "") -> "QColor":
     """
     Return a QColor for the given link based on its type and extension.
+
+    Uses the ``[colors]`` section in light mode and the ``[colors_dark]``
+    section (with ``[extensions_dark]``) when the resolved theme is dark.
 
     Args:
         url: The link URL/path
@@ -111,28 +147,39 @@ def get_color_for_link(url: str, link_type: str, extension: str = "") -> "QColor
     from PySide6.QtGui import QColor
 
     cfg = _get_config()
-    colors = cfg.get("colors", _DEFAULTS["colors"])
-    extensions = cfg.get("extensions", {})
+    theme = get_theme()
+
+    if theme == "dark":
+        colors_section = "colors_dark"
+        ext_section = "extensions_dark"
+    else:
+        colors_section = "colors"
+        ext_section = "extensions"
+
+    colors = cfg.get(colors_section, _DEFAULTS[colors_section])
+    extensions = cfg.get(ext_section, _DEFAULTS[ext_section])
+    default_colors = _DEFAULTS[colors_section]
+    default_ext = _DEFAULTS[ext_section]
 
     if link_type == "web":
-        color_str = colors.get("web", _DEFAULTS["colors"]["web"])
+        color_str = colors.get("web", default_colors["web"])
     elif link_type == "folder":
-        color_str = colors.get("folder", _DEFAULTS["colors"]["folder"])
+        color_str = colors.get("folder", default_colors["folder"])
     elif link_type == "sharepoint":
-        color_str = colors.get("sharepoint", _DEFAULTS["colors"]["sharepoint"])
+        color_str = colors.get("sharepoint", default_colors["sharepoint"])
     elif link_type == "file":
         if extension:
             ext_lower = extension.lower()
             if ext_lower in extensions:
                 color_str = extensions[ext_lower]
-            elif ext_lower in _DEFAULTS["extensions"]:
-                color_str = _DEFAULTS["extensions"][ext_lower]
+            elif ext_lower in default_ext:
+                color_str = default_ext[ext_lower]
             else:
-                color_str = colors.get("file", _DEFAULTS["colors"]["file"])
+                color_str = colors.get("file", default_colors["file"])
         else:
-            color_str = colors.get("file", _DEFAULTS["colors"]["file"])
+            color_str = colors.get("file", default_colors["file"])
     else:
-        color_str = colors.get("unknown", _DEFAULTS["colors"]["unknown"])
+        color_str = colors.get("unknown", default_colors["unknown"])
 
     return QColor(color_str)
 
@@ -174,13 +221,26 @@ def get_links_file_path() -> str:
 
 
 def get_theme() -> str:
-    """
-    Return the theme setting from config.toml [global] section.
-    Returns "light" or "dark". Default is "light".
+    """Return the resolved theme setting from config.toml [global] section.
+
+    Reads the ``theme`` value and resolves it:
+
+    - ``"system"`` is detected from the OS color scheme via Qt.
+    - ``"light"`` and ``"dark"`` are returned as-is.
+
+    The default is ``"system"`` (follows the OS setting).
+
+    Returns:
+        ``"light"`` or ``"dark"``.
     """
     cfg = _get_config()
     global_cfg = cfg.get("global", {})
-    return global_cfg.get("theme", "light")
+    raw = global_cfg.get("theme", "system")
+    if raw == "system":
+        return detect_system_theme()
+    if raw in ("light", "dark"):
+        return raw
+    return detect_system_theme()
 
 
 _TRAY_BEHAVIOR_VALUES = {"close_to_tray", "minimize_to_tray", "normal"}
@@ -325,8 +385,8 @@ def ensure_config_exists() -> None:
 # Path to the links.json file (leave empty for default: ~/.link4000/links.json)
 # links_file = "/path/to/links.json"
 
-# Theme for icons: "light" or "dark"
-# theme = "light"
+# Theme for icons and link colors: "system" (follow OS), "light", or "dark"
+# theme = "system"
 
 # Regex patterns for detecting SharePoint/OneDrive URLs (matched against the full URL)
 # sharepoint_patterns = [
@@ -404,6 +464,22 @@ unknown = "#999999"
 # ".py" = "#008000"
 # ".txt" = "#757575"
 # ".md" = "#000000"
+
+# Dark mode colors (used when theme = "system" and the OS is in dark mode,
+# or when theme = "dark"). If a section here is missing, the [colors]
+# defaults are used as fallback.
+# [colors_dark]
+# web = "#4DA6FF"
+# folder = "#FFB340"
+# file = "#CCCCCC"
+# sharepoint = "#9B6FE0"
+# unknown = "#BBBBBB"
+
+# Dark mode per-extension colors (case-insensitive)
+# [extensions_dark]
+# ".pdf" = "#FF8A80"
+# ".docx" = "#82B1FF"
+# ".xlsx" = "#A5D6A7"
 
 # OneDrive/SharePoint resolution configuration
 # Optional: override the Azure CLI executable path

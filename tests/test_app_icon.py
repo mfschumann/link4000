@@ -90,6 +90,29 @@ class TestGetAppIcon:
         icon = app_icon.get_app_icon()
         assert not icon.isNull()
 
+    def test_uses_dark_icon_when_theme_is_system_and_os_is_dark(
+        self, tmp_path, monkeypatch
+    ):
+        """With theme='system' and OS in dark mode, the loader requests icon_dark.svg."""
+        config_path = tmp_path / "config.toml"
+        config_path.write_text('[global]\ntheme = "system"\n')
+        config.set_config_path(str(config_path))
+
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
+
+        with (
+            patch.object(app_icon, "QIcon") as mock_qicon,
+            patch.object(app_icon, "QFile") as mock_qfile,
+        ):
+            mock_qicon.return_value = MagicMock()
+            mock_qfile.exists.return_value = True
+            app_icon.get_app_icon()
+
+        requested_paths = [
+            str(call.args[0]) for call in mock_qicon.call_args_list if call.args
+        ]
+        assert any("icon_dark.svg" in p for p in requested_paths)
+
     def test_resource_search_path_not_duplicated(self, tmp_path, monkeypatch):
         """Calling the loader repeatedly does not add duplicate search paths."""
         resources_dir = tmp_path / "resources"

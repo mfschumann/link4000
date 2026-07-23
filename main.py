@@ -16,6 +16,7 @@ import tomli_w
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QFile
+from PySide6.QtGui import QGuiApplication
 
 from link4000.ui.main_window import MainWindow
 from link4000.models.link import Link
@@ -83,9 +84,23 @@ class LinkManagerApp:
 
     def run(self) -> int:
         """Show the main window and run the application event loop."""
+        hints = QGuiApplication.styleHints()
+        if hints is not None and hasattr(hints, "colorSchemeChanged"):
+            hints.colorSchemeChanged.connect(self._on_color_scheme_changed)
         self._window = MainWindow()
         self._window.show()
         return self._app.exec()
+
+    def _on_color_scheme_changed(self, scheme) -> None:
+        """Handle OS color scheme changes at runtime.
+
+        Args:
+            scheme: The new Qt.ColorScheme value from the OS.
+        """
+        icon = get_app_icon()
+        self._app.setWindowIcon(icon)
+        if self._window is not None:
+            self._window.refresh_theme()
 
 
 def _detect_schema(data: dict | list) -> str:
