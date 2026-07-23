@@ -88,6 +88,39 @@ class TestConfigDefaults:
         assert isinstance(patterns, list)
         assert patterns == []
 
+    def test_detect_system_theme_returns_light_or_dark(self):
+        """Test that detect_system_theme returns 'light' or 'dark'."""
+        theme = config.detect_system_theme()
+        assert theme in ["light", "dark"]
+
+    def test_detect_system_theme_with_mock_dark(self, monkeypatch):
+        """Test detect_system_theme returns 'dark' when OS is in dark mode."""
+        from unittest.mock import MagicMock
+        from PySide6.QtGui import QGuiApplication, Qt
+
+        mock_hints = MagicMock()
+        mock_hints.colorScheme.return_value = Qt.ColorScheme.Dark
+        mock_app = MagicMock()
+        mock_app.styleHints.return_value = mock_hints
+        monkeypatch.setattr(QGuiApplication, "instance", lambda: mock_app)
+
+        theme = config.detect_system_theme()
+        assert theme == "dark"
+
+    def test_detect_system_theme_with_mock_light(self, monkeypatch):
+        """Test detect_system_theme returns 'light' when OS is in light mode."""
+        from unittest.mock import MagicMock
+        from PySide6.QtGui import QGuiApplication, Qt
+
+        mock_hints = MagicMock()
+        mock_hints.colorScheme.return_value = Qt.ColorScheme.Light
+        mock_app = MagicMock()
+        mock_app.styleHints.return_value = mock_hints
+        monkeypatch.setattr(QGuiApplication, "instance", lambda: mock_app)
+
+        theme = config.detect_system_theme()
+        assert theme == "light"
+
 
 class TestConfigWithFile:
     """Test configuration with custom config file."""
@@ -120,17 +153,6 @@ links_file = "/custom/path/links.json"
 
         path = config.get_links_file_path()
         assert path == "/custom/path/links.json"
-
-    def test_custom_theme(self, temp_config):
-        """Test loading custom theme."""
-        with open(temp_config, "w") as f:
-            f.write("""
-[global]
-theme = "dark"
-""")
-
-        theme = config.get_theme()
-        assert theme == "dark"
 
     def test_custom_tray_behavior_close_to_tray(self, temp_config):
         """Test loading close_to_tray tray behavior."""
@@ -248,6 +270,48 @@ reload_interval_minutes = "invalid"
         interval = get_reload_interval_minutes()
         assert interval == 15  # default
 
+    def test_dark_colors_used_when_theme_dark(self, temp_config, monkeypatch):
+        """Test that colors_dark section is used when system theme is 'dark'."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
+
+        color = config.get_color_for_link("https://example.com", "web", "")
+        assert color.name() == "#4da6ff"
+
+        color = config.get_color_for_link("/path/to/folder", "folder", "")
+        assert color.name() == "#ffb340"
+
+    def test_custom_colors_dark(self, temp_config, monkeypatch):
+        """Test loading custom dark colors."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
+        with open(temp_config, "w") as f:
+            f.write("""
+[colors_dark]
+web = "#FF0000"
+folder = "#00FF00"
+""")
+
+        color = config.get_color_for_link("https://example.com", "web", "")
+        assert color.name() == "#ff0000"
+
+    def test_extensions_dark(self, temp_config, monkeypatch):
+        """Test custom dark extension colors."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
+        with open(temp_config, "w") as f:
+            f.write("""
+[extensions_dark]
+".pdf" = "#FF5500"
+""")
+
+        color = config.get_color_for_link("file.pdf", "file", ".pdf")
+        assert color.name() == "#ff5500"
+
+    def test_light_colors_used_when_theme_light(self, temp_config, monkeypatch):
+        """Test that colors section is used when system theme is 'light'."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "light")
+
+        color = config.get_color_for_link("https://example.com", "web", "")
+        assert color.name() == "#0066cc"
+
 
 class TestSetConfigPath:
     """Test set_config_path() overrides the config file location."""
@@ -266,7 +330,7 @@ class TestSetConfigPath:
     def test_sets_config_path(self, tmp_path):
         """set_config_path updates _CONFIG_PATH."""
         target = tmp_path / "custom.toml"
-        target.write_text('[global]\ntheme = "dark"\n')
+        target.write_text('[global]\ntray_behavior = "normal"\n')
         config.set_config_path(str(target))
         assert config._CONFIG_PATH == str(target)
 
@@ -285,9 +349,9 @@ class TestSetConfigPath:
     def test_loads_from_overridden_path(self, tmp_path):
         """Config values come from the path set via set_config_path."""
         target = tmp_path / "alt.toml"
-        target.write_text('[global]\ntheme = "dark"\n')
+        target.write_text('[global]\ntray_behavior = "normal"\n')
         config.set_config_path(str(target))
-        assert config.get_theme() == "dark"
+        assert config.get_tray_behavior() == "normal"
 
     def test_ensure_config_uses_overridden_path(self, tmp_path):
         """ensure_config_exists creates the file at the overridden path."""
@@ -318,6 +382,7 @@ class TestEnsureConfigExists:
         assert "[global]" in content
         assert "[sources.recent_windows]" in content
         assert "[colors]" in content
+        assert "[colors_dark]" in content
         assert "tray_behavior" in content
         assert "enabled =" in content
 
@@ -393,25 +458,24 @@ class TestGetFullConfig:
         with open(temp_config, "w") as f:
             f.write("")
         full_cfg = config.get_full_config()
-        assert full_cfg["global"]["theme"] == "light"
         assert full_cfg["global"]["tray_behavior"] == "close_to_tray"
         assert full_cfg["colors"]["web"] == "#0066CC"
+        assert full_cfg["colors_dark"]["web"] == "#4DA6FF"
 
     def test_full_config_merges_user_config(self, temp_config):
         """Test that user config overrides defaults."""
         with open(temp_config, "w") as f:
             f.write("""
 [global]
-theme = "dark"
+tray_behavior = "minimize_to_tray"
 
 [colors]
 web = "#FF0000"
 """)
         full_cfg = config.get_full_config()
-        assert full_cfg["global"]["theme"] == "dark"
         assert (
-            full_cfg["global"]["tray_behavior"] == "close_to_tray"
-        )  # default preserved
+            full_cfg["global"]["tray_behavior"] == "minimize_to_tray"
+        )  # user override
         assert full_cfg["colors"]["web"] == "#FF0000"  # user override
         assert full_cfg["colors"]["folder"] == "#FF9500"  # default preserved
 

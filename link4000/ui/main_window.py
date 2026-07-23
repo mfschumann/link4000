@@ -237,6 +237,25 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
         self.setWindowIcon(get_app_icon())
 
+    def refresh_theme(self) -> None:
+        """Refresh icon and table colors after a system theme change.
+
+        Updates the window icon, tray icon, and triggers a repaint of the
+        title column to apply the new link colors from the active theme.
+        """
+        icon = get_app_icon()
+        self.setWindowIcon(icon)
+        if self._tray is not None:
+            self._tray.setIcon(icon)
+        if self._model.rowCount() > 0:
+            top_left = self._model.index(0, LinkTableModel.COL_TITLE)
+            bottom_right = self._model.index(
+                self._model.rowCount() - 1, LinkTableModel.COL_TITLE
+            )
+            self._model.dataChanged.emit(
+                top_left, bottom_right, [Qt.ItemDataRole.ForegroundRole]
+            )
+
     def _setup_tray(self) -> None:
         """Set up the system tray icon with a context menu.
 
