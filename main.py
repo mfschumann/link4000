@@ -15,12 +15,12 @@ from typing import Optional
 import tomli_w
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import QFile, QDir
+from PySide6.QtCore import QFile
 
 from link4000.ui.main_window import MainWindow
 from link4000.models.link import Link
 from link4000.data.link_store import LinkStore
+from link4000.utils.app_icon import get_app_icon
 
 
 def _setup_resources_path() -> None:
@@ -30,7 +30,9 @@ def _setup_resources_path() -> None:
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
     resources_path = os.path.join(base_path, "resources")
-    if QDir(resources_path).exists():
+    if QFile(resources_path).exists():
+        from PySide6.QtCore import QDir
+
         QDir.addSearchPath("resources", resources_path)
 
 
@@ -68,17 +70,6 @@ def _setup_logging() -> None:
 _setup_logging()
 
 
-def _get_app_icon() -> QIcon:
-    """Return the application icon from resources or system theme."""
-    icon_paths: list[str] = ["resources:icon.svg"]
-    for path in icon_paths:
-        if QFile.exists(path):
-            return QIcon(path)
-    return QIcon.fromTheme(
-        "link", QIcon.fromTheme("insert-link", QIcon.fromTheme("chain"))
-    )
-
-
 class LinkManagerApp:
     """Main application controller for Link4000."""
 
@@ -86,7 +77,7 @@ class LinkManagerApp:
         self._app: QApplication = QApplication(sys.argv)
         self._app.setApplicationName("Link4000")
         self._app.setApplicationDisplayName("Link Manager")
-        icon = _get_app_icon()
+        icon = get_app_icon()
         self._app.setWindowIcon(icon)
         self._window: Optional[MainWindow] = None
 

@@ -44,22 +44,21 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import (
     Qt,
     QEvent,
-    QFile,
     QTimer,
     QPoint,
     QAbstractItemModel,
     QModelIndex,
 )
-from PySide6.QtGui import QAction, QPainter, QColor, QFont, QIcon, QCloseEvent
+from PySide6.QtGui import QAction, QPainter, QColor, QFont, QCloseEvent
 
 from link4000.data.link_store import LinkStore
 from link4000.models.link_model import LinkTableModel, LinkSortFilterModel
 from link4000.ui.add_link_dialog import AddLinkDialog
 from link4000.ui.bulk_edit_tags_dialog import BulkEditTagsDialog
 from link4000.ui.tag_filter_window import TagFilterWindow
+from link4000.utils.app_icon import get_app_icon
 from link4000.utils.config import (
     ensure_config_exists,
-    get_theme,
     get_tray_behavior,
     get_enabled_sources,
     get_reload_interval_minutes,
@@ -182,9 +181,7 @@ class MainWindow(QMainWindow):
         and builds the UI and system tray.
         """
         super().__init__()
-        icon = self._get_icon()
-        if icon is not None:
-            self.setWindowIcon(icon)
+        self.setWindowIcon(get_app_icon())
         self.setWindowTitle("Link4000 - Link Manager")
         self.setMinimumSize(800, 600)
 
@@ -238,35 +235,7 @@ class MainWindow(QMainWindow):
         appear until the window is moved or resized.
         """
         super().showEvent(event)
-        icon = self._get_icon()
-        if icon is not None:
-            self.setWindowIcon(icon)
-
-    @staticmethod
-    def _get_icon() -> QIcon | None:
-        """Load the application icon based on the current theme.
-
-        Searches for SVG or PNG icon files in the resources directory,
-        falling back to system theme icons if no bundled icon is found.
-
-        Returns:
-            A QIcon instance for the application or tray icon.
-        """
-        if getattr(sys, "_MEIPASS", None):
-            base_path = Path(sys._MEIPASS)
-        else:
-            base_path = Path(__file__).parent.resolve()
-
-        theme = get_theme()
-        icon_name = "icon_dark.svg" if theme == "dark" else "icon.svg"
-
-        icon_paths = [base_path.parent.parent / "resources" / icon_name]
-        for path in icon_paths:
-            if QFile(path).exists():
-                return QIcon(str(path))
-        return QIcon.fromTheme(
-            "link", QIcon.fromTheme("insert-link", QIcon.fromTheme("chain"))
-        )
+        self.setWindowIcon(get_app_icon())
 
     def _setup_tray(self) -> None:
         """Set up the system tray icon with a context menu.
@@ -275,7 +244,7 @@ class MainWindow(QMainWindow):
         and connects the tray activation signal for toggling visibility.
         """
         self._tray = QSystemTrayIcon(self)
-        self._tray.setIcon(self._get_icon())
+        self._tray.setIcon(get_app_icon())
         self._tray.setToolTip("Link4000 - Link Manager")
 
         menu = QMenu(self)
@@ -955,13 +924,17 @@ class MainWindow(QMainWindow):
             try:
                 os.startfile(target)
             except Exception:
-                _logger.exception("os.startfile failed for target=%r (url=%r)", target, link.url)
+                _logger.exception(
+                    "os.startfile failed for target=%r (url=%r)", target, link.url
+                )
                 webbrowser.open(target)
         else:
             try:
                 subprocess.run(["xdg-open", target], check=True)
             except Exception:
-                _logger.exception("xdg-open failed for target=%r (url=%r)", target, link.url)
+                _logger.exception(
+                    "xdg-open failed for target=%r (url=%r)", target, link.url
+                )
                 webbrowser.open(target)
 
     @staticmethod
@@ -975,13 +948,19 @@ class MainWindow(QMainWindow):
             try:
                 os.startfile(target)
             except Exception:
-                _logger.exception("os.startfile (recent) failed for target=%r (url=%r)", target, link.url)
+                _logger.exception(
+                    "os.startfile (recent) failed for target=%r (url=%r)",
+                    target,
+                    link.url,
+                )
                 webbrowser.open(target)
         else:
             try:
                 subprocess.run(["xdg-open", target], check=True)
             except Exception:
-                _logger.exception("xdg-open (recent) failed for target=%r (url=%r)", target, link.url)
+                _logger.exception(
+                    "xdg-open (recent) failed for target=%r (url=%r)", target, link.url
+                )
                 webbrowser.open(target)
 
     def _promote_recent(self, link):
@@ -1017,7 +996,9 @@ class MainWindow(QMainWindow):
             else:
                 subprocess.run(["xdg-open", path], check=True)
         except Exception:
-            _logger.exception("Failed to open parent folder for link url=%r, path=%r", link.url, path)
+            _logger.exception(
+                "Failed to open parent folder for link url=%r, path=%r", link.url, path
+            )
 
     def _on_cell_clicked(self, index: QModelIndex) -> None:
         """Handle single clicks on table cells.
@@ -1046,7 +1027,12 @@ class MainWindow(QMainWindow):
             if link_id:
                 link = self._model.get_link_by_id(link_id)
                 if link:
-                    _logger.debug("Delayed click: id=%s url=%r source_tag=%s", link_id, link.url, link.source_tag)
+                    _logger.debug(
+                        "Delayed click: id=%s url=%r source_tag=%s",
+                        link_id,
+                        link.url,
+                        link.source_tag,
+                    )
                     if link.source_tag:
                         self._open_recent(link)
                     else:
