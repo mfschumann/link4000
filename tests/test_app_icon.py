@@ -41,11 +41,9 @@ class TestGetAppIcon:
         icon = app_icon.get_app_icon()
         assert not icon.isNull()
 
-    def test_uses_light_icon_by_default(self, tmp_path):
-        """With the default light theme, the loader requests icon.svg."""
-        config_path = tmp_path / "config.toml"
-        config_path.write_text('[global]\ntheme = "light"\n')
-        config.set_config_path(str(config_path))
+    def test_uses_light_icon_by_default(self, tmp_path, monkeypatch):
+        """With light system theme, the loader requests icon.svg."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "light")
 
         with (
             patch.object(app_icon, "QIcon") as mock_qicon,
@@ -61,11 +59,9 @@ class TestGetAppIcon:
         assert any("icon.svg" in p for p in requested_paths)
         assert not any("icon_dark.svg" in p for p in requested_paths)
 
-    def test_uses_dark_icon_when_theme_is_dark(self, tmp_path):
-        """With theme="dark", the loader requests icon_dark.svg."""
-        config_path = tmp_path / "config.toml"
-        config_path.write_text('[global]\ntheme = "dark"\n')
-        config.set_config_path(str(config_path))
+    def test_uses_dark_icon_when_theme_is_dark(self, tmp_path, monkeypatch):
+        """With dark system theme, the loader requests icon_dark.svg."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
 
         with (
             patch.object(app_icon, "QIcon") as mock_qicon,
@@ -93,11 +89,7 @@ class TestGetAppIcon:
     def test_uses_dark_icon_when_theme_is_system_and_os_is_dark(
         self, tmp_path, monkeypatch
     ):
-        """With theme='system' and OS in dark mode, the loader requests icon_dark.svg."""
-        config_path = tmp_path / "config.toml"
-        config_path.write_text('[global]\ntheme = "system"\n')
-        config.set_config_path(str(config_path))
-
+        """With system theme and OS in dark mode, the loader requests icon_dark.svg."""
         monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
 
         with (

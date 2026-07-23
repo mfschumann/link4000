@@ -20,7 +20,6 @@ _DEFAULTS = {
             r"onedrive\.live\.com/.*",
         ],
         "exclusion_patterns": [],
-        "theme": "system",
         "tray_behavior": "close_to_tray",
         "reload_interval_minutes": 15,
     },
@@ -221,25 +220,13 @@ def get_links_file_path() -> str:
 
 
 def get_theme() -> str:
-    """Return the resolved theme setting from config.toml [global] section.
+    """Return the current system theme.
 
-    Reads the ``theme`` value and resolves it:
-
-    - ``"system"`` is detected from the OS color scheme via Qt.
-    - ``"light"`` and ``"dark"`` are returned as-is.
-
-    The default is ``"system"`` (follows the OS setting).
+    Always detects the OS color scheme via Qt's styleHints.
 
     Returns:
         ``"light"`` or ``"dark"``.
     """
-    cfg = _get_config()
-    global_cfg = cfg.get("global", {})
-    raw = global_cfg.get("theme", "system")
-    if raw == "system":
-        return detect_system_theme()
-    if raw in ("light", "dark"):
-        return raw
     return detect_system_theme()
 
 
@@ -384,9 +371,6 @@ def ensure_config_exists() -> None:
 [global]
 # Path to the links.json file (leave empty for default: ~/.link4000/links.json)
 # links_file = "/path/to/links.json"
-
-# Theme for icons and link colors: "system" (follow OS), "light", or "dark"
-# theme = "system"
 
 # Regex patterns for detecting SharePoint/OneDrive URLs (matched against the full URL)
 # sharepoint_patterns = [
