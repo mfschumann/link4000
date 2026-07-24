@@ -49,7 +49,12 @@ class TestConfigCliArg:
     def test_config_arg_with_import(self, tmp_path):
         """--config works together with --import."""
         config_file = tmp_path / "cli.toml"
-        config_file.write_text(f'[global]\nlinks_file = "{tmp_path / "links.json"}"\n')
+        # Use as_posix() so the embedded path uses forward slashes. On
+        # Windows tmp_path contains backslashes, which are interpreted as
+        # TOML escape sequences (e.g. "\U...") if inserted verbatim into a
+        # basic string and can raise a TOMLDecodeError.
+        links_path = (tmp_path / "links.json").as_posix()
+        config_file.write_text(f'[global]\nlinks_file = "{links_path}"\n')
 
         import_file = tmp_path / "source.json"
         import_file.write_text("[]")
