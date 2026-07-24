@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QStyleOptionViewItem,
+    QFileDialog,
 )
 from PySide6.QtCore import (
     Qt,
@@ -48,8 +49,9 @@ from PySide6.QtCore import (
     QPoint,
     QAbstractItemModel,
     QModelIndex,
+    QUrl,
 )
-from PySide6.QtGui import QAction, QPainter, QColor, QFont, QCloseEvent
+from PySide6.QtGui import QAction, QPainter, QColor, QFont, QCloseEvent, QDesktopServices
 
 from link4000.data.link_store import LinkStore
 from link4000.models.link_model import LinkTableModel, LinkSortFilterModel
@@ -305,6 +307,59 @@ class MainWindow(QMainWindow):
 
         sys.exit(0)
 
+    def _on_import_links(self) -> None:
+        """Handle the Import links menu action.
+
+        Opens a file dialog to select a JSON file, imports the links,
+        and shows a summary of the import results.
+        """
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Import Links", "", "JSON Files (*.json);;All Files (*)"
+        )
+        if not file_path:
+            return
+
+        from link4000.utils.import_links import do_import
+
+        added, skipped, updated, error = do_import(file_path, override=False)
+        if error:
+            QMessageBox.critical(self, "Import Error", error)
+            return
+
+        if skipped > 0:
+            reply = QMessageBox.question(
+                self,
+                "Duplicate Links",
+                f"{skipped} link(s) already exist. Overwrite them?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                added2, skipped2, updated2, error2 = do_import(file_path, override=True)
+                if error2:
+                    QMessageBox.critical(self, "Import Error", error2)
+                    return
+                added += added2
+                updated += updated2
+                skipped = skipped2
+
+        self._load_links()
+        QMessageBox.information(
+            self,
+            "Import Complete",
+            f"Added: {added}, Skipped: {skipped}, Updated: {updated}",
+        )
+
+    def _on_open_config(self) -> None:
+        """Handle the Open config menu action.
+
+        Opens the config.toml file in the system's default text editor.
+        """
+        from link4000.utils.config import _CONFIG_PATH, ensure_config_exists
+
+        ensure_config_exists()
+        QDesktopServices.openUrl(QUrl.fromLocalFile(_CONFIG_PATH))
+
     def _ensure_auto_reload_timer_running(self) -> None:
         """Stop any existing timer and (re)start auto-reload if configured.
 
@@ -376,6 +431,28 @@ class MainWindow(QMainWindow):
         toolbar = QWidget()
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._menu_button = QPushButton("☰")
+        self._menu_button.setToolTip("Menu")
+        self._menu_button.setFixedWidth(35)
+        menu = QMenu(self._menu_button)
+        self._menu_button.setMenu(menu)
+
+        import_action = QAction("Import links...", self)
+        import_action.triggered.connect(self._on_import_links)
+        menu.addAction(import_action)
+
+        open_config_action = QAction("Open config", self)
+        open_config_action.triggered.connect(self._on_open_config)
+        menu.addAction(open_config_action)
+
+        menu.addSeparator()
+
+        quit_action = QAction("Quit", self)
+        quit_action.triggered.connect(self._on_quit)
+        menu.addAction(quit_action)
+
+        toolbar_layout.addWidget(self._menu_button)
 
         self._search_input = QLineEdit()
         self._search_input.setPlaceholderText("Search links...")

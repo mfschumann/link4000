@@ -6,7 +6,6 @@ A desktop application for managing bookmarks/links with tagging support.
 
 import sys
 import os
-import json
 import logging
 import traceback
 import argparse
@@ -19,8 +18,6 @@ from PySide6.QtCore import QFile
 from PySide6.QtGui import QGuiApplication
 
 from link4000.ui.main_window import MainWindow
-from link4000.models.link import Link
-from link4000.data.link_store import LinkStore
 from link4000.utils.app_icon import get_app_icon
 
 
@@ -103,26 +100,6 @@ class LinkManagerApp:
             self._window.refresh_theme()
 
 
-def _detect_schema(data: dict | list) -> str:
-    """Detect whether the input data uses 'legacy' or 'current' schema.
-
-    Args:
-        data: Parsed JSON data (dict or list)
-
-    Returns:
-        'legacy' if data uses keywords instead of tags, 'current' otherwise
-    """
-    if isinstance(data, list):
-        return "legacy"
-    links = data.get("links", [])
-    if not links:
-        return "current"
-    first_link = links[0]
-    if "keywords" in first_link:
-        return "legacy"
-    return "current"
-
-
 def _import_links(source_path: str, override: bool = False) -> int:
     """Import links from a JSON file into the configured links.json.
 
@@ -133,42 +110,13 @@ def _import_links(source_path: str, override: bool = False) -> int:
     Returns:
         Exit code (0 for success, 1 for error)
     """
-    source_path = os.path.expanduser(source_path)
+    from link4000.utils.import_links import do_import
 
-    if not os.path.exists(source_path):
-        print(f"Error: File not found: {source_path}")
+    added, skipped, updated, error = do_import(source_path, override)
+
+    if error:
+        print(f"Error: {error}")
         return 1
-
-    try:
-        with open(source_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in {source_path}: {e}")
-        return 1
-
-    schema = _detect_schema(data)
-
-    if schema == "legacy":
-        if not isinstance(data, list):
-            print(f"Error: Expected a list for legacy schema, got {type(data)}")
-            return 1
-        links_data = data
-    else:
-        links_data = data.get("links", [])
-
-    if not links_data:
-        print("No links found in the source file.")
-        return 0
-
-    print(f"Detected {schema} schema ({len(links_data)} links)")
-
-    if schema == "legacy":
-        links: list[Link] = [Link.from_legacy_dict(d) for d in links_data]
-    else:
-        links = [Link.from_dict(d) for d in links_data]
-
-    store = LinkStore()
-    added, skipped, updated = store.import_links(links, override=override)
 
     parts: list[str] = []
     if added > 0:
