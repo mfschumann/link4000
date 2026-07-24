@@ -307,11 +307,6 @@ class MainWindow(QMainWindow):
 
         sys.exit(0)
 
-    def _on_menu_button_clicked(self) -> None:
-        """Show the hamburger menu at the button's position."""
-        pos = self._menu_button.mapToGlobal(QPoint(0, self._menu_button.height()))
-        self._menu_button_menu.exec(pos)
-
     def _on_import_links(self) -> None:
         """Handle the Import links menu action.
 
@@ -441,25 +436,23 @@ class MainWindow(QMainWindow):
         self._menu_button = QPushButton("☰")
         self._menu_button.setToolTip("Menu")
         self._menu_button.setFixedWidth(35)
-        self._menu_button.setObjectName("menuButton")
-        self._menu_button.setStyleSheet("#menuButton::menu-indicator { image: none; }")
-        self._menu_button.clicked.connect(self._on_menu_button_clicked)
 
-        self._menu_button_menu = QMenu(self._menu_button)
+        menu = QMenu(self._menu_button)
+        self._menu_button.setMenu(menu)
 
         import_action = QAction("Import links...", self)
         import_action.triggered.connect(self._on_import_links)
-        self._menu_button_menu.addAction(import_action)
+        menu.addAction(import_action)
 
         open_config_action = QAction("Open config", self)
         open_config_action.triggered.connect(self._on_open_config)
-        self._menu_button_menu.addAction(open_config_action)
+        menu.addAction(open_config_action)
 
-        self._menu_button_menu.addSeparator()
+        menu.addSeparator()
 
         quit_action = QAction("Quit", self)
         quit_action.triggered.connect(self._on_quit)
-        self._menu_button_menu.addAction(quit_action)
+        menu.addAction(quit_action)
 
         toolbar_layout.addWidget(self._menu_button)
 
