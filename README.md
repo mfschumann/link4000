@@ -118,11 +118,8 @@ Configuration is stored in `~/.link4000/config.toml` (default) or in the path pa
 
 ```toml
 [global]
-# Path to the links.json file (leave empty for default)
-# links_file = ""
-
-# Theme for icons: "light" or "dark"
-# theme = "light"
+# Path to the links.json file (leave empty for default: ~/.link4000/links.json)
+# links_file = "/path/to/links.json"
 
 # Regex patterns for detecting SharePoint/OneDrive URLs
 # sharepoint_patterns = [
@@ -131,7 +128,7 @@ Configuration is stored in `~/.link4000/config.toml` (default) or in the path pa
 # ]
 
 # Regex patterns for excluding recent items from the link list.
-# Recent items whose URL or path matches any pattern will be filtered out.
+# Items whose URL or path matches any pattern will be filtered out.
 # exclusion_patterns = [
 #     '.*\\.internal\\.company\\.com.*',
 #     '.*/temp/.*',
@@ -192,10 +189,38 @@ file = "#333333"
 sharepoint = "#7038C8"
 unknown = "#999999"
 
-# File extension colors (case-insensitive)
-# [extensions]
-# ".pdf" = "#E53935"
-# ".docx" = "#1565C0"
+[extensions]
+".xlsx" = "#43A047"
+".xls" = "#43A047"
+".pptx" = "#FB8C00"
+".ppt" = "#FB8C00"
+".docx" = "#1E88E5"
+".doc" = "#1E88E5"
+".pdf" = "#E53935"
+".one" = "#8E24AA"
+".onetoc2" = "#8E24AA"
+
+# Dark mode colors — used automatically when the OS is in dark mode.
+# In dark mode, [colors_dark] replaces [colors] and [extensions_dark]
+# replaces [extensions]. If a section is omitted, the light-mode defaults
+# are used as fallback.
+# [colors_dark]
+# web = "#4DA6FF"
+# folder = "#FFB340"
+# file = "#CCCCCC"
+# sharepoint = "#9B6FE0"
+# unknown = "#BBBBBB"
+
+[extensions_dark]
+".xlsx" = "#66BB6A"
+".xls" = "#66BB6A"
+".pptx" = "#FFA726"
+".ppt" = "#FFA726"
+".docx" = "#42A5F5"
+".doc" = "#42A5F5"
+".pdf" = "#EF5350"
+".one" = "#AB47BC"
+".onetoc2" = "#AB47BC"
 ```
 
 
@@ -208,7 +233,9 @@ link4000/
 │   ├── link.py          # Link data model
 │   └── link_model.py    # Qt table model for links
 ├── utils/
+│   ├── app_icon.py      # Application icon loading (theme-aware)
 │   ├── config.py        # Configuration management
+│   ├── import_links.py  # JSON import logic
 │   └── path_utils.py    # URL/path utilities
 ├── data/
 │   ├── link_store.py    # Link persistence
