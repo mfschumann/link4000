@@ -437,11 +437,12 @@ class MainWindow(QMainWindow):
         toolbar = QWidget()
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
-        toolbar.setStyleSheet("QPushButton::menu-indicator { image: none; }")
 
         self._menu_button = QPushButton("☰")
         self._menu_button.setToolTip("Menu")
         self._menu_button.setFixedWidth(35)
+        self._menu_button.setObjectName("menuButton")
+        self._menu_button.setStyleSheet("#menuButton::menu-indicator { image: none; }")
         self._menu_button.clicked.connect(self._on_menu_button_clicked)
 
         self._menu_button_menu = QMenu(self._menu_button)
