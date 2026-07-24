@@ -435,6 +435,7 @@ class MainWindow(QMainWindow):
         self._menu_button = QPushButton("☰")
         self._menu_button.setToolTip("Menu")
         self._menu_button.setFixedWidth(35)
+        self._menu_button.setStyleSheet("QPushButton::menu-indicator { image: none; }")
         menu = QMenu(self._menu_button)
         self._menu_button.setMenu(menu)
 
