@@ -72,7 +72,9 @@ class LinkManagerApp:
     """Main application controller for Link4000."""
 
     def __init__(self) -> None:
-        self._app: QApplication = QApplication(sys.argv)
+        self._app: QApplication = QApplication.instance()
+        if self._app is None:
+            self._app = QApplication(sys.argv)
         self._app.setApplicationName("Link4000")
         self._app.setApplicationDisplayName("Link Manager")
         icon = get_app_icon()
