@@ -400,14 +400,19 @@ class MainWindow(QMainWindow):
             event.accept()
 
     def changeEvent(self, event: QEvent) -> None:
-        """Handle window state changes for minimize-to-tray behavior.
+        """Handle window state changes for minimize-to-tray behavior
+        and focus management.
 
         When tray_behavior is "minimize_to_tray", intercepts the minimize
         event and hides the window to the system tray instead.
+        When the window is activated (gains focus), sets focus to the
+        search input so the user can start typing immediately.
 
         Args:
             event: The QEvent to handle.
         """
+        if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
+            self._search_input.setFocus()
         if (
             event.type() == QEvent.Type.WindowStateChange
             and self._tray_behavior == "minimize_to_tray"
