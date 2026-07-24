@@ -52,7 +52,13 @@ class TestDoImport:
         from link4000.utils import config
 
         config_file = tmp_path / "config.toml"
-        config_file.write_text(f'[global]\nlinks_file = "{tmp_path / "links.json"}"\n')
+        # Use as_posix() so the path uses forward slashes. On Windows,
+        # tmp_path contains backslashes which, if inserted verbatim into a
+        # TOML basic string, are interpreted as escape sequences (e.g. "\U")
+        # and raise a TOMLDecodeError. Forward slashes are valid path
+        # separators on Windows too, so this keeps the test portable.
+        links_path = (tmp_path / "links.json").as_posix()
+        config_file.write_text(f'[global]\nlinks_file = "{links_path}"\n')
         monkeypatch.setattr(config, "_CONFIG_PATH", str(config_file))
         monkeypatch.setattr(config, "_config", None)
 
