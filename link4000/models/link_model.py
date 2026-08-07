@@ -96,8 +96,6 @@ class LinkTableModel(QAbstractTableModel):
             if col == self.COL_TITLE:
                 return link.title
             elif col == self.COL_TAGS:
-                if link.source_tag:
-                    return link.source_tag
                 return ", ".join(link.tags)
             elif col == self.COL_LAST_ACCESSED:
                 return format_relative_date(link.last_accessed)

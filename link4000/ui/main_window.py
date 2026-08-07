@@ -623,7 +623,7 @@ class MainWindow(QMainWindow):
                     link = Link(
                         title=entry.title,
                         url=url,
-                        tags=[entry.source_tag],
+                        tags=[entry.source_tag] + getattr(entry, "folder_tags", []),
                         id=f"{source.name}:{url}",
                         created_at=entry.created_at,
                         updated_at=entry.updated_at,
