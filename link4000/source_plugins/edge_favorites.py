@@ -70,8 +70,10 @@ class EdgeFavoritesSource(LinkSource):
         except (ValueError, OSError):
             return datetime.now()
 
-    def _extract_favorites(self, node: dict, entries: list[SourceEntry]) -> None:
+    def _extract_favorites(self, node: dict, entries: list[SourceEntry], folder_tags: list[str] | None = None,) -> None:
         """Recursively extract favorites from a bookmark node."""
+        if folder_tags is None:
+            folder_tags = []
         node_type = node.get("type", "")
         children = node.get("children", [])
 
@@ -82,19 +84,28 @@ class EdgeFavoritesSource(LinkSource):
 
             if url and name:
                 created_at = self._parse_timestamp(int(date_added))
-                entries.append(
-                    SourceEntry(
-                        url=url,
-                        title=name,
-                        created_at=created_at,
-                        updated_at=created_at,
-                        last_accessed=created_at,
-                        source_tag=self.source_tag,
-                    )
+                entry = SourceEntry(
+                    url=url,
+                    title=name,
+                    created_at=created_at,
+                    updated_at=created_at,
+                    last_accessed=created_at,
+                    source_tag=self.source_tag,
                 )
+
+                entry.folder_tags = folder_tags
+                entries.append(entry)
+
         elif node_type == "folder" and children:
+            folder_name = node.get("name", "")
+
+            new_folder_tags = folder_tags.copy()
+
+            if folder_name and folder_name.lower() not in ("bookmarks bar","bookmark bar","lesezeichenleiste",):
+                new_folder_tags.append(folder_name)
+
             for child in children:
-                self._extract_favorites(child, entries)
+                self._extract_favorites(child, entries, new_folder_tags)
 
     def _fetch_favorites_from_path(self, bookmarks_path: Path) -> list[SourceEntry]:
         """Read and parse the Edge Bookmarks file."""
