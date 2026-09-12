@@ -58,6 +58,17 @@ class TestAddLinkDialogAddMode:
         dlg = AddLinkDialog(url=url)
         assert dlg._title_input.text() == "some_file.pptx"
 
+    @patch("link4000.ui.add_link_dialog.get_sharepoint_file_extension", return_value=".xlsx")
+    @patch("link4000.ui.add_link_dialog.get_sharepoint_filename", return_value="")
+    @patch("link4000.ui.add_link_dialog.is_sharepoint_url", return_value=True)
+    def test_constructor_does_not_prefill_title_for_share_token(
+        self, mock_sp, mock_fn, mock_ext
+    ):
+        """A share-token URL has no filename, so no title is auto-filled."""
+        url = "https://company-my.sharepoint.com/:x:/p/user/some_ID&some_parameter=asdf"
+        dlg = AddLinkDialog(url=url)
+        assert dlg._title_input.text() == ""
+
     def test_url_changed_auto_fills_title_from_sharepoint(self):
         """Typing a SharePoint Doc.aspx URL auto-fills the title when not manually set."""
         dlg = AddLinkDialog()

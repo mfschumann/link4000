@@ -102,6 +102,20 @@ class TestGetLinkType:
         result = get_link_type(url)
         assert result == "file"
 
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_share_token_is_file(self, mock_sp):
+        """Tests that a SharePoint share-token URL is classified as 'file'."""
+        result = get_link_type(
+            "https://company-my.sharepoint.com/:x:/p/user/some_ID&some_parameter=asdf"
+        )
+        assert result == "file"
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_unmapped_share_token(self, mock_sp):
+        """Tests that a share-token URL without a known Office type stays 'sharepoint'."""
+        result = get_link_type("https://company-my.sharepoint.com/:f:/p/user/some_ID")
+        assert result == "sharepoint"
+
     @patch("os.path.isdir")
     @patch("os.path.isfile")
     def test_existing_folder(self, mock_isfile, mock_isdir):
@@ -165,6 +179,54 @@ class TestGetFileExtension:
         result = get_file_extension(url)
         assert result == ".pptx"
 
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_share_token_extensions(self, mock_sp):
+        """Tests that the file extension is inferred from the SharePoint share token."""
+        assert (
+            get_file_extension(
+                "https://company-my.sharepoint.com/:x:/p/user/some_ID&some_parameter=asdf"
+            )
+            == ".xlsx"
+        )
+        assert (
+            get_file_extension("https://company-my.sharepoint.com/:w:/p/user/some_ID")
+            == ".docx"
+        )
+        assert (
+            get_file_extension("https://company-my.sharepoint.com/:p:/p/user/some_ID")
+            == ".pptx"
+        )
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_share_token_uppercase(self, mock_sp):
+        """Tests that share tokens are matched case-insensitively."""
+        result = get_file_extension(
+            "https://company-my.sharepoint.com/:X:/p/user/some_ID"
+        )
+        assert result == ".xlsx"
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_share_token_unmapped(self, mock_sp):
+        """Tests that unmapped share tokens yield no file extension."""
+        assert (
+            get_file_extension("https://company-my.sharepoint.com/:b:/p/user/some_ID")
+            == ""
+        )
+        assert (
+            get_file_extension("https://company-my.sharepoint.com/:f:/p/user/some_ID")
+            == ""
+        )
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_doc_aspx_extension_beats_share_token(self, mock_sp):
+        """Tests that an explicit file= extension takes precedence over the share token."""
+        url = (
+            "https://some.sharepoint.com/:x:/r/Sites/202384/Sustaining/"
+            "_layouts/15/Doc.aspx?file=some_file.docx"
+        )
+        result = get_file_extension(url)
+        assert result == ".docx"
+
 
 class TestGetSharepointFilename:
     """Tests for get_sharepoint_filename function."""
@@ -218,6 +280,14 @@ class TestGetSharepointFilename:
         result = get_sharepoint_filename("https://company.sharepoint.com/sites/test")
         assert result == "test"
 
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_share_token_url_returns_empty(self, mock_sp):
+        """Tests that the opaque share ID of a share-token URL is not treated as a filename."""
+        result = get_sharepoint_filename(
+            "https://company-my.sharepoint.com/:x:/p/user/some_ID&some_parameter=asdf"
+        )
+        assert result == ""
+
 
 class TestToOfficeUri:
     """Tests for to_office_uri function."""
@@ -232,6 +302,38 @@ class TestToOfficeUri:
         result = to_office_uri(url)
         assert result is not None
         assert url in result
+
+    @patch("sys.platform", "win32")
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_share_token_excel(self, mock_sp):
+        """Tests that a ':x:' share-token URL returns a ms-excel URI on Windows."""
+        url = "https://company-my.sharepoint.com/:x:/p/user/some_ID&some_parameter=asdf"
+        result = to_office_uri(url)
+        assert result == f"ms-excel:ofv|u|{url}"
+
+    @patch("sys.platform", "win32")
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_share_token_word(self, mock_sp):
+        """Tests that a ':w:' share-token URL returns a ms-word URI on Windows."""
+        url = "https://company-my.sharepoint.com/:w:/p/user/some_ID"
+        result = to_office_uri(url)
+        assert result == f"ms-word:ofv|u|{url}"
+
+    @patch("sys.platform", "win32")
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_share_token_powerpoint(self, mock_sp):
+        """Tests that a ':p:' share-token URL returns a ms-powerpoint URI on Windows."""
+        url = "https://company-my.sharepoint.com/:p:/p/user/some_ID"
+        result = to_office_uri(url)
+        assert result == f"ms-powerpoint:ofv|u|{url}"
+
+    @patch("sys.platform", "win32")
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_unmapped_share_token(self, mock_sp):
+        """Tests that an unmapped share token (e.g. ':f:') returns no Office URI."""
+        url = "https://company-my.sharepoint.com/:f:/p/user/some_ID"
+        result = to_office_uri(url)
+        assert result is None
 
     def test_non_windows_platform(self):
         """Tests that to_office_uri returns None on non-Windows platforms."""
