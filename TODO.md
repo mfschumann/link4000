@@ -8,6 +8,7 @@
 - UX: what buttons do we need in the main list?
 
 ## DONE
+- infer Office file type from SharePoint share tokens (`/:x:/`, `/:w:/`, `/:p:/`) for native open, link type, and colors
 - fix SharePoint Doc.aspx title pre-fill to use `file=` filename instead of `Doc.aspx`
 - add structured logging (file + stderr + sys.excepthook) and wrap all link-opening paths in try/except with traceback logging
 

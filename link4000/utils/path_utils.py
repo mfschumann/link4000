@@ -26,6 +26,16 @@ _OFFICE_SCHEMES = {
     ".pub": "ms-publisher:ofv|u|",
 }
 
+# SharePoint share-token path segment -> assumed Office file extension.
+# Share links such as https://tenant-my.sharepoint.com/:x:/p/user/ID have no
+# explicit file extension; the single-letter token after the host identifies the
+# document type. Only the tokens with an unambiguous Office app are mapped.
+_SHARE_TOKEN_EXTENSIONS = {
+    "x": ".xlsx",
+    "w": ".docx",
+    "p": ".pptx",
+}
+
 
 def is_url(text: str) -> bool:
     """Return True if *text* looks like a URL (has a scheme like http://, ftp://, …)."""
@@ -91,6 +101,21 @@ def matches_exclusion_pattern(url_or_path: str) -> bool:
     return False
 
 
+def _get_share_token(url: str) -> str:
+    """
+    Return the single-letter SharePoint share token of a share URL path.
+
+    Share URLs embed the document type directly after the host, e.g.
+    ``https://tenant-my.sharepoint.com/:x:/p/user/ID``.  The token is returned
+    lowercased, or as an empty string when the path does not start with a
+    ``/:<letter>:/`` segment.
+    """
+    parsed = urllib.parse.urlparse(url)
+    path = urllib.parse.unquote(parsed.path)
+    match = re.match(r"^/:([A-Za-z]):/", path)
+    return match.group(1).lower() if match else ""
+
+
 def get_sharepoint_file_extension(url: str) -> str:
     """
     Extract the file extension from a SharePoint URL.
@@ -98,6 +123,11 @@ def get_sharepoint_file_extension(url: str) -> str:
     For normal SharePoint file URLs the extension is taken from the URL path.
     For SharePoint "Doc.aspx" URLs (e.g. ``_layouts/15/Doc.aspx?file=...``),
     the extension is extracted from the ``file`` query parameter instead.
+
+    For share URLs without an explicit extension (e.g.
+    ``https://tenant-my.sharepoint.com/:x:/p/user/ID``) the extension is
+    inferred from the share token: ``x`` → ``.xlsx``, ``w`` → ``.docx``,
+    ``p`` → ``.pptx``.  An explicit extension always takes precedence.
     Returns the extension (lowercase, with leading dot) or empty string if none.
     """
     if not is_sharepoint_url(url):
@@ -105,9 +135,12 @@ def get_sharepoint_file_extension(url: str) -> str:
 
     filename = get_sharepoint_filename(url)
     if filename:
-        return Path(filename).suffix.lower()
+        ext = Path(filename).suffix.lower()
+        if ext:
+            return ext
 
-    return ""
+    # No explicit extension: fall back to the share token, if any.
+    return _SHARE_TOKEN_EXTENSIONS.get(_get_share_token(url), "")
 
 
 def get_sharepoint_filename(url: str) -> str:
@@ -117,6 +150,8 @@ def get_sharepoint_filename(url: str) -> str:
     For normal SharePoint file URLs the filename is the basename of the URL path.
     For SharePoint "Doc.aspx" URLs (e.g. ``_layouts/15/Doc.aspx?file=...``),
     the filename is taken from the ``file`` query parameter instead.
+    For SharePoint share URLs (e.g. ``/:x:/p/user/ID``) the last path segment is
+    an opaque share ID rather than a filename, so an empty string is returned.
     Returns the filename or empty string if none could be determined.
     """
     if not is_sharepoint_url(url):
@@ -130,6 +165,10 @@ def get_sharepoint_filename(url: str) -> str:
         file_param = query.get("file", [""])[0]
         if file_param:
             return Path(file_param).name
+
+    # Share-token URLs contain an opaque ID, not a real filename.
+    if _get_share_token(url):
+        return ""
 
     filename = path.rsplit("/", 1)[-1] if "/" in path else path
     return filename
