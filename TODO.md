@@ -8,6 +8,9 @@
 - UX: what buttons do we need in the main list?
 
 ## DONE
+- select the search field text (not only set focus) when the main window gains focus, so search terms can be overridden right away
+- add `show_tags_column` config option ([global]); when disabled, tags are shown in the title tooltip instead
+- add configurable `[[extension_groups]]` (shared name/color/color_dark/extension list) with color resolution (explicit `[extensions]`/`[extensions_dark]` entries win) and group filters in the Types section of the Filter dialog
 - infer Office file type from SharePoint share tokens (`/:x:/`, `/:w:/`, `/:p:/`) for native open, link type, and colors
 - fix SharePoint Doc.aspx title pre-fill to use `file=` filename instead of `Doc.aspx`
 - add structured logging (file + stderr + sys.excepthook) and wrap all link-opening paths in try/except with traceback logging

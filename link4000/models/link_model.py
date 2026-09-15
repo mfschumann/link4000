@@ -13,7 +13,12 @@ from PySide6.QtWidgets import QWidget
 from link4000.models.link import Link
 from link4000.utils.enums import TagMatchMode
 from PySide6.QtGui import QFont
-from link4000.utils.config import get_color_for_link
+from link4000.utils.config import (
+    get_color_for_link,
+    get_show_tags_column,
+    get_extension_groups,
+    EXTENSION_GROUP_PREFIX,
+)
 
 
 def format_relative_date(dt: datetime) -> str:
@@ -110,6 +115,13 @@ class LinkTableModel(QAbstractTableModel):
                 if link.description:
                     tooltip += f"{link.description}\n\n"
                 tooltip += link.url
+                # When the Tags column is hidden, surface the tags here instead.
+                if not get_show_tags_column():
+                    tags_display = (
+                        link.source_tag if link.source_tag else ", ".join(link.tags)
+                    )
+                    if tags_display:
+                        tooltip += f"\n\nTags: {tags_display}"
                 tooltip += (
                     f"\n\nCreated: {link.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
                 )
@@ -296,12 +308,40 @@ class LinkSortFilterModel(QSortFilterProxyModel):
         self._selected_tags = set()
         self._match_mode = TagMatchMode.OR
         self._selected_types = set()
+        self._group_extensions: set[str] = set()
 
     def set_search_text(self, text: str) -> None:
         """Sets the search text filter and invalidates the current filter."""
         self._search_text = text.lower()
         self._search_terms = [term for term in text.lower().split() if term]
         self.invalidate()
+
+    @staticmethod
+    def _expand_selected_groups(types: set) -> set[str]:
+        """Resolve selected extension-group ids into their member extensions.
+
+        Group entries in the selected types set use the
+        ``EXTENSION_GROUP_PREFIX + name`` format. They are expanded to the
+        union of their extensions once per filter change so that row
+        filtering does not need to query the configuration per row.
+
+        Args:
+            types: Selected types set (link types, extensions, group ids).
+
+        Returns:
+            Set of extensions belonging to all selected groups.
+        """
+        group_extensions: set[str] = set()
+        for entry in types:
+            if not isinstance(entry, str) or not entry.startswith(
+                EXTENSION_GROUP_PREFIX
+            ):
+                continue
+            group_name = entry[len(EXTENSION_GROUP_PREFIX) :]
+            for group in get_extension_groups():
+                if group["name"] == group_name:
+                    group_extensions.update(group["extensions"])
+        return group_extensions
 
     def set_selected_tags(
         self, tags: set, match_mode: TagMatchMode, types: set | None = None
@@ -311,11 +351,13 @@ class LinkSortFilterModel(QSortFilterProxyModel):
         Args:
             tags: Set of tag strings to filter on.
             match_mode: The tag match mode (TagMatchMode.OR/AND/NONE).
-            types: Optional set of link type strings (or file extensions) to include.
+            types: Optional set of link type strings, file extensions or
+                extension-group ids (``group:<name>``) to include.
         """
         self._selected_tags = tags
         self._match_mode = match_mode
         self._selected_types = types if types is not None else set()
+        self._group_extensions = self._expand_selected_groups(self._selected_types)
         self.invalidate()
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
@@ -353,7 +395,10 @@ class LinkSortFilterModel(QSortFilterProxyModel):
             link_type = link.link_type
             link_ext = link.file_extension
             link_type_key = link_ext if link_ext else link_type
-            if link_type_key not in self._selected_types:
+            if (
+                link_type_key not in self._selected_types
+                and link_ext not in self._group_extensions
+            ):
                 return False
 
         return True

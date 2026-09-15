@@ -22,6 +22,7 @@ _DEFAULTS = {
         "exclusion_patterns": [],
         "tray_behavior": "close_to_tray",
         "reload_interval_minutes": 15,
+        "show_tags_column": True,
     },
     "sources": {
         "recent_windows": {"enabled": True, "max_age_days": 0},
@@ -66,6 +67,7 @@ _DEFAULTS = {
         ".one": "#AB47BC",
         ".onetoc2": "#AB47BC",
     },
+    "extension_groups": [],
 }
 
 
@@ -155,6 +157,11 @@ def get_color_for_link(url: str, link_type: str, extension: str = "") -> "QColor
     Uses the ``[colors]`` section in light mode and the ``[colors_dark]``
     section (with ``[extensions_dark]``) when the resolved theme is dark.
 
+    For file links with an extension the color is resolved in this order:
+    explicitly configured entry in ``[extensions]``/``[extensions_dark]``,
+    then the color of the first ``[[extension_groups]]`` containing the
+    extension, then the built-in default extension color, then ``colors.file``.
+
     Args:
         url: The link URL/path
         link_type: One of "web", "folder", "file", "sharepoint", "unknown"
@@ -176,7 +183,6 @@ def get_color_for_link(url: str, link_type: str, extension: str = "") -> "QColor
         ext_section = "extensions"
 
     colors = cfg.get(colors_section, _DEFAULTS[colors_section])
-    extensions = cfg.get(ext_section, _DEFAULTS[ext_section])
     default_colors = _DEFAULTS[colors_section]
     default_ext = _DEFAULTS[ext_section]
 
@@ -189,18 +195,130 @@ def get_color_for_link(url: str, link_type: str, extension: str = "") -> "QColor
     elif link_type == "file":
         if extension:
             ext_lower = extension.lower()
-            if ext_lower in extensions:
-                color_str = extensions[ext_lower]
-            elif ext_lower in default_ext:
-                color_str = default_ext[ext_lower]
+            # Only entries explicitly present in the user's config file take
+            # precedence over extension groups; the built-in defaults do not.
+            # (When no config file exists, cfg contains the defaults and no
+            # groups can be configured, so this behaves like before.)
+            user_extensions = cfg.get(ext_section, {})
+            if ext_lower in user_extensions:
+                color_str = user_extensions[ext_lower]
             else:
-                color_str = colors.get("file", default_colors["file"])
+                group_color = _get_extension_group_color(ext_lower, theme)
+                if group_color is not None:
+                    color_str = group_color
+                elif ext_lower in default_ext:
+                    color_str = default_ext[ext_lower]
+                else:
+                    color_str = colors.get("file", default_colors["file"])
         else:
             color_str = colors.get("file", default_colors["file"])
     else:
         color_str = colors.get("unknown", default_colors["unknown"])
 
     return QColor(color_str)
+
+
+# Prefix used to identify extension groups in the selected-types filter sets.
+EXTENSION_GROUP_PREFIX = "group:"
+
+
+def _normalize_extension(ext: str) -> str:
+    """Normalize a file extension to lowercase with a leading dot.
+
+    Args:
+        ext: Raw extension string from the configuration.
+
+    Returns:
+        Normalized extension (e.g. ".png"), or an empty string if the
+        input contains nothing but whitespace.
+    """
+    ext = ext.strip().lower()
+    if ext and not ext.startswith("."):
+        ext = "." + ext
+    return ext
+
+
+def get_extension_groups() -> list[dict]:
+    """Return the configured extension groups, validated and normalized.
+
+    Reads the ``[[extension_groups]]`` array of tables from config.toml. Each
+    group defines a ``name``, a ``color`` (light theme), an optional
+    ``color_dark`` (falls back to ``color``) and a list of ``extensions``.
+    Extensions are normalized to lowercase with a leading dot. Invalid or
+    incomplete group definitions are skipped. If an extension appears in
+    multiple groups, the first group in config order wins.
+
+    Returns:
+        List of dicts with keys ``name``, ``color``, ``color_dark`` and
+        ``extensions`` (list of normalized extension strings).
+    """
+    cfg = _get_config()
+    raw_groups = cfg.get("extension_groups", [])
+    if not isinstance(raw_groups, list):
+        return []
+
+    groups: list[dict] = []
+    seen_names: set[str] = set()
+    seen_extensions: set[str] = set()
+    for raw in raw_groups:
+        if not isinstance(raw, dict):
+            continue
+        name = raw.get("name")
+        color = raw.get("color")
+        extensions = raw.get("extensions", [])
+        if not isinstance(name, str) or not name.strip():
+            continue
+        if name in seen_names:
+            continue
+        if not isinstance(color, str) or not color:
+            continue
+        if not isinstance(extensions, list) or not all(
+            isinstance(e, str) and e.strip() for e in extensions
+        ):
+            continue
+        color_dark = raw.get("color_dark", color)
+        if not isinstance(color_dark, str) or not color_dark:
+            color_dark = color
+
+        normalized_exts = []
+        for ext in extensions:
+            normalized = _normalize_extension(ext)
+            if not normalized:
+                continue
+            if normalized in seen_extensions:
+                continue
+            seen_extensions.add(normalized)
+            normalized_exts.append(normalized)
+        if not normalized_exts:
+            continue
+
+        seen_names.add(name)
+        groups.append(
+            {
+                "name": name,
+                "color": color,
+                "color_dark": color_dark,
+                "extensions": normalized_exts,
+            }
+        )
+    return groups
+
+
+def _get_extension_group_color(extension: str, theme: str) -> str | None:
+    """Return the color string of the first extension group containing *extension*.
+
+    Args:
+        extension: Normalized file extension (lowercase, with leading dot).
+        theme: Active theme, ``"light"`` or ``"dark"``.
+
+    Returns:
+        The group's ``color_dark`` in dark mode or ``color`` in light mode,
+        or None if no configured group contains the extension.
+    """
+    for group in get_extension_groups():
+        if extension in group["extensions"]:
+            return group["color_dark"] if theme == "dark" else group["color"]
+    return None
 
 
 def get_sharepoint_patterns() -> list:
@@ -267,6 +385,24 @@ def get_tray_behavior() -> str:
     value = global_cfg.get("tray_behavior", _DEFAULTS["global"]["tray_behavior"])
     if value not in _TRAY_BEHAVIOR_VALUES:
         return _DEFAULTS["global"]["tray_behavior"]
+    return value
+
+
+def get_show_tags_column() -> bool:
+    """
+    Return whether the Tags column is shown in the main window.
+
+    Reads ``show_tags_column`` from config.toml [global] section. Non-boolean
+    values fall back to the default (``True``).
+
+    Returns:
+        True if the Tags column should be displayed, False otherwise.
+    """
+    cfg = _get_config()
+    global_cfg = cfg.get("global", {})
+    value = global_cfg.get("show_tags_column", _DEFAULTS["global"]["show_tags_column"])
+    if not isinstance(value, bool):
+        return _DEFAULTS["global"]["show_tags_column"]
     return value
 
 
@@ -415,6 +551,10 @@ def ensure_config_exists() -> None:
 # Set to 0 to disable automatic reloading.
 # reload_interval_minutes = 15
 
+# Show the "Tags" column in the main window (default true).
+# When disabled, the tags are shown in the title tooltip instead.
+# show_tags_column = true
+
 # Per-source configuration options:
 # Each source can have its own config section under [sources.<source_name>]
 # Set enabled = false to disable a source (defaults to true).
@@ -490,6 +630,22 @@ unknown = "#999999"
 ".pdf" = "#EF5350"
 ".one" = "#AB47BC"
 ".onetoc2" = "#AB47BC"
+
+# Extension groups: sets of file extensions sharing a color. Group colors are
+# used for links whose extension is not configured explicitly in the
+# [extensions] / [extensions_dark] tables above. Selected groups can also be
+# used as filters in the "Types" filter dialog.
+# [[extension_groups]]
+# name = "Pictures"
+# color = "#FF9800"
+# color_dark = "#FFFFFF"
+# extensions = [".png", ".jpg", ".jpeg"]
+#
+# [[extension_groups]]
+# name = "Office documents"
+# color = "#1E88E5"
+# color_dark = "#FEFEFE"
+# extensions = [".doc", ".docx"]
 
 # OneDrive/SharePoint resolution configuration
 # Optional: override the Azure CLI executable path

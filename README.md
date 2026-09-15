@@ -150,6 +150,10 @@ Configuration is stored in `~/.link4000/config.toml` (default) or in the path pa
 # Set to 0 to disable automatic reloading.
 # reload_interval_minutes = 15
 
+# Show the "Tags" column in the main window (default true).
+# When disabled, the tags are shown in the title tooltip instead.
+# show_tags_column = true
+
 [sources]
 # Source plugins configuration.
 # Set enabled = false to disable a source (defaults to true).
@@ -227,6 +231,23 @@ unknown = "#999999"
 ".pdf" = "#EF5350"
 ".one" = "#AB47BC"
 ".onetoc2" = "#AB47BC"
+
+# Extension groups: sets of file extensions sharing a color. Group colors are
+# used for links whose extension is not configured explicitly in the
+# [extensions]/[extensions_dark] tables. Selected groups can also be used as
+# filters in the "Types" section of the Filter dialog (listed between link
+# types and individual file extensions).
+# [[extension_groups]]
+# name = "Pictures"
+# color = "#FF9800"
+# color_dark = "#FFFFFF"
+# extensions = [".png", ".jpg", ".jpeg"]
+#
+# [[extension_groups]]
+# name = "Office documents"
+# color = "#1E88E5"
+# color_dark = "#FEFEFE"
+# extensions = [".doc", ".docx"]
 ```
 
 

@@ -52,6 +52,22 @@ class TestSearchFocusOnActivation:
         win.close()
         win.deleteLater()
 
+    def test_change_event_activation_selects_search_text(self, temp_config):
+        """changeEvent with ActivationChange selects the search input text."""
+        win = MainWindow()
+        win._search_input.setText("existing search")
+
+        from PySide6.QtCore import QEvent
+
+        win.activateWindow()
+        win.changeEvent(QEvent(QEvent.Type.ActivationChange))
+
+        if win.isActiveWindow():
+            assert win._search_input.selectedText() == "existing search"
+
+        win.close()
+        win.deleteLater()
+
     def test_change_event_window_state_change_still_works(self, temp_config):
         """changeEvent with WindowStateChange still works for
         minimize-to-tray behavior."""

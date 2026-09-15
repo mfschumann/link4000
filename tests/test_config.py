@@ -502,4 +502,313 @@ max_age_days = 7
         assert full_cfg["sources"]["recent_windows"]["enabled"] is False
         assert full_cfg["sources"]["recent_windows"]["max_age_days"] == 7
         # Other sources should have defaults
-        assert full_cfg["sources"]["recent_linux_gnome"]["enabled"] is True
+
+
+class TestShowTagsColumn:
+    """Test get_show_tags_column function (defaults)."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_from_live_config(self, tmp_path):
+        """Ensure tests read defaults, not a live ~/.link4000/config.toml."""
+        original_path = config._CONFIG_PATH
+        original_cached = config._config
+        config._CONFIG_PATH = str(tmp_path / "nonexistent_config.toml")
+        config._config = None
+        yield
+        config._CONFIG_PATH = original_path
+        config._config = original_cached
+
+    def test_default_show_tags_column(self):
+        """Test that show_tags_column defaults to True."""
+        assert config.get_show_tags_column() is True
+
+
+class TestShowTagsColumnWithFile:
+    """Test show_tags_column with custom config file."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a temporary config file."""
+        config_dir = tmp_path / ".link4000"
+        config_dir.mkdir()
+
+        original_path = config._CONFIG_PATH
+        config_file = config_dir / "config.toml"
+        config._CONFIG_PATH = str(config_file)
+        config._config = None
+
+        yield str(config_file)
+
+        config._CONFIG_PATH = original_path
+        config._config = None
+
+    def test_disabled_show_tags_column(self, temp_config):
+        """Test that show_tags_column = false is loaded."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[global]
+show_tags_column = false
+""")
+
+        assert config.get_show_tags_column() is False
+
+    def test_invalid_show_tags_column_falls_back_to_default(self, temp_config):
+        """Test that a non-boolean show_tags_column falls back to True."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[global]
+show_tags_column = "no"
+""")
+
+        assert config.get_show_tags_column() is True
+
+
+class TestExtensionGroups:
+    """Test get_extension_groups function."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a temporary config file."""
+        config_dir = tmp_path / ".link4000"
+        config_dir.mkdir()
+
+        original_path = config._CONFIG_PATH
+        config_file = config_dir / "config.toml"
+        config._CONFIG_PATH = str(config_file)
+        config._config = None
+
+        yield str(config_file)
+
+        config._CONFIG_PATH = original_path
+        config._config = None
+
+    def test_no_groups_by_default(self, temp_config):
+        """Test that an empty config yields no extension groups."""
+        with open(temp_config, "w") as f:
+            f.write("")
+
+        assert config.get_extension_groups() == []
+
+    def test_parses_and_normalizes_groups(self, temp_config):
+        """Test that groups are parsed and extensions are normalized."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[[extension_groups]]
+name = "Pictures"
+color = "#FF9800"
+color_dark = "#FFFFFF"
+extensions = [".png", ".JPG", "jpeg"]
+
+[[extension_groups]]
+name = "Office documents"
+color = "#1E88E5"
+extensions = [".doc", ".docx"]
+""")
+
+        groups = config.get_extension_groups()
+        assert len(groups) == 2
+        assert groups[0]["name"] == "Pictures"
+        assert groups[0]["color"] == "#FF9800"
+        assert groups[0]["color_dark"] == "#FFFFFF"
+        assert groups[0]["extensions"] == [".png", ".jpg", ".jpeg"]
+        assert groups[1]["name"] == "Office documents"
+
+    def test_invalid_groups_skipped(self, temp_config):
+        """Test that invalid or incomplete group definitions are skipped."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[[extension_groups]]
+name = ""
+color = "#FF9800"
+extensions = [".png"]
+
+[[extension_groups]]
+color = "#FF9800"
+extensions = [".jpg"]
+
+[[extension_groups]]
+name = "NoColor"
+extensions = [".jpg"]
+
+[[extension_groups]]
+name = "BadExts"
+color = "#FF9800"
+extensions = [".png", 42]
+
+[[extension_groups]]
+name = "NoExts"
+color = "#FF9800"
+
+[[extension_groups]]
+name = "EmptyExts"
+color = "#FF9800"
+extensions = ["   "]
+""")
+
+        assert config.get_extension_groups() == []
+
+    def test_non_list_groups_ignored(self, temp_config):
+        """Test that a non-list extension_groups value is ignored."""
+        with open(temp_config, "w") as f:
+            f.write('extension_groups = "invalid"\n')
+
+        assert config.get_extension_groups() == []
+
+    def test_duplicate_extension_first_group_wins(self, temp_config):
+        """Test that an extension claimed by an earlier group stays there."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[[extension_groups]]
+name = "First"
+color = "#111111"
+extensions = [".png", ".jpg"]
+
+[[extension_groups]]
+name = "Second"
+color = "#333333"
+extensions = [".jpg", ".gif"]
+""")
+
+        groups = config.get_extension_groups()
+        assert len(groups) == 2
+        assert groups[0]["extensions"] == [".png", ".jpg"]
+        assert groups[1]["extensions"] == [".gif"]
+
+    def test_duplicate_group_name_skipped(self, temp_config):
+        """Test that a later group with an already-used name is skipped."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[[extension_groups]]
+name = "Pictures"
+color = "#111111"
+extensions = [".png"]
+
+[[extension_groups]]
+name = "Pictures"
+color = "#222222"
+extensions = [".bmp"]
+""")
+
+        groups = config.get_extension_groups()
+        assert len(groups) == 1
+        assert groups[0]["extensions"] == [".png"]
+
+    def test_color_dark_falls_back_to_color(self, temp_config):
+        """Test that a missing color_dark falls back to color."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[[extension_groups]]
+name = "Pictures"
+color = "#FF9800"
+extensions = [".png"]
+""")
+
+        groups = config.get_extension_groups()
+        assert groups[0]["color_dark"] == "#FF9800"
+
+
+class TestExtensionGroupColors:
+    """Test color resolution with extension groups."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a temporary config file."""
+        config_dir = tmp_path / ".link4000"
+        config_dir.mkdir()
+
+        original_path = config._CONFIG_PATH
+        config_file = config_dir / "config.toml"
+        config._CONFIG_PATH = str(config_file)
+        config._config = None
+
+        yield str(config_file)
+
+        config._CONFIG_PATH = original_path
+        config._config = None
+
+    def _write_groups_config(self, temp_config, extra: str = "") -> None:
+        """Write a config file with two extension groups plus extra content."""
+        with open(temp_config, "w") as f:
+            f.write(
+                """
+[[extension_groups]]
+name = "Pictures"
+color = "#FF9800"
+color_dark = "#FFFFFF"
+extensions = [".png", ".jpg"]
+
+[[extension_groups]]
+name = "Office documents"
+color = "#1E88E5"
+extensions = [".doc", ".docx"]
+"""
+                + extra
+            )
+
+    def test_group_color_used_in_light_theme(self, temp_config, monkeypatch):
+        """Test that the group color is used for a grouped extension."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "light")
+        self._write_groups_config(temp_config)
+
+        color = config.get_color_for_link("file.png", "file", ".png")
+        assert color.name() == "#ff9800"
+
+    def test_group_dark_color_used_in_dark_theme(self, temp_config, monkeypatch):
+        """Test that color_dark is used for a grouped extension in dark mode."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
+        self._write_groups_config(temp_config)
+
+        color = config.get_color_for_link("file.png", "file", ".png")
+        assert color.name() == "#ffffff"
+
+    def test_color_dark_falls_back_to_color_in_dark_theme(
+        self, temp_config, monkeypatch
+    ):
+        """Test that a group without color_dark uses color in dark mode."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
+        self._write_groups_config(temp_config)
+
+        color = config.get_color_for_link("file.doc", "file", ".doc")
+        assert color.name() == "#1e88e5"
+
+    def test_explicit_extension_color_overrides_group(self, temp_config, monkeypatch):
+        """Test that [extensions] takes precedence over the group color."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "light")
+        self._write_groups_config(
+            temp_config, extra='\n[extensions]\n".png" = "#123456"\n'
+        )
+
+        color = config.get_color_for_link("file.png", "file", ".png")
+        assert color.name() == "#123456"
+
+    def test_explicit_dark_extension_color_overrides_group(
+        self, temp_config, monkeypatch
+    ):
+        """Test that [extensions_dark] takes precedence over color_dark."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "dark")
+        self._write_groups_config(
+            temp_config, extra='\n[extensions_dark]\n".png" = "#654321"\n'
+        )
+
+        color = config.get_color_for_link("file.png", "file", ".png")
+        assert color.name() == "#654321"
+
+    def test_builtin_default_extension_color_still_applies(
+        self, temp_config, monkeypatch
+    ):
+        """Test that extensions outside groups keep their built-in default."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "light")
+        self._write_groups_config(temp_config)
+
+        color = config.get_color_for_link("file.pdf", "file", ".pdf")
+        assert color.name() == "#e53935"
+
+    def test_ungrouped_unknown_extension_falls_back_to_file_color(
+        self, temp_config, monkeypatch
+    ):
+        """Test that extensions without any configuration use colors.file."""
+        monkeypatch.setattr(config, "detect_system_theme", lambda: "light")
+        self._write_groups_config(temp_config)
+
+        color = config.get_color_for_link("file.xyz", "file", ".xyz")
+        assert color.name() == "#333333"

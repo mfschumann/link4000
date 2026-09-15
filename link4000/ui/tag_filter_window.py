@@ -11,16 +11,22 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QListWidget,
+    QListWidgetItem,
     QPushButton,
     QRadioButton,
     QLabel,
     QWidget,
 )
-from PySide6.QtCore import Signal
-from PySide6.QtGui import QFont, QCloseEvent
+from PySide6.QtCore import Signal, Qt
+from PySide6.QtGui import QFont, QCloseEvent, QColor
 
 from link4000.data.source_registry import SourceRegistry
-from link4000.utils.config import get_color_for_link
+from link4000.utils.config import (
+    get_color_for_link,
+    get_extension_groups,
+    get_theme,
+    EXTENSION_GROUP_PREFIX,
+)
 from link4000.utils.enums import TagMatchMode
 
 
@@ -38,10 +44,16 @@ class TagFilterWindow(QDialog):
         filter_preview: Signal emitted on every selection change for live
             preview as (tags, match_mode, types).
         _link_types: Set of known link type strings.
+        _extension_groups: Validated extension groups from the configuration;
+            listed between link types and file extensions.
     """
 
-    tags_and_types_selected = Signal(set, TagMatchMode, set)  # (tags, tag_match_mode, types)
-    filter_preview = Signal(set, TagMatchMode, set)  # Preview filter as selection changes
+    tags_and_types_selected = Signal(
+        set, TagMatchMode, set
+    )  # (tags, tag_match_mode, types)
+    filter_preview = Signal(
+        set, TagMatchMode, set
+    )  # Preview filter as selection changes
     _link_types = {"web", "folder", "file", "sharepoint", "unknown"}
 
     def _get_dynamic_tags(self) -> tuple[str, ...]:
@@ -85,10 +97,11 @@ class TagFilterWindow(QDialog):
         self._match_mode = match_mode
         self._all_types = all_types or set()
         self._selected_types = selected_types or set()
+        self._extension_groups = get_extension_groups()
 
-        self._original_tags = set(selected_tags)
+        self._original_tags = set(self._selected_tags)
         self._original_match_mode = match_mode
-        self._original_types = set(selected_types)
+        self._original_types = set(self._selected_types)
 
         self.setWindowTitle("Filter by Tags and Types")
         self.setMinimumWidth(500)
@@ -96,19 +109,70 @@ class TagFilterWindow(QDialog):
 
         self._setup_ui()
 
-    def _sort_types(self, types: set[str]) -> list[str]:
-        """Sort link types, grouping known types before file extensions.
+    def _build_type_entries(self) -> list[dict]:
+        """Build the ordered, styled entries for the Types list.
 
-        Args:
-            types: Iterable of type name strings.
+        Ordering: known link types (sorted), then configured extension
+        groups (config order), then file extensions found in the stored
+        links (sorted). Group entries carry a ``group:<name>`` filter key so
+        they stay distinguishable from link types and extensions.
 
         Returns:
-            A sorted list of known link types followed by sorted file
-            extensions.
+            List of dicts with ``text`` (display), ``key`` (filter-set
+            value), ``color`` (QColor) and ``tooltip`` (str).
         """
-        link_types = sorted([t for t in types if t in self._link_types])
-        extensions = sorted([t for t in types if t not in self._link_types])
-        return link_types + extensions
+        entries: list[dict] = []
+
+        for link_type in sorted([t for t in self._all_types if t in self._link_types]):
+            entries.append(
+                {
+                    "text": link_type,
+                    "key": link_type,
+                    "color": get_color_for_link(link_type, link_type, ""),
+                    "tooltip": "",
+                }
+            )
+
+        for group in self._extension_groups:
+            theme_color = (
+                group["color_dark"] if get_theme() == "dark" else group["color"]
+            )
+            entries.append(
+                {
+                    "text": group["name"],
+                    "key": f"{EXTENSION_GROUP_PREFIX}{group['name']}",
+                    "color": QColor(theme_color),
+                    "tooltip": "Extensions: " + ", ".join(group["extensions"]),
+                }
+            )
+
+        for ext in sorted([t for t in self._all_types if t not in self._link_types]):
+            entries.append(
+                {
+                    "text": ext,
+                    "key": ext,
+                    "color": get_color_for_link(ext, "file", ext),
+                    "tooltip": "",
+                }
+            )
+
+        return entries
+
+    @staticmethod
+    def _type_filter_key(item: QListWidgetItem) -> str:
+        """Return the filter key of a Types list item.
+
+        Group items carry their ``group:<name>`` id in UserRole data; all
+        other items use their display text as the key.
+
+        Args:
+            item: The QListWidgetItem from the Types list.
+
+        Returns:
+            The key used in the selected-types filter set.
+        """
+        data = item.data(Qt.ItemDataRole.UserRole)
+        return data if data else item.text()
 
     def _sort_tags(self, tags: set[str]) -> list[str]:
         """Sort tags, placing dynamic tags before regular tags.
@@ -178,22 +242,18 @@ class TagFilterWindow(QDialog):
         self._types_list = QListWidget()
         self._types_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         self._types_list.itemSelectionChanged.connect(self._on_selection_changed)
-        sorted_types = self._sort_types(self._all_types)
-        for type_item in sorted_types:
-            self._types_list.addItem(type_item)
-        for i in range(self._types_list.count()):
-            item = self._types_list.item(i)
-            if item.text() in self._selected_types:
+        for entry in self._build_type_entries():
+            item = QListWidgetItem(entry["text"])
+            # Store the filter key (groups use "group:<name>") so selection
+            # handling stays independent of the display text.
+            item.setData(Qt.ItemDataRole.UserRole, entry["key"])
+            if entry["tooltip"]:
+                item.setToolTip(entry["tooltip"])
+            item.setForeground(entry["color"])
+            self._types_list.addItem(item)
+            # Selection state only persists for items already in the list.
+            if entry["key"] in self._selected_types:
                 item.setSelected(True)
-            type_text = item.text()
-            if type_text.startswith("."):
-                link_type = "file"
-                ext = type_text
-            else:
-                link_type = type_text
-                ext = ""
-            color = get_color_for_link(type_text, link_type, ext)
-            item.setForeground(color)
         types_layout.addWidget(self._types_list)
 
         lists_layout.addWidget(types_widget)
@@ -228,7 +288,7 @@ class TagFilterWindow(QDialog):
             item.setSelected(item.text() in self._original_tags)
         for i in range(self._types_list.count()):
             item = self._types_list.item(i)
-            item.setSelected(item.text() in self._original_types)
+            item.setSelected(self._type_filter_key(item) in self._original_types)
         if self._original_match_mode == TagMatchMode.AND:
             self._tag_and_radio.setChecked(True)
         elif self._original_match_mode == TagMatchMode.NONE:
@@ -262,7 +322,9 @@ class TagFilterWindow(QDialog):
         if not hasattr(self, "_types_list") or not hasattr(self, "_tags_list"):
             return
         selected_tags = {item.text() for item in self._tags_list.selectedItems()}
-        selected_types = {item.text() for item in self._types_list.selectedItems()}
+        selected_types = {
+            self._type_filter_key(item) for item in self._types_list.selectedItems()
+        }
         if self._tag_and_radio.isChecked():
             match_mode = TagMatchMode.AND
         elif self._tag_none_radio.isChecked():
@@ -291,7 +353,9 @@ class TagFilterWindow(QDialog):
     def _on_ok(self) -> None:
         """Confirm the current selection and accept the dialog."""
         selected_tags = {item.text() for item in self._tags_list.selectedItems()}
-        selected_types = {item.text() for item in self._types_list.selectedItems()}
+        selected_types = {
+            self._type_filter_key(item) for item in self._types_list.selectedItems()
+        }
         if self._tag_and_radio.isChecked():
             match_mode = TagMatchMode.AND
         elif self._tag_none_radio.isChecked():

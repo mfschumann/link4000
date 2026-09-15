@@ -473,3 +473,136 @@ class TestLinkSortFilterModel:
         )
         proxy.set_selected_tags({"work"}, match_mode=TagMatchMode.NONE)
         assert proxy.rowCount() == 1  # Only B remains
+
+    def test_type_filter_extension_group(self, monkeypatch):
+        """Tests that an extension group id matches links with grouped extensions."""
+        monkeypatch.setattr(
+            "link4000.models.link_model.get_extension_groups",
+            lambda: [
+                {
+                    "name": "Pictures",
+                    "color": "#FF9800",
+                    "color_dark": "#FFFFFF",
+                    "extensions": [".png", ".jpg"],
+                }
+            ],
+        )
+        proxy, _ = self._make_model(
+            links=[
+                _make_link("Pic", url="/docs/photo.png"),
+                _make_link("Web", url="https://example.com"),
+            ]
+        )
+        proxy.set_selected_tags(set(), TagMatchMode.OR, types={"group:Pictures"})
+        assert proxy.rowCount() == 1
+
+    def test_type_filter_group_and_extension_combined(self, monkeypatch):
+        """Tests that a group selection can be combined with a single extension."""
+        monkeypatch.setattr(
+            "link4000.models.link_model.get_extension_groups",
+            lambda: [
+                {
+                    "name": "Pictures",
+                    "color": "#FF9800",
+                    "color_dark": "#FFFFFF",
+                    "extensions": [".png", ".jpg"],
+                }
+            ],
+        )
+        proxy, _ = self._make_model(
+            links=[
+                _make_link("Pic", url="/docs/photo.png"),
+                _make_link("Doc", url="/docs/notes.txt"),
+                _make_link("Web", url="https://example.com"),
+            ]
+        )
+        proxy.set_selected_tags(
+            set(), TagMatchMode.OR, types={"group:Pictures", ".txt"}
+        )
+        assert proxy.rowCount() == 2
+
+    def test_type_filter_unknown_group_matches_nothing(self, monkeypatch):
+        """Tests that a group id without configured group filters everything out."""
+        monkeypatch.setattr(
+            "link4000.models.link_model.get_extension_groups", lambda: []
+        )
+        proxy, _ = self._make_model(links=[_make_link("Pic", url="/docs/photo.png")])
+        proxy.set_selected_tags(set(), TagMatchMode.OR, types={"group:Nonexistent"})
+        assert proxy.rowCount() == 0
+
+    def test_type_filter_group_reset_when_cleared(self, monkeypatch):
+        """Tests that clearing the types filter also clears group state."""
+        monkeypatch.setattr(
+            "link4000.models.link_model.get_extension_groups",
+            lambda: [
+                {
+                    "name": "Pictures",
+                    "color": "#FF9800",
+                    "color_dark": "#FFFFFF",
+                    "extensions": [".png"],
+                }
+            ],
+        )
+        proxy, _ = self._make_model(
+            links=[
+                _make_link("Pic", url="/docs/photo.png"),
+                _make_link("Web", url="https://example.com"),
+            ]
+        )
+        proxy.set_selected_tags(set(), TagMatchMode.OR, types={"group:Pictures"})
+        assert proxy.rowCount() == 1
+        proxy.set_selected_tags(set(), TagMatchMode.OR, types=set())
+        assert proxy.rowCount() == 2
+
+
+# ---------------------------------------------------------------------------
+# Tags in the title tooltip (show_tags_column = false)
+# ---------------------------------------------------------------------------
+
+
+class TestTagsInTitleTooltip:
+    """Tests for tags shown in the title tooltip when the Tags column is hidden."""
+
+    def test_tooltip_contains_tags_when_column_hidden(self, monkeypatch):
+        """Tags are appended to the title tooltip when the Tags column is hidden."""
+        monkeypatch.setattr(
+            "link4000.models.link_model.get_show_tags_column", lambda: False
+        )
+        model = LinkTableModel()
+        model.set_links([_make_link(tags=["work", "important"])])
+        idx = model.index(0, LinkTableModel.COL_TITLE)
+        tooltip = model.data(idx, Qt.ItemDataRole.ToolTipRole)
+        assert "Tags: work, important" in tooltip
+
+    def test_tooltip_omits_tags_when_column_shown(self, monkeypatch):
+        """The title tooltip has no tags section when the Tags column is shown."""
+        monkeypatch.setattr(
+            "link4000.models.link_model.get_show_tags_column", lambda: True
+        )
+        model = LinkTableModel()
+        model.set_links([_make_link(tags=["work"])])
+        idx = model.index(0, LinkTableModel.COL_TITLE)
+        tooltip = model.data(idx, Qt.ItemDataRole.ToolTipRole)
+        assert "Tags:" not in tooltip
+
+    def test_tooltip_uses_source_tag_for_dynamic_links(self, monkeypatch):
+        """Dynamic links show their source tag in the tooltip."""
+        monkeypatch.setattr(
+            "link4000.models.link_model.get_show_tags_column", lambda: False
+        )
+        model = LinkTableModel()
+        model.set_dynamic_links([_make_link(source_tag="recent", tags=["other"])])
+        idx = model.index(0, LinkTableModel.COL_TITLE)
+        tooltip = model.data(idx, Qt.ItemDataRole.ToolTipRole)
+        assert "Tags: recent" in tooltip
+
+    def test_tooltip_without_tags_has_no_tags_line(self, monkeypatch):
+        """No empty tags line is added when the link has no tags."""
+        monkeypatch.setattr(
+            "link4000.models.link_model.get_show_tags_column", lambda: False
+        )
+        model = LinkTableModel()
+        model.set_links([_make_link()])
+        idx = model.index(0, LinkTableModel.COL_TITLE)
+        tooltip = model.data(idx, Qt.ItemDataRole.ToolTipRole)
+        assert "Tags:" not in tooltip

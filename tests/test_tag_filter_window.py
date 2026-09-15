@@ -3,6 +3,7 @@
 import pytest
 
 try:
+    from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication  # noqa: F401
     from PySide6.QtTest import QSignalSpy
 
@@ -57,21 +58,30 @@ class TestTagFilterWindowInit:
     def test_match_all_radio_checked(self):
         """The 'match all' radio button is checked when match_mode is AND."""
         dlg = TagFilterWindow(
-            all_tags={"a"}, selected_tags={"a"}, match_mode=TagMatchMode.AND, selected_types=set()
+            all_tags={"a"},
+            selected_tags={"a"},
+            match_mode=TagMatchMode.AND,
+            selected_types=set(),
         )
         assert dlg._tag_and_radio.isChecked()
 
     def test_match_any_radio_checked(self):
         """The 'match any' radio button is checked when match_mode is OR."""
         dlg = TagFilterWindow(
-            all_tags={"a"}, selected_tags={"a"}, match_mode=TagMatchMode.OR, selected_types=set()
+            all_tags={"a"},
+            selected_tags={"a"},
+            match_mode=TagMatchMode.OR,
+            selected_types=set(),
         )
         assert dlg._tag_or_radio.isChecked()
 
     def test_match_none_radio_checked(self):
         """The 'match none' radio button is checked when match_mode is NONE."""
         dlg = TagFilterWindow(
-            all_tags={"a"}, selected_tags={"a"}, match_mode=TagMatchMode.NONE, selected_types=set()
+            all_tags={"a"},
+            selected_tags={"a"},
+            match_mode=TagMatchMode.NONE,
+            selected_types=set(),
         )
         assert dlg._tag_none_radio.isChecked()
 
@@ -216,3 +226,111 @@ class TestTagFilterWindowSignals:
         tags, match_mode, types = spy.at(spy.count() - 1)
         assert tags == {"work"}
         assert match_mode == TagMatchMode.AND
+
+
+class TestTagFilterWindowExtensionGroups:
+    """Tests for extension group entries in the Types list."""
+
+    def _configure_groups(self, monkeypatch):
+        """Patch extension groups and theme for the dialog under test."""
+        monkeypatch.setattr(
+            "link4000.ui.tag_filter_window.get_extension_groups",
+            lambda: [
+                {
+                    "name": "Pictures",
+                    "color": "#FF9800",
+                    "color_dark": "#FFFFFF",
+                    "extensions": [".png", ".jpg"],
+                }
+            ],
+        )
+        monkeypatch.setattr("link4000.ui.tag_filter_window.get_theme", lambda: "light")
+
+    def _types_texts(self, dlg):
+        """Return the display texts of the Types list in order."""
+        return [dlg._types_list.item(i).text() for i in range(dlg._types_list.count())]
+
+    def test_groups_listed_between_link_types_and_extensions(self, monkeypatch):
+        """Groups appear after link types and before file extensions."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(all_types={"web", ".png", ".txt"}, selected_types=set())
+        assert self._types_texts(dlg) == ["web", "Pictures", ".png", ".txt"]
+
+    def test_group_item_has_key_and_tooltip(self, monkeypatch):
+        """Group items carry a group: id and list their extensions in the tooltip."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(all_types={"web", ".png"}, selected_types=set())
+        item = dlg._types_list.item(1)
+        assert item.text() == "Pictures"
+        assert item.data(Qt.ItemDataRole.UserRole) == "group:Pictures"
+        assert ".png" in item.toolTip()
+        assert ".jpg" in item.toolTip()
+
+    def test_group_item_colored_with_group_color(self, monkeypatch):
+        """Group items use the theme-aware group color as foreground."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(all_types=set(), selected_types=set())
+        item = dlg._types_list.item(0)
+        assert item.foreground().color().name() == "#ff9800"
+
+    def test_selecting_group_emits_group_id(self, monkeypatch):
+        """Selecting a group emits its group: id in the types set."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(all_types={"web", ".png"}, selected_types=set())
+        spy = QSignalSpy(dlg.filter_preview)
+        dlg._types_list.item(1).setSelected(True)
+        tags, match_mode, types = spy.at(spy.count() - 1)
+        assert types == {"group:Pictures"}
+
+    def test_ok_emits_group_id(self, monkeypatch):
+        """OK emits the selected group's group: id in the types set."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(all_types={"web", ".png"}, selected_types=set())
+        spy = QSignalSpy(dlg.tags_and_types_selected)
+        dlg._types_list.item(1).setSelected(True)
+        dlg._on_ok()
+        tags, match_mode, types = spy.at(0)
+        assert types == {"group:Pictures"}
+
+    def test_group_preselected_from_selected_types(self, monkeypatch):
+        """A group is pre-selected when its id is in selected_types."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(
+            all_types={"web", ".png"}, selected_types={"group:Pictures"}
+        )
+        assert dlg._types_list.item(1).isSelected()
+        assert not dlg._types_list.item(0).isSelected()
+
+    def test_mixed_group_and_extension_selection(self, monkeypatch):
+        """Groups and individual extensions can be selected simultaneously."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(
+            all_types={"web", ".png", ".txt"},
+            selected_types={"group:Pictures", ".txt"},
+        )
+        spy = QSignalSpy(dlg.filter_preview)
+        dlg._types_list.item(0).setSelected(True)  # "web"
+        tags, match_mode, types = spy.at(spy.count() - 1)
+        assert types == {"group:Pictures", ".txt", "web"}
+
+    def test_clear_deselects_group_items(self, monkeypatch):
+        """Clear also deselects extension group items."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(
+            all_types={"web", ".png"}, selected_types={"group:Pictures"}
+        )
+        dlg._on_clear()
+        assert len(dlg._types_list.selectedItems()) == 0
+
+    def test_cancel_restores_group_selection(self, monkeypatch):
+        """Cancel restores the original group selection."""
+        self._configure_groups(monkeypatch)
+        dlg = TagFilterWindow(
+            all_types={"web", ".png"}, selected_types={"group:Pictures"}
+        )
+        spy = QSignalSpy(dlg.filter_preview)
+        dlg._types_list.item(1).setSelected(False)
+        dlg._on_cancel()
+        tags, match_mode, types = spy.at(spy.count() - 1)
+        assert types == {"group:Pictures"}
+        assert dlg._types_list.item(1).isSelected()

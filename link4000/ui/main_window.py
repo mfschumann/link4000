@@ -51,7 +51,14 @@ from PySide6.QtCore import (
     QModelIndex,
     QUrl,
 )
-from PySide6.QtGui import QAction, QPainter, QColor, QFont, QCloseEvent, QDesktopServices
+from PySide6.QtGui import (
+    QAction,
+    QPainter,
+    QColor,
+    QFont,
+    QCloseEvent,
+    QDesktopServices,
+)
 
 from link4000.data.link_store import LinkStore
 from link4000.models.link_model import LinkTableModel, LinkSortFilterModel
@@ -64,6 +71,7 @@ from link4000.utils.config import (
     get_tray_behavior,
     get_enabled_sources,
     get_reload_interval_minutes,
+    get_show_tags_column,
 )
 from link4000.data.source_registry import SourceRegistry
 from pathlib import Path, PurePath
@@ -406,13 +414,16 @@ class MainWindow(QMainWindow):
         When tray_behavior is "minimize_to_tray", intercepts the minimize
         event and hides the window to the system tray instead.
         When the window is activated (gains focus), sets focus to the
-        search input so the user can start typing immediately.
+        search input and selects its text so the user can override the
+        search terms right away.
 
         Args:
             event: The QEvent to handle.
         """
         if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
             self._search_input.setFocus()
+            # Select existing search terms so typing replaces them directly.
+            self._search_input.selectAll()
         if (
             event.type() == QEvent.Type.WindowStateChange
             and self._tray_behavior == "minimize_to_tray"
@@ -517,6 +528,9 @@ class MainWindow(QMainWindow):
         self._header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self._table_view.setColumnWidth(3, 30)
         self._table_view.setColumnWidth(4, 30)
+
+        if not get_show_tags_column():
+            self._table_view.setColumnHidden(LinkTableModel.COL_TAGS, True)
 
         edit_delegate = ButtonDelegate(
             self._table_view, LinkTableModel.COL_EDIT, self._on_edit_button_clicked
