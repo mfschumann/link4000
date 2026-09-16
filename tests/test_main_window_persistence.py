@@ -3,6 +3,7 @@
 import json
 import os
 import pytest
+import tomli_w
 
 try:
     from PySide6.QtCore import Qt
@@ -22,6 +23,27 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not _has_pyside6, reason="PySide6 not available")
 
 
+def _write_config(config_file, tray_behavior: str, links_file) -> None:
+    """Write a minimal config file using a TOML writer.
+
+    Using ``tomli_w`` avoids hand-escaping paths: Windows paths contain
+    backslashes, which are escape sequences inside TOML basic strings.
+
+    Args:
+        config_file: Destination path of the config file.
+        tray_behavior: Value for ``[global] tray_behavior``.
+        links_file: Path stored in ``[global] links_file``.
+    """
+    config = {
+        "global": {
+            "tray_behavior": tray_behavior,
+            "links_file": str(links_file),
+        }
+    }
+    with open(config_file, "wb") as f:
+        tomli_w.dump(config, f)
+
+
 @pytest.fixture
 def temp_config(tmp_path, monkeypatch):
     """Create a temporary config with links_file pointing to tmp_path."""
@@ -37,12 +59,7 @@ def temp_config(tmp_path, monkeypatch):
     config_mod._CONFIG_PATH = str(config_file)
     config_mod._config = None
 
-    with open(config_file, "w") as f:
-        f.write(f"""
-[global]
-tray_behavior = "normal"
-links_file = "{links_file}"
-""")
+    _write_config(config_file, "normal", links_file)
 
     yield str(config_file)
 
@@ -50,29 +67,14 @@ links_file = "{links_file}"
     config_mod._config = original_cached
 
 
-@pytest.fixture(autouse=True)
-def _clean_ui_state():
-    """Remove ui_state.json before and after each test."""
-    state_path = get_ui_state_file_path()
-    if os.path.exists(state_path):
-        os.remove(state_path)
-    yield
-    if os.path.exists(state_path):
-        os.remove(state_path)
-
-
 class TestSaveOnTrueQuit:
     def test_close_to_tray_hide_does_not_save(self, temp_config, monkeypatch):
         """Hiding to tray via closeEvent does not write state file."""
-        from link4000.utils import config as config_mod
-
-        config_mod._config = None
-        with open(temp_config, "w") as f:
-            f.write("""
-[global]
-tray_behavior = "close_to_tray"
-""")
-        config_mod._config = None
+        # Force the close_to_tray behavior regardless of the config file.
+        monkeypatch.setattr(
+            "link4000.ui.main_window.get_tray_behavior",
+            lambda: "close_to_tray",
+        )
 
         state_path = get_ui_state_file_path()
 

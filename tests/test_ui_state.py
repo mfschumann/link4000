@@ -3,21 +3,10 @@
 import json
 import os
 import pytest
+import tomli_w
 
 from link4000.utils import ui_state
 import link4000.utils.config as config_mod
-
-
-@pytest.fixture(autouse=True)
-def _clean_ui_state(tmp_path, monkeypatch):
-    """Remove ui_state.json before and after each test."""
-    state_path = ui_state.get_ui_state_file_path()
-    if os.path.exists(state_path):
-        os.remove(state_path)
-    yield
-    if os.path.exists(state_path):
-        os.remove(state_path)
-
 
 try:
     from link4000.models.link_model import LinkTableModel
@@ -31,17 +20,26 @@ pytestmark = pytest.mark.skipif(not _has_pyside6, reason="PySide6 not available"
 
 @pytest.fixture
 def temp_config_and_state(tmp_path, monkeypatch):
-    """Create a temporary config and isolate ui_state path."""
+    """Point the config (and thus the state file) at a temporary directory.
+
+    ``links_file`` is written into the temporary config so that
+    ``get_ui_state_file_path()`` resolves inside ``tmp_path`` instead of the
+    user's real ``~/.link4000`` directory. The config is written with
+    ``tomli_w`` because Windows paths contain backslashes, which would be
+    interpreted as TOML escape sequences inside a hand-written basic string.
+    """
     config_dir = tmp_path / ".link4000"
     config_dir.mkdir()
     config_file = config_dir / "config.toml"
+    links_file = tmp_path / "links.json"
 
     original_path = config_mod._CONFIG_PATH
     original_cached = config_mod._config
     config_mod._CONFIG_PATH = str(config_file)
     config_mod._config = None
 
-    config_mod.ensure_config_exists()
+    with open(config_file, "wb") as f:
+        tomli_w.dump({"global": {"links_file": str(links_file)}}, f)
 
     yield str(config_file)
 
