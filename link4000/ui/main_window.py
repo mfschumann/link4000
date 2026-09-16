@@ -73,6 +73,10 @@ from link4000.utils.config import (
     get_reload_interval_minutes,
     get_show_tags_column,
 )
+from link4000.utils.ui_state import (
+    load_ui_state,
+    save_ui_state,
+)
 from link4000.data.source_registry import SourceRegistry
 from pathlib import Path, PurePath
 
@@ -237,6 +241,7 @@ class MainWindow(QMainWindow):
         if self._tray_behavior != "normal":
             self._setup_tray()
         self._load_links()
+        self._restore_ui_state()
 
     def showEvent(self, event) -> None:
         """Handle the window show event to ensure taskbar icon is set correctly.
@@ -308,6 +313,7 @@ class MainWindow(QMainWindow):
 
     def _on_quit(self) -> None:
         """Quit the application by hiding the tray icon and exiting the process."""
+        self._save_ui_state()
         if self._tray is not None:
             self._tray.hide()
         self.close()
@@ -391,11 +397,151 @@ class MainWindow(QMainWindow):
             self._auto_reload_timer.stop()
             self._auto_reload_timer = None
 
+    def _collect_ui_state(self) -> dict:
+        """Capture the current search, filter, and sort state.
+
+        Reads committed state only (not transient debounced preview).
+
+        Returns:
+            Dict with keys ``search_text``, ``selected_tags``,
+            ``match_mode``, ``selected_types``, ``sorting_active``,
+            ``sort_column``, ``sort_order``.
+        """
+        match_mode_str = self._match_mode.name
+        return {
+            "search_text": self._search_input.text(),
+            "selected_tags": sorted(self._selected_tags),
+            "match_mode": match_mode_str,
+            "selected_types": sorted(self._selected_types),
+            "sorting_active": self._sorting_active,
+            "sort_column": self._current_sort_column
+            if self._current_sort_column is not None
+            else LinkTableModel.COL_LAST_ACCESSED,
+            "sort_order": "asc"
+            if self._current_sort_order == Qt.SortOrder.AscendingOrder
+            else "desc",
+        }
+
+    def _save_ui_state(self) -> None:
+        """Persist current search, filter, and sort state to disk.
+
+        Stops pending debounce timers before capturing state to avoid
+        races. Write failures are logged, never raised.
+        """
+        self._search_timer.stop()
+        self._filter_timer.stop()
+        state = self._collect_ui_state()
+        save_ui_state(state)
+
+    def _restore_ui_state(self) -> None:
+        """Reapply persisted search, filter, and sort state.
+
+        Called at the end of ``__init__`` after ``_load_links`` so that
+        the default sort reset by ``_load_links`` is overridden.
+        Any invalid or stale field falls back to its default without
+        discarding valid fields.
+        """
+        state = load_ui_state()
+        if not state:
+            return
+
+        search_text = state.get("search_text", "")
+        if isinstance(search_text, str) and search_text:
+            self._search_input.blockSignals(True)
+            self._search_input.setText(search_text)
+            self._search_input.blockSignals(False)
+            self._pending_search_text = search_text
+            self._proxy_model.set_search_text(search_text)
+
+        selected_tags = state.get("selected_tags", [])
+        if isinstance(selected_tags, list):
+            valid_tags = {t for t in selected_tags if t in self._all_tags}
+            if valid_tags != self._selected_tags:
+                self._selected_tags = valid_tags
+
+        match_mode_raw = state.get("match_mode", "OR")
+        if isinstance(match_mode_raw, str) and match_mode_raw in (
+            "OR",
+            "AND",
+            "NONE",
+        ):
+            self._match_mode = TagMatchMode[match_mode_raw]
+
+        if self._all_types is None:
+            self._all_types = self._get_all_types()
+
+        selected_types = state.get("selected_types", [])
+        if isinstance(selected_types, list):
+            valid_types = {
+                t
+                for t in selected_types
+                if t in self._all_types or t.startswith("group:")
+            }
+            if valid_types != self._selected_types:
+                self._selected_types = valid_types
+
+        if self._selected_tags or self._selected_types:
+            self._proxy_model.set_selected_tags(
+                self._selected_tags, self._match_mode, self._selected_types
+            )
+        self._update_tag_filter_button()
+
+        sorting_active = state.get("sorting_active", False)
+        sort_column = state.get("sort_column", LinkTableModel.COL_LAST_ACCESSED)
+        sort_order_raw = state.get("sort_order", "desc")
+        sort_order = (
+            Qt.SortOrder.AscendingOrder
+            if sort_order_raw == "asc"
+            else Qt.SortOrder.DescendingOrder
+        )
+
+        if isinstance(sorting_active, bool) and sorting_active:
+            self._sorting_active = True
+            self._current_sort_column = sort_column
+            self._current_sort_order = sort_order
+
+            if sort_column == LinkTableModel.COL_TITLE:
+                combo_text = "Created"
+            elif sort_column == LinkTableModel.COL_TAGS:
+                combo_text = "Modified"
+            else:
+                combo_text = "Sort by"
+
+            self._sort_combo.blockSignals(True)
+            self._sort_combo.setCurrentText(combo_text)
+            self._sort_combo.blockSignals(False)
+
+            self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 2)
+            self._proxy_model.sort(sort_column, sort_order)
+            self._header.setSortIndicatorShown(False)
+        else:
+            if sort_column in (
+                LinkTableModel.COL_TITLE,
+                LinkTableModel.COL_TAGS,
+                LinkTableModel.COL_LAST_ACCESSED,
+            ):
+                self._current_sort_column = sort_column
+                self._current_sort_order = sort_order
+
+                if sort_column == LinkTableModel.COL_TITLE:
+                    self._proxy_model.setSortRole(Qt.ItemDataRole.DisplayRole)
+                else:
+                    self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
+
+                self._proxy_model.sort(sort_column, sort_order)
+                self._header.setSortIndicatorShown(True)
+                self._header.setSortIndicator(sort_column, sort_order)
+                self._sorting_active = False
+                self._update_sort_combo_from_column()
+
+        self._update_status()
+
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle the close event based on tray_behavior configuration.
 
         - "close_to_tray": hides the window to the system tray instead of quitting.
-        - "minimize_to_tray" / "normal": accepts the close event and lets Qt close.
+        - "minimize_to_tray" / "normal": accepts the close event, persists
+          UI state, and lets Qt close.
 
         Args:
             event: The QCloseEvent to handle.
@@ -405,6 +551,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             self.hide()
         else:
+            self._save_ui_state()
             event.accept()
 
     def changeEvent(self, event: QEvent) -> None:
