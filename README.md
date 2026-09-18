@@ -209,6 +209,13 @@ max_age_days = 0
 # Edge browser favorites
 [sources.edge_favorites]
 enabled = true
+# Convert the favorites folder path into tags (default: true)
+folder_tags_enabled = true
+# Regex patterns matched against the full folder path; matched parts are
+# removed before the remaining path segments become tags.
+# Example: a link in /Favoritenleiste/toller/Pfad only gets the tags
+# 'toller' and 'Pfad'.
+# folder_name_exclusion_patterns = ["^/Favoritenleiste/"]
 
 # Edge browser history
 [sources.edge_history]

@@ -28,7 +28,11 @@ _DEFAULTS = {
         "recent_windows": {"enabled": True, "max_age_days": 0},
         "recent_linux_gnome": {"enabled": True, "max_age_days": 0},
         "office_recent": {"enabled": True, "max_age_days": 0},
-        "edge_favorites": {"enabled": True},
+        "edge_favorites": {
+            "enabled": True,
+            "folder_tags_enabled": True,
+            "folder_name_exclusion_patterns": [],
+        },
         "edge_history": {"enabled": True, "max_age_days": 30},
     },
     "colors": {
@@ -587,6 +591,13 @@ max_age_days = 0
 [sources.edge_favorites]
 # Set to false to disable this source
 enabled = true
+# Convert the favorites folder path into tags (default: true)
+# folder_tags_enabled = true
+# Regex patterns matched against the full folder path; matched parts are
+# removed before the remaining path segments become tags.
+# Example: with ["^/Favoritenleiste/"] a link in /Favoritenleiste/toller/Pfad
+# only gets the tags 'toller' and 'Pfad'.
+# folder_name_exclusion_patterns = []
 
 # Edge browser history config:
 [sources.edge_history]

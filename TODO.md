@@ -17,6 +17,7 @@
 - fix SharePoint Doc.aspx title pre-fill to use `file=` filename instead of `Doc.aspx`
 - add structured logging (file + stderr + sys.excepthook) and wrap all link-opening paths in try/except with traceback logging
 - persist search term, active filters (tags/types/match mode), and full sort state (sorting_active, sort_column, sort_order) across app restarts via `ui_state.json` next to `links.json`; saved on true quit only, restored at startup after links are loaded
+- include Edge favorites folder names as tags (toggleable via `folder_tags_enabled` in `[sources.edge_favorites]`, with `folder_name_exclusion_patterns` regexes to strip parts of the folder path before it becomes tags)
 
 ## NOT PLANNED
 - add auto-update mechanism ← this needs public distribution of a binary which introduces licensing issues
