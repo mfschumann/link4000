@@ -1,5 +1,7 @@
 """Unit tests for configuration management."""
 
+import os
+
 import pytest
 
 from link4000.utils import config
@@ -368,6 +370,8 @@ class TestEnsureConfigExists:
 
     def test_creates_config_if_missing(self, tmp_path, monkeypatch):
         """Test that config file is created if missing."""
+        import tomllib
+
         config_dir = tmp_path / ".link4000"
         config_file = config_dir / "config.toml"
 
@@ -385,6 +389,15 @@ class TestEnsureConfigExists:
         assert "[colors_dark]" in content
         assert "tray_behavior" in content
         assert "enabled =" in content
+
+        # The generated config references the hosted JSON schema so editors
+        # (Taplo / Even Better TOML) can offer autocompletion and tooltips.
+        assert "#:schema https://mfs.name/link4000/config.schema.json" in content
+
+        # The schema directive is a comment and must not break TOML parsing.
+        with open(config_file, "rb") as f:
+            parsed = tomllib.load(f)
+        assert isinstance(parsed, dict)
 
 
 class TestGetAzureCliPath:
@@ -812,3 +825,77 @@ extensions = [".doc", ".docx"]
 
         color = config.get_color_for_link("file.xyz", "file", ".xyz")
         assert color.name() == "#333333"
+
+
+class TestConfigSchema:
+    """Test the JSON schema shipped for config.toml editor support."""
+
+    _EXPECTED_URL = "https://mfs.name/link4000/config.schema.json"
+    _EXPECTED_TOP_LEVEL_PROPERTIES = {
+        "global",
+        "sources",
+        "colors",
+        "colors_dark",
+        "extensions",
+        "extensions_dark",
+        "extension_groups",
+        "onedrive",
+    }
+
+    @staticmethod
+    def _load_schema() -> dict:
+        """Load and parse the shipped config.schema.json.
+
+        Returns:
+            The parsed JSON schema as a dict.
+        """
+        import json
+
+        # tests/ -> repo root -> config.schema.json
+        schema_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "config.schema.json",
+        )
+        with open(schema_path, encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_schema_is_valid_json(self):
+        """Test that config.schema.json parses as JSON."""
+        schema = self._load_schema()
+        assert isinstance(schema, dict)
+
+    def test_schema_id_matches_hosted_url(self):
+        """Test that the schema $id points at the hosted URL."""
+        schema = self._load_schema()
+        assert schema["$id"] == self._EXPECTED_URL
+
+    def test_schema_covers_top_level_sections(self):
+        """Test that the schema documents all known top-level config sections."""
+        schema = self._load_schema()
+        properties = schema.get("properties", {})
+        missing = self._EXPECTED_TOP_LEVEL_PROPERTIES - set(properties)
+        assert not missing, f"Schema is missing sections: {sorted(missing)}"
+
+    def test_schema_global_defaults_match_code(self):
+        """Test that schema defaults for [global] match the code defaults."""
+        schema = self._load_schema()
+        global_props = schema["properties"]["global"]["properties"]
+        defaults = config._DEFAULTS["global"]
+        assert global_props["tray_behavior"]["default"] == defaults["tray_behavior"]
+        assert (
+            global_props["reload_interval_minutes"]["default"]
+            == defaults["reload_interval_minutes"]
+        )
+        assert (
+            global_props["show_tags_column"]["default"]
+            == defaults["show_tags_column"]
+        )
+
+    def test_schema_colors_match_code(self):
+        """Test that schema default colors match the code defaults."""
+        schema = self._load_schema()
+        for section in ("colors", "colors_dark"):
+            props = schema["properties"][section]["properties"]
+            defaults = config._DEFAULTS[section]
+            for key, value in defaults.items():
+                assert props[key]["default"] == value

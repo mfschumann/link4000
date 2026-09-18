@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mfs.name/link4000/config.schema.json",
+  "title": "Link4000 Configuration",
+  "description": "Configuration for Link4000, a cross-platform desktop application for managing bookmarks and file shortcuts with tagging support. Stored as TOML (usually ~/.link4000/config.toml or the path passed via --config).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "title": "Global settings",
+      "description": "Application-wide settings.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "links_file": {
+          "description": "Path to the links.json file (leave empty for default: ~/.link4000/links.json).",
+          "type": "string",
+          "default": "",
+          "examples": ["/path/to/links.json"]
+        },
+        "sharepoint_patterns": {
+          "description": "Regex patterns for detecting SharePoint/OneDrive URLs (matched against the full URL). SharePoint share links carry the document type as a path token instead of a file extension: :x: (Excel), :w: (Word), :p: (PowerPoint). Such links are classified as files and open in the native Office app on Windows.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["sharepoint\\.com/.*", "onedrive\\.live\\.com/.*"],
+          "examples": [["sharepoint\\.com/.*", "onedrive\\.live\\.com/.*"]]
+        },
+        "exclusion_patterns": {
+          "description": "Regex patterns for excluding recent items from the link list. Items whose URL or path matches any pattern will be filtered out.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "examples": [[".*\\.internal\\.company\\.com.*", ".*/temp/.*"]]
+        },
+        "tray_behavior": {
+          "description": "Window close and minimize behavior: \"close_to_tray\" - X button hides to tray, minimize goes to taskbar (default); \"minimize_to_tray\" - minimize hides to tray, X button closes normally; \"normal\" - minimize to taskbar and close normally (no tray icon).",
+          "type": "string",
+          "enum": ["close_to_tray", "minimize_to_tray", "normal"],
+          "default": "close_to_tray"
+        },
+        "reload_interval_minutes": {
+          "description": "Auto-reload interval for dynamic sources in minutes (default 15). Set to 0 to disable automatic reloading. Negative values are clamped to 0.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 15
+        },
+        "show_tags_column": {
+          "description": "Show the \"Tags\" column in the main window (default true). When disabled, the tags are shown in the title tooltip instead.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "sources": {
+      "title": "Source plugin configuration",
+      "description": "Source plugins configuration. Set enabled = false to disable a source (defaults to true). Available sources: recent_windows (recent files on Windows), recent_linux_gnome (recent files on Linux/GNOME), office_recent (recent Office documents on Windows), edge_favorites (Microsoft Edge browser favorites), edge_history (Microsoft Edge browser browsing history).",
+      "type": "object",
+      "additionalProperties": {
+        "description": "Configuration for a source plugin: enabled and optional max_age_days.",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "description": "Set to false to disable this source (defaults to true).",
+            "type": "boolean",
+            "default": true
+          },
+          "max_age_days": {
+            "description": "Maximum age in days for items from this source (0 = no limit).",
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        }
+      },
+      "properties": {
+        "recent_windows": {
+          "description": "Windows recent files source.",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Set to false to disable this source (defaults to true).",
+              "type": "boolean",
+              "default": true
+            },
+            "max_age_days": {
+              "description": "Maximum age in days for recent items (0 = no limit).",
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        },
+        "recent_linux_gnome": {
+          "description": "Linux/GNOME recent files source.",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Set to false to disable this source (defaults to true).",
+              "type": "boolean",
+              "default": true
+            },
+            "max_age_days": {
+              "description": "Maximum age in days for recent items (0 = no limit).",
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        },
+        "office_recent": {
+          "description": "Office recent documents source (Windows).",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Set to false to disable this source (defaults to true).",
+              "type": "boolean",
+              "default": true
+            },
+            "max_age_days": {
+              "description": "Maximum age in days for recent items (0 = no limit).",
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        },
+        "edge_favorites": {
+          "description": "Microsoft Edge browser favorites source.",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Set to false to disable this source (defaults to true).",
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "edge_history": {
+          "description": "Microsoft Edge browser browsing history source.",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Set to false to disable this source (defaults to true).",
+              "type": "boolean",
+              "default": true
+            },
+            "max_age_days": {
+              "description": "Maximum age in days for history items (0 = no limit).",
+              "type": "integer",
+              "minimum": 0,
+              "default": 30
+            }
+          }
+        }
+      }
+    },
+    "colors": {
+      "title": "Link colors (light theme)",
+      "description": "Foreground colors per link type in light mode.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "web": {
+          "description": "Color for web links.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#0066CC",
+          "examples": ["#0066CC"]
+        },
+        "folder": {
+          "description": "Color for folder links.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#FF9500",
+          "examples": ["#FF9500"]
+        },
+        "file": {
+          "description": "Color for file links without a configured extension color.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#333333",
+          "examples": ["#333333"]
+        },
+        "sharepoint": {
+          "description": "Color for SharePoint/OneDrive links.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#7038C8",
+          "examples": ["#7038C8"]
+        },
+        "unknown": {
+          "description": "Color for links of unknown type.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#999999",
+          "examples": ["#999999"]
+        }
+      }
+    },
+    "colors_dark": {
+      "title": "Link colors (dark theme)",
+      "description": "Dark mode colors - used automatically when the OS is in dark mode. In dark mode, [colors_dark] replaces [colors]. If a section is omitted, the light-mode defaults are used as fallback.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "web": {
+          "description": "Color for web links in dark mode.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#4DA6FF",
+          "examples": ["#4DA6FF"]
+        },
+        "folder": {
+          "description": "Color for folder links in dark mode.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#FFB340",
+          "examples": ["#FFB340"]
+        },
+        "file": {
+          "description": "Color for file links in dark mode without a configured extension color.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#CCCCCC",
+          "examples": ["#CCCCCC"]
+        },
+        "sharepoint": {
+          "description": "Color for SharePoint/OneDrive links in dark mode.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#9B6FE0",
+          "examples": ["#9B6FE0"]
+        },
+        "unknown": {
+          "description": "Color for links of unknown type in dark mode.",
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "default": "#BBBBBB",
+          "examples": ["#BBBBBB"]
+        }
+      }
+    },
+    "extensions": {
+      "title": "Per-extension colors (light theme)",
+      "description": "Colors for file links by file extension. Keys are extensions (lowercase, with a leading dot, e.g. \".pdf\"). Explicitly configured entries take precedence over [[extension_groups]].",
+      "type": "object",
+      "propertyNames": {
+        "description": "File extension including the leading dot (e.g. \".pdf\").",
+        "type": "string",
+        "pattern": "^\\..+$"
+      },
+      "additionalProperties": {
+        "description": "Foreground color for links with this extension.",
+        "type": "string",
+        "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+      }
+    },
+    "extensions_dark": {
+      "title": "Per-extension colors (dark theme)",
+      "description": "Dark mode per-extension colors - used automatically when the OS is in dark mode. In dark mode, [extensions_dark] replaces [extensions]. Keys are extensions (lowercase, with a leading dot, e.g. \".pdf\").",
+      "type": "object",
+      "propertyNames": {
+        "description": "File extension including the leading dot (e.g. \".pdf\").",
+        "type": "string",
+        "pattern": "^\\..+$"
+      },
+      "additionalProperties": {
+        "description": "Foreground color for links with this extension in dark mode.",
+        "type": "string",
+        "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+      }
+    },
+    "extension_groups": {
+      "title": "Extension groups",
+      "description": "Sets of file extensions sharing a color. Group colors are used for links whose extension is not configured explicitly in the [extensions]/[extensions_dark] tables. Selected groups can also be used as filters in the \"Types\" section of the Filter dialog. Extensions are normalized to lowercase with a leading dot. If an extension appears in multiple groups, the first group in config order wins.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "color", "extensions"],
+        "properties": {
+          "name": {
+            "description": "Unique, non-empty group name.",
+            "type": "string",
+            "minLength": 1,
+            "examples": ["Pictures", "Office documents"]
+          },
+          "color": {
+            "description": "Group color in light mode.",
+            "type": "string",
+            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+            "examples": ["#FF9800"]
+          },
+          "color_dark": {
+            "description": "Group color in dark mode (falls back to color when omitted).",
+            "type": "string",
+            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+            "examples": ["#FFFFFF"]
+          },
+          "extensions": {
+            "description": "File extensions belonging to this group (with or without a leading dot; normalized to lowercase with a leading dot).",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "examples": [".png", ".jpg", "jpeg"]
+            }
+          }
+        }
+      }
+    },
+    "onedrive": {
+      "title": "OneDrive/SharePoint resolution configuration",
+      "description": "Configuration for resolving OneDrive/SharePoint links.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "azure_cli_path": {
+          "description": "Optional: override the Azure CLI executable path. Default: \"az\" (uses PATH lookup). Examples: \"C:/Program Files/Microsoft SDKs/Azure/az.exe\", \"/usr/local/bin/az\".",
+          "type": "string",
+          "default": "az",
+          "examples": ["az", "C:/Program Files/Microsoft SDKs/Azure/az.exe", "/usr/local/bin/az"]
+        }
+      }
+    }
+  }
+}

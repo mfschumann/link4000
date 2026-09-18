@@ -8,6 +8,7 @@
 - UX: what buttons do we need in the main list?
 
 ## DONE
+- add a JSON schema for config.toml (`config.schema.json`), host it at https://mfs.name/link4000/config.schema.json via a GitHub Actions Pages workflow, and reference it from the generated config.toml via `#:schema` for editor autocompletion/tooltips
 - convert `file://` URLs entered in the Add/Edit dialog to plain, percent-decoded file paths on save (Posix, Windows drive, and UNC variants; `file://localhost/...` is intentionally left unconverted)
 - select the search field text (not only set focus) when the main window gains focus, so search terms can be overridden right away
 - add `show_tags_column` config option ([global]); when disabled, tags are shown in the title tooltip instead

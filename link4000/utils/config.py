@@ -523,6 +523,9 @@ def ensure_config_exists() -> None:
     os.makedirs(os.path.dirname(_CONFIG_PATH), exist_ok=True)
 
     default_config = """# Link4000 Configuration
+# Editor support (autocompletion/tooltips): schema at
+# https://mfs.name/link4000/config.schema.json
+#:schema https://mfs.name/link4000/config.schema.json
 
 [global]
 # Path to the links.json file (leave empty for default: ~/.link4000/links.json)
@@ -648,6 +651,7 @@ unknown = "#999999"
 # extensions = [".doc", ".docx"]
 
 # OneDrive/SharePoint resolution configuration
+# [onedrive]
 # Optional: override the Azure CLI executable path
 # azure_cli_path = "az"  # Default: "az" (uses PATH lookup)
 # Examples: "C:/Program Files/Microsoft SDKs/Azure/az.exe", "/usr/local/bin/az"
