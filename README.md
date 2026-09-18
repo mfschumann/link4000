@@ -120,7 +120,28 @@ The application supports two JSON formats:
 
 ## Configuration
 
-Configuration is stored in `~/.link4000/config.toml` (default) or in the path passed as the `--config` command line argument:
+Configuration is stored in `~/.link4000/config.toml` (default) or in the path passed as the `--config` command line argument.
+
+### JSON Schema for Editors
+
+A JSON Schema for the config file is hosted at
+<https://mfs.name/link4000/config.schema.json> and deployed automatically to
+GitHub Pages on push to `main`.
+
+A generated `config.toml` already includes the
+`#:schema https://mfs.name/link4000/config.schema.json` directive, which
+[Taplo](https://taplo.tamasfe.dev/) and
+[Even Better TOML](https://github.com/tamasfe/even-better-toml) pick up
+automatically for auto-completion and tooltips. If you edit the file in an
+editor that needs an explicit schema association, add the directive line at the
+top of the file:
+
+```toml
+#:schema https://mfs.name/link4000/config.schema.json
+```
+
+When changing config keys in `link4000/utils/config.py`, update
+`config.schema.json` accordingly.
 
 ```toml
 [global]
