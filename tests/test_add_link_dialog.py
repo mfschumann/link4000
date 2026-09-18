@@ -19,6 +19,15 @@ pytestmark = pytest.mark.skipif(not _has_pyside6, reason="PySide6 not available"
 
 _mock_warning = patch("link4000.ui.add_link_dialog.QMessageBox.warning", return_value=0)
 
+_WIN32 = sys.platform == "win32"
+
+# Platform-appropriate file:// URL for the conversion tests. The dialog's save
+# chain round-trips the converted path through PurePath (and resolve_unc_path),
+# so on Windows the stored value is a drive-letter path with backslash
+# separators, while Posix keeps forward slashes and an absolute root.
+_FILE_URL = "file:///C:/My%20Docs/a.pdf" if _WIN32 else "file:///home/u/My%20Doc/a.pdf"
+_FILE_URL_PATH = str(PurePath("C:/My Docs/a.pdf" if _WIN32 else "/home/u/My Doc/a.pdf"))
+
 
 class TestAddLinkDialogAddMode:
     """Tests for AddLinkDialog in add mode (no existing link)."""
@@ -261,17 +270,17 @@ class TestAddLinkDialogFileUrlConversion:
         """Saving a file:// URL stores the percent-decoded filesystem path."""
         dlg = AddLinkDialog()
         dlg._title_input.setText("My Doc")
-        dlg._url_input.setText("file:///home/u/My%20Doc/a.pdf")
+        dlg._url_input.setText(_FILE_URL)
         dlg._on_save()
         link = dlg.get_link()
         assert link is not None
-        assert link.url == "/home/u/My Doc/a.pdf"
+        assert link.url == _FILE_URL_PATH
 
     def test_save_converted_path_classifies_as_file(self):
         """A converted file:// path is treated as a file path, not a web URL."""
         dlg = AddLinkDialog()
         dlg._title_input.setText("My Doc")
-        dlg._url_input.setText("file:///home/u/My%20Doc/a.pdf")
+        dlg._url_input.setText(_FILE_URL)
         dlg._on_save()
         link = dlg.get_link()
         assert link is not None
@@ -293,9 +302,9 @@ class TestAddLinkDialogFileUrlConversion:
         link = Link(title="Old", url="https://old.com", tags=[])
         dlg = AddLinkDialog(link=link)
         dlg._title_input.setText("New")
-        dlg._url_input.setText("file:///home/u/My%20Doc/a.pdf")
+        dlg._url_input.setText(_FILE_URL)
         dlg._on_save()
-        assert link.url == "/home/u/My Doc/a.pdf"
+        assert link.url == _FILE_URL_PATH
         assert link.link_type == "file"
 
     @patch("link4000.ui.add_link_dialog.resolve_unc_path", side_effect=lambda p: p)
@@ -307,7 +316,9 @@ class TestAddLinkDialogFileUrlConversion:
         dlg._on_save()
         link = dlg.get_link()
         assert link is not None
-        assert link.url == "Z:/Reports/Q1.xlsx"
+        # The save chain normalizes paths through PurePath, so Windows
+        # stores backslash separators here.
+        assert link.url == str(PurePath("Z:/Reports/Q1.xlsx"))
         mock_unc.assert_called_once_with(PurePath("Z:/Reports/Q1.xlsx"))
 
     @patch("sys.platform", "win32")
