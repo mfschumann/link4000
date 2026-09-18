@@ -33,6 +33,7 @@ from link4000.utils.path_utils import (
     is_sharepoint_url,
     get_sharepoint_file_extension,
     get_sharepoint_filename,
+    file_url_to_path,
 )
 
 
@@ -153,6 +154,9 @@ class AddLinkDialog(QDialog):
         elif url:
             self._url_input.setText(url)
             url = url.strip('"')
+            # file:// URLs are converted to plain paths so that title
+            # auto-fill (and later saving) work on the decoded path.
+            display_url = file_url_to_path(url) or url
             if is_sharepoint_url(url):
                 ext = get_sharepoint_file_extension(url)
                 if ext:
@@ -161,8 +165,8 @@ class AddLinkDialog(QDialog):
                         self._auto_filling_title = True
                         self._title_input.setText(filename)
                         self._auto_filling_title = False
-            elif is_file_path(url):
-                basename = Path(url).name
+            elif is_file_path(display_url):
+                basename = Path(display_url).name
                 if basename:
                     self._auto_filling_title = True
                     self._title_input.setText(basename)
@@ -207,6 +211,12 @@ class AddLinkDialog(QDialog):
         """
         path = path.strip('"')
 
+        # Browsed paths are never file:// URLs, but normalize defensively
+        # in case one was pasted through _set_path-like flows.
+        converted = file_url_to_path(path)
+        if converted is not None:
+            path = converted
+
         lnk_title = ""
         if path.lower().endswith(".lnk"):
             target, lnk_title = resolve_lnk(PureWindowsPath(path))
@@ -234,6 +244,9 @@ class AddLinkDialog(QDialog):
         """
         if not self._title_manually_set and not self._is_edit:
             text = text.strip('"')
+            # Convert file:// URLs to plain paths so the title is auto-filled
+            # from the decoded file name rather than the raw URL.
+            display_text = file_url_to_path(text) or text
             if is_sharepoint_url(text):
                 ext = get_sharepoint_file_extension(text)
                 if ext:
@@ -242,8 +255,8 @@ class AddLinkDialog(QDialog):
                         self._auto_filling_title = True
                         self._title_input.setText(filename)
                         self._auto_filling_title = False
-            elif is_file_path(text):
-                basename = Path(text).name
+            elif is_file_path(display_text):
+                basename = Path(display_text).name
                 if basename:
                     self._auto_filling_title = True
                     self._title_input.setText(basename)
@@ -319,6 +332,13 @@ class AddLinkDialog(QDialog):
         if not url:
             QMessageBox.warning(self, "Validation Error", "URL / Path is required")
             return
+
+        # Convert file:// URLs to plain, percent-decoded filesystem paths
+        # before any other normalization. Unconvertible file:// variants
+        # (e.g. file://localhost/...) are kept as-is.
+        converted = file_url_to_path(url)
+        if converted is not None:
+            url = converted
 
         if is_file_path(url):
             url = resolve_unc_path(PurePath(url))

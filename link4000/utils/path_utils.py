@@ -65,6 +65,75 @@ def is_file_path(text: str) -> bool:
     return False
 
 
+def file_url_to_path(file_url: str) -> str | None:
+    """
+    Convert a ``file://`` URL to a plain filesystem path.
+
+    Supported variants (percent-encoded characters such as ``%20`` are
+    decoded via :func:`urllib.parse.unquote`; ``+`` is *not* treated as a
+    space):
+
+    - Posix paths:      ``file:///home/u/My%20Doc/a.pdf`` → ``/home/u/My Doc/a.pdf``
+    - Windows drives:   ``file:///C:/a%20b.pdf``          → ``C:/a b.pdf``
+                        (legacy ``file:///C|/a.pdf``      → ``C:/a.pdf``)
+    - UNC paths:        ``file://server/share/a%20b.pdf`` → ``//server/share/a b.pdf``
+
+    Any other input — including ``file://localhost/...``, empty paths
+    (``file://``, ``file:///``), or URLs with percent-encoded drive
+    separators (``file:///C%3A/...``) — is not converted and ``None`` is
+    returned so the caller can keep the original string. Query and fragment
+    components are stripped since file paths cannot contain them.
+
+    Args:
+        file_url: A possibly ``file://``-prefixed string. Callers should
+            strip surrounding whitespace/quotes beforehand.
+
+    Returns:
+        The decoded filesystem path, or ``None`` if the input is not a
+        convertible ``file://`` URL.
+    """
+    if not file_url or not file_url.lower().startswith("file://"):
+        return None
+
+    try:
+        parsed = urllib.parse.urlsplit(file_url)
+    except ValueError:
+        return None
+
+    # Percent-encoded drive separator (file:///C%3A/...) is deliberately
+    # not converted; check the raw path before decoding.
+    if re.match(r"^/[A-Za-z]%3[Aa]", parsed.path):
+        return None
+
+    path = urllib.parse.unquote(parsed.path)
+    if not path or path == "/":
+        # Empty path ("file://", "file:///") points at no concrete file.
+        return None
+
+    if parsed.netloc:
+        host = urllib.parse.unquote(parsed.netloc)
+        if host.lower() == "localhost":
+            # Explicitly out of scope: local-host file URLs stay unconverted.
+            return None
+        # UNC form: file://server/share/... → //server/share/...
+        return f"//{host}{path}"
+
+    # Windows drive form: file:///C:/... or legacy file:///C|/...
+    drive_match = re.match(r"^/([A-Za-z]:)[/\\](.*)$", path)
+    if drive_match:
+        return f"{drive_match.group(1)}/{drive_match.group(2)}"
+    legacy_drive_match = re.match(r"^/([A-Za-z])\|[/\\](.*)$", path)
+    if legacy_drive_match:
+        return f"{legacy_drive_match.group(1)}:/{legacy_drive_match.group(2)}"
+
+    # Posix absolute path (file:///...). Relative file URLs (file://rel)
+    # would have landed in netloc above and are not supported.
+    if path.startswith("/"):
+        return path
+
+    return None
+
+
 def is_sharepoint_url(url: str) -> bool:
     """
     Return True if the URL matches any of the configured SharePoint patterns.

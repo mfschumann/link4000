@@ -8,6 +8,7 @@
 - UX: what buttons do we need in the main list?
 
 ## DONE
+- convert `file://` URLs entered in the Add/Edit dialog to plain, percent-decoded file paths on save (Posix, Windows drive, and UNC variants; `file://localhost/...` is intentionally left unconverted)
 - select the search field text (not only set focus) when the main window gains focus, so search terms can be overridden right away
 - add `show_tags_column` config option ([global]); when disabled, tags are shown in the title tooltip instead
 - add configurable `[[extension_groups]]` (shared name/color/color_dark/extension list) with color resolution (explicit `[extensions]`/`[extensions_dark]` entries win) and group filters in the Types section of the Filter dialog

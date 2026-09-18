@@ -14,6 +14,7 @@ from link4000.utils.path_utils import (
     resolve_unc_path,
     resolve_lnk,
     matches_exclusion_pattern,
+    file_url_to_path,
 )
 
 
@@ -465,6 +466,86 @@ class TestResolveLnk:
             target, title = resolve_lnk(PureWindowsPath("C:\\broken.lnk"))
             assert target == ""
             assert title == ""
+
+
+class TestFileUrlToPath:
+    """Tests for file_url_to_path function."""
+
+    def test_posix_path_decodes_percent_encoding(self):
+        """Tests that %20 and other percent escapes are decoded in Posix paths."""
+        assert file_url_to_path("file:///home/u/My%20Doc/a.pdf") == "/home/u/My Doc/a.pdf"
+        assert file_url_to_path("file:///home/u/a%28b%29.pdf") == "/home/u/a(b).pdf"
+
+    def test_posix_path_without_encoding(self):
+        """Tests that plain Posix file URLs map to the same path."""
+        assert file_url_to_path("file:///home/u/a.pdf") == "/home/u/a.pdf"
+
+    def test_plus_sign_preserved(self):
+        """Tests that '+' is not treated as a space (unquote, not unquote_plus)."""
+        assert file_url_to_path("file:///home/u/a+b.pdf") == "/home/u/a+b.pdf"
+
+    def test_scheme_case_insensitive(self):
+        """Tests that the file scheme is matched case-insensitively."""
+        assert file_url_to_path("FILE:///home/u/a.pdf") == "/home/u/a.pdf"
+        assert file_url_to_path("File:///home/u/a.pdf") == "/home/u/a.pdf"
+
+    def test_query_and_fragment_stripped(self):
+        """Tests that query and fragment components are stripped."""
+        assert file_url_to_path("file:///home/u/a.pdf?x=1#frag") == "/home/u/a.pdf"
+
+    def test_windows_drive_forward_slashes(self):
+        """Tests that Windows drive URLs are converted to drive-letter paths."""
+        assert file_url_to_path("file:///C:/a%20b.pdf") == "C:/a b.pdf"
+        assert file_url_to_path("file:///C:/dir/a.pdf") == "C:/dir/a.pdf"
+
+    def test_windows_drive_backslashes(self):
+        """Tests that backslash file URLs are converted with forward slashes."""
+        assert file_url_to_path("file:///C:\\dir\\a.pdf") == "C:/dir\\a.pdf"
+
+    def test_windows_drive_legacy_pipe(self):
+        """Tests that the legacy pipe form (file:///C|/...) converts to C:/."""
+        assert file_url_to_path("file:///C|/a.pdf") == "C:/a.pdf"
+
+    def test_windows_drive_encoded_path(self):
+        """Tests that percent-encoded characters decode inside drive paths."""
+        assert file_url_to_path("file:///C:/My%20Docs/a.pdf") == "C:/My Docs/a.pdf"
+
+    def test_unc_path(self):
+        """Tests that host-bearing file URLs become UNC-style //server/... paths."""
+        assert (
+            file_url_to_path("file://server/share/a%20b.pdf") == "//server/share/a b.pdf"
+        )
+
+    def test_localhost_not_converted(self):
+        """Tests that file://localhost/ URLs are explicitly not converted."""
+        assert file_url_to_path("file://localhost/home/u/a.pdf") is None
+
+    def test_empty_path_not_converted(self):
+        """Tests that file:// and file:/// return None."""
+        assert file_url_to_path("file://") is None
+        assert file_url_to_path("file:///") is None
+
+    def test_host_only_not_converted(self):
+        """Tests that a file URL with a host but no path returns None."""
+        assert file_url_to_path("file://server") is None
+
+    def test_percent_encoded_drive_separator_not_converted(self):
+        """Tests that file:///C%3A/... is deliberately left unconverted."""
+        assert file_url_to_path("file:///C%3A/a.pdf") is None
+
+    def test_non_file_scheme_returns_none(self):
+        """Tests that non-file URLs return None."""
+        assert file_url_to_path("https://example.com/a.pdf") is None
+        assert file_url_to_path("http://example.com") is None
+
+    def test_plain_path_returns_none(self):
+        """Tests that plain paths and relative paths return None."""
+        assert file_url_to_path("/home/u/a.pdf") is None
+        assert file_url_to_path("relative/path") is None
+
+    def test_empty_input_returns_none(self):
+        """Tests that an empty string returns None."""
+        assert file_url_to_path("") is None
 
 
 class TestMatchesExclusionPattern:
