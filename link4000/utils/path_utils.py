@@ -84,6 +84,13 @@ def file_url_to_path(file_url: str) -> str | None:
     returned so the caller can keep the original string. Query and fragment
     components are stripped since file paths cannot contain them.
 
+    The returned UNC form uses forward slashes, which is the correct
+    representation on Posix (Samba). On Windows, callers normalize the
+    separators by round-tripping the result through
+    ``resolve_unc_path(PurePath(...))`` (as ``AddLinkDialog._on_save``
+    does), which yields ``PureWindowsPath`` and therefore backslash
+    separators: ``\\\\server\\share\\My Docs\\a.pdf``.
+
     Args:
         file_url: A possibly ``file://``-prefixed string. Callers should
             strip surrounding whitespace/quotes beforehand.

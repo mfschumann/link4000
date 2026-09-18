@@ -1,7 +1,7 @@
 """Unit tests for AddLinkDialog."""
 import sys
 from unittest.mock import patch
-from pathlib import PurePath
+from pathlib import PurePath, PureWindowsPath
 import pytest
 
 from link4000.models.link import Link
@@ -309,6 +309,24 @@ class TestAddLinkDialogFileUrlConversion:
         assert link is not None
         assert link.url == "Z:/Reports/Q1.xlsx"
         mock_unc.assert_called_once_with(PurePath("Z:/Reports/Q1.xlsx"))
+
+    @patch("sys.platform", "win32")
+    @patch("link4000.ui.add_link_dialog.PurePath", PureWindowsPath)
+    def test_save_converts_file_unc_url_to_backslash_unc_on_windows(self):
+        """On Windows, file://server/share/... is stored as a backslash UNC path.
+
+        The helper returns the platform-neutral '//server/share/...' form;
+        the save chain resolves it through resolve_unc_path(PurePath(...)),
+        which on Windows yields a PureWindowsPath whose str() uses
+        backslash separators.
+        """
+        dlg = AddLinkDialog()
+        dlg._title_input.setText("Doc")
+        dlg._url_input.setText("file://server/share/My%20Docs/a.pdf")
+        dlg._on_save()
+        link = dlg.get_link()
+        assert link is not None
+        assert link.url == "\\\\server\\share\\My Docs\\a.pdf"
 
     def test_constructor_autofills_title_from_file_url(self):
         """A file:// URL pre-fills the title with the decoded filename."""
