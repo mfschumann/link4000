@@ -132,7 +132,9 @@ A generated `config.toml` already includes the
 `#:schema https://mfs.name/link4000/config.schema.json` directive, which
 [Taplo](https://taplo.tamasfe.dev/) and
 [Even Better TOML](https://github.com/tamasfe/even-better-toml) pick up
-automatically for auto-completion and tooltips. If you edit the file in an
+automatically for auto-completion and tooltips. The outputs of
+`--show-config` and `--show-default-config` include the directive as their
+first line as well. If you edit the file in an
 editor that needs an explicit schema association, add the directive line at the
 top of the file:
 

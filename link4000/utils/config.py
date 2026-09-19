@@ -12,6 +12,9 @@ if TYPE_CHECKING:
 _DEFAULT_CONFIG_PATH = os.path.join(os.path.expanduser("~/.link4000"), "config.toml")
 _CONFIG_PATH = _DEFAULT_CONFIG_PATH
 
+#: URL of the hosted JSON schema for config.toml editor support.
+CONFIG_SCHEMA_URL: str = "https://mfs.name/link4000/config.schema.json"
+
 _DEFAULTS = {
     "global": {
         "links_file": "",
@@ -522,10 +525,10 @@ def ensure_config_exists() -> None:
 
     os.makedirs(os.path.dirname(_CONFIG_PATH), exist_ok=True)
 
-    default_config = """# Link4000 Configuration
+    default_config = f"""# Link4000 Configuration
 # Editor support (autocompletion/tooltips): schema at
-# https://mfs.name/link4000/config.schema.json
-#:schema https://mfs.name/link4000/config.schema.json
+# {CONFIG_SCHEMA_URL}
+#:schema {CONFIG_SCHEMA_URL}
 
 [global]
 # Path to the links.json file (leave empty for default: ~/.link4000/links.json)

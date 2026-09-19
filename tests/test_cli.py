@@ -93,6 +93,11 @@ class TestConfigCliArg:
         captured = capsys.readouterr()
         output = captured.out
 
+        # The output references the hosted JSON schema for editor support.
+        from link4000.utils.config import CONFIG_SCHEMA_URL
+
+        assert f"#:schema {CONFIG_SCHEMA_URL}" in output
+
         # Write output to file and verify it's valid TOML
         config_file = tmp_path / "default_config.toml"
         config_file.write_text(output)
@@ -131,6 +136,11 @@ max_age_days = 7
         # Capture stdout and verify it's valid TOML
         captured = capsys.readouterr()
         output = captured.out
+
+        # The output references the hosted JSON schema for editor support.
+        from link4000.utils.config import CONFIG_SCHEMA_URL
+
+        assert f"#:schema {CONFIG_SCHEMA_URL}" in output
 
         # Write output to file and verify it's valid TOML
         config_file = tmp_path / "active_config.toml"

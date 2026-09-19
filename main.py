@@ -183,9 +183,10 @@ Examples:
         set_config_path(args.config_file)
 
     if args.show_config:
-        from link4000.utils.config import get_full_config
+        from link4000.utils.config import CONFIG_SCHEMA_URL, get_full_config
 
         full_cfg = get_full_config()
+        print(f"#:schema {CONFIG_SCHEMA_URL}")
         print("# Link4000 Active Configuration")
         print("# This shows all config values with defaults merged with user settings")
         print()
@@ -193,8 +194,9 @@ Examples:
         return 0
 
     if args.show_default_config:
-        from link4000.utils.config import _DEFAULTS
+        from link4000.utils.config import _DEFAULTS, CONFIG_SCHEMA_URL
 
+        print(f"#:schema {CONFIG_SCHEMA_URL}")
         print("# Link4000 Default Configuration")
         print("# This shows the built-in default values")
         print()
