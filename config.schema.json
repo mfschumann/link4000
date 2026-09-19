@@ -136,6 +136,20 @@
               "description": "Set to false to disable this source (defaults to true).",
               "type": "boolean",
               "default": true
+            },
+            "folder_tags_enabled": {
+              "description": "Convert the favorites folder path into tags (default: true).",
+              "type": "boolean",
+              "default": true
+            },
+            "folder_name_exclusion_patterns": {
+              "description": "Regex patterns matched against the full folder path; matched parts are removed before the remaining path segments become tags. Example: with [\"^/Favoritenleiste/\"] a link in /Favoritenleiste/toller/Pfad only gets the tags 'toller' and 'Pfad'.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "examples": [["^/Favoritenleiste/"]]
             }
           }
         },
