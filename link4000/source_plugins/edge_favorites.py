@@ -22,9 +22,6 @@ from link4000.data.source_registry import SourceRegistry
 
 logger = logging.getLogger(__name__)
 
-# Folder names that should never become tags (top-level bookmarks bar roots).
-_ROOT_FOLDER_NAMES = {"bookmarks bar", "bookmark bar", "lesezeichenleiste"}
-
 
 @SourceRegistry.register
 class EdgeFavoritesSource(LinkSource):
@@ -104,8 +101,9 @@ class EdgeFavoritesSource(LinkSource):
         Args:
             node: The bookmark node to process.
             entries: List to append extracted entries to.
-            folder_parts: Folder names from the bookmarks root down to the
-                current node; used to build the full folder path.
+            folder_parts: Folder names from below the browser root down to the
+                current node; used to build the folder path. The browser root
+                folder's own name is never included.
         """
         if folder_parts is None:
             folder_parts = []
@@ -119,9 +117,8 @@ class EdgeFavoritesSource(LinkSource):
 
             if url and name:
                 created_at = self._parse_timestamp(int(date_added))
-                # Include ALL folder names (even excluded roots like the
-                # bookmarks bar) so exclusion patterns can match them.
-                folder_path = "/" + "/".join(folder_parts)
+                # Only folders below the browser root are part of the path.
+                folder_path = "/" + "/".join(folder_parts) if folder_parts else ""
                 entries.append(
                     SourceEntry(
                         url=url,
@@ -146,13 +143,17 @@ class EdgeFavoritesSource(LinkSource):
 
         If ``folder_tags_enabled`` is disabled, an empty list is returned.
         Otherwise every configured ``folder_name_exclusion_patterns`` regex is
-        applied to the path and the matched parts are removed; the remaining
-        path segments become tags. Segments equal to known bookmarks-bar root
-        names and duplicates are dropped.
+        applied to the canonical folder path and the matched parts are removed;
+        the remaining path segments become tags. Duplicates are dropped.
+
+        Patterns are matched against the folder path *below* the browser's root
+        folder, which always has a leading and trailing slash (e.g.
+        ``/Arbeit/Projekte/``). This means a folder that directly contains a
+        favorite can be excluded with an anchored pattern such as ``^/Arbeit/``.
 
         Args:
-            folder_path: Full folder path with leading slash, e.g.
-                "/Favoritenleiste/toller/Pfad".
+            folder_path: Folder path below the browser root, e.g.
+                "/Arbeit/Projekte".
 
         Returns:
             List of tags derived from the folder path (may be empty).
@@ -161,7 +162,12 @@ class EdgeFavoritesSource(LinkSource):
         if not config.get("folder_tags_enabled", True):
             return []
 
+        # Canonicalize to "/a/b/" so patterns can anchor on a trailing
+        # delimiter and also match folders that directly contain a favorite.
         path = folder_path
+        if path and not path.endswith("/"):
+            path += "/"
+
         for pattern in config.get("folder_name_exclusion_patterns", []):
             try:
                 path = re.sub(pattern, "", path)
@@ -173,7 +179,7 @@ class EdgeFavoritesSource(LinkSource):
 
         tags: list[str] = []
         for segment in path.split("/"):
-            if not segment or segment.lower() in _ROOT_FOLDER_NAMES:
+            if not segment:
                 continue
             if segment not in tags:
                 tags.append(segment)
@@ -192,7 +198,11 @@ class EdgeFavoritesSource(LinkSource):
         roots = data.get("roots", {})
         for root_key in ("bookmark_bar", "other", "synced"):
             root = roots.get(root_key, {})
-            self._extract_favorites(root, entries)
+            # Skip the browser's root folder name itself; roots are identified
+            # structurally (by position), not by hard-coded names. Only folders
+            # below the root become tags.
+            for child in root.get("children", []):
+                self._extract_favorites(child, entries, [])
 
         entries.sort(key=lambda e: e.created_at, reverse=True)
         return entries

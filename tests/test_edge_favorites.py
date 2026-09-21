@@ -86,11 +86,31 @@ def _entry_by_url(entries: list, url: str) -> SourceEntry:
     return next(e for e in entries if e.url == url)
 
 
+def _fetch_with_patterns(
+    tmp_path, bookmark_bar_children: list, patterns: list
+) -> list:
+    """Write bookmarks and fetch entries with exclusion patterns configured.
+
+    Args:
+        tmp_path: Temporary directory for the Bookmarks file.
+        bookmark_bar_children: Children of the bookmark bar root node.
+        patterns: Value for ``folder_name_exclusion_patterns``.
+
+    Returns:
+        The extracted SourceEntry list.
+    """
+    bookmarks = tmp_path / "Bookmarks"
+    _write_bookmarks(bookmarks, bookmark_bar_children)
+    source = EdgeFavoritesSource()
+    source._config = {"folder_name_exclusion_patterns": patterns}
+    return source._fetch_favorites_from_path(bookmarks)
+
+
 class TestFolderTags:
     """Test folder-to-tag conversion (default config)."""
 
     def test_folder_names_become_tags(self, tmp_path):
-        """Nested folder names are added as tags, root name is not."""
+        """Folders below the browser root become tags, the root name does not."""
         entries = _fetch(
             tmp_path,
             [
@@ -108,8 +128,12 @@ class TestFolderTags:
         entry = _entry_by_url(entries, "https://example.com")
         assert entry.extra_tags == []
 
-    def test_german_bookmarks_bar_name_excluded(self, tmp_path):
-        """The German bookmarks bar name never becomes a tag."""
+    def test_browser_root_name_never_tagged(self, tmp_path):
+        """The browser root name is skipped structurally, regardless of language.
+
+        'Lesezeichenleiste' is used here (not 'Bookmarks bar') to show that no
+        hard-coded root name list is involved.
+        """
         bookmarks = tmp_path / "Bookmarks"
         bookmarks.write_text(
             json.dumps(
@@ -129,15 +153,29 @@ class TestFolderTags:
         entry = _entry_by_url(entries, "https://example.com")
         assert entry.extra_tags == []
 
-    def test_other_root_folder_is_tagged(self, tmp_path):
-        """Folders below the 'other' root (e.g. 'Other favorites') become tags."""
+    def test_other_root_name_not_tagged(self, tmp_path):
+        """A url directly in the 'other' root gets no extra tags either."""
         entries = _fetch(
             tmp_path,
             [],
             other_children=[_bookmark_url("Example", "https://example.com")],
         )
         entry = _entry_by_url(entries, "https://example.com")
-        assert entry.extra_tags == ["Other favorites"]
+        assert entry.extra_tags == []
+
+    def test_other_root_subfolder_is_tagged(self, tmp_path):
+        """Folders below the 'other' root become tags."""
+        entries = _fetch(
+            tmp_path,
+            [],
+            other_children=[
+                _bookmark_folder(
+                    "Sub", [_bookmark_url("Example", "https://example.com")]
+                )
+            ],
+        )
+        entry = _entry_by_url(entries, "https://example.com")
+        assert entry.extra_tags == ["Sub"]
 
     def test_duplicate_segments_deduped(self, tmp_path):
         """Same-named nested folders produce the tag only once."""
@@ -202,41 +240,74 @@ folder_tags_enabled = false
 class TestFolderNameExclusionPatterns:
     """Test the folder_name_exclusion_patterns option."""
 
-    def test_root_folder_excluded_via_pattern(self, tmp_path):
-        """A pattern matching the root removes it from the tags."""
-        bookmarks = tmp_path / "Bookmarks"
-        bookmarks.write_text(
-            json.dumps(
-                {
-                    "roots": {
-                        "bookmark_bar": _bookmark_folder(
-                            "Favoritenleiste",
-                            [
-                                _bookmark_folder(
-                                    "toller",
-                                    [
-                                        _bookmark_folder(
-                                            "Pfad",
-                                            [
-                                                _bookmark_url(
-                                                    "Example", "https://example.com"
-                                                )
-                                            ],
-                                        )
-                                    ],
-                                )
-                            ],
-                        )
-                    }
-                }
-            ),
-            encoding="utf-8",
+    def test_leaf_folder_excluded_via_anchored_pattern(self, tmp_path):
+        """A folder directly containing a favorite can be excluded by pattern.
+
+        Regression test: the folder path is canonicalized to have a trailing
+        slash, so ``^/Work/`` matches even when ``Work`` is the last segment.
+        """
+        entries = _fetch_with_patterns(
+            tmp_path,
+            [
+                _bookmark_folder(
+                    "Work", [_bookmark_url("Example", "https://example.com")]
+                )
+            ],
+            ["^/Work/"],
         )
-        source = EdgeFavoritesSource()
-        source._config = {"folder_name_exclusion_patterns": ["^/Favoritenleiste/"]}
-        entries = source._fetch_favorites_from_path(bookmarks)
         entry = _entry_by_url(entries, "https://example.com")
-        assert entry.extra_tags == ["toller", "Pfad"]
+        assert entry.extra_tags == []
+
+    def test_nested_folder_excluded_via_anchored_pattern(self, tmp_path):
+        """An anchored pattern removes a folder and keeps deeper segments."""
+        entries = _fetch_with_patterns(
+            tmp_path,
+            [
+                _bookmark_folder(
+                    "Work",
+                    [
+                        _bookmark_folder(
+                            "Pfad", [_bookmark_url("Example", "https://example.com")]
+                        )
+                    ],
+                )
+            ],
+            ["^/Work/"],
+        )
+        entry = _entry_by_url(entries, "https://example.com")
+        assert entry.extra_tags == ["Pfad"]
+
+    def test_unanchored_pattern_matches(self, tmp_path):
+        """An unanchored pattern still removes a matching folder name."""
+        entries = _fetch_with_patterns(
+            tmp_path,
+            [
+                _bookmark_folder(
+                    "Work", [_bookmark_url("Example", "https://example.com")]
+                )
+            ],
+            ["Work"],
+        )
+        entry = _entry_by_url(entries, "https://example.com")
+        assert entry.extra_tags == []
+
+    def test_bare_caret_pattern_does_not_match_path(self, tmp_path):
+        """A pattern without the leading slash does not match the path.
+
+        The canonical path always starts with ``/``, so ``^Work`` (no slash) is
+        intentionally not a match.
+        """
+        entries = _fetch_with_patterns(
+            tmp_path,
+            [
+                _bookmark_folder(
+                    "Work", [_bookmark_url("Example", "https://example.com")]
+                )
+            ],
+            ["^Work"],
+        )
+        entry = _entry_by_url(entries, "https://example.com")
+        assert entry.extra_tags == ["Work"]
 
     def test_multiple_patterns(self, tmp_path):
         """All configured patterns are applied sequentially to the folder path."""
@@ -274,7 +345,7 @@ class TestFolderNameExclusionPatterns:
         write_config(
             r"""
 [sources.edge_favorites]
-folder_name_exclusion_patterns = ["^/Bookmarks bar/"]
+folder_name_exclusion_patterns = ["^/Sub/"]
 """
         )
         bookmarks = tmp_path / "Bookmarks"
@@ -289,7 +360,7 @@ folder_name_exclusion_patterns = ["^/Bookmarks bar/"]
         source = EdgeFavoritesSource()
         entries = source._fetch_favorites_from_path(bookmarks)
         entry = _entry_by_url(entries, "https://example.com")
-        assert entry.extra_tags == ["Sub"]
+        assert entry.extra_tags == []
 
 
 class TestSourceEntryExtraTags:
