@@ -8,6 +8,7 @@
 - UX: what buttons do we need in the main list?
 
 ## DONE
+- include the `#:schema` directive in the output of `--show-config`/`--show-default-config` (previously only the generated config.toml had it) via a shared `CONFIG_SCHEMA_URL` constant
 - add a JSON schema for config.toml (`config.schema.json`), host it at https://mfs.name/link4000/config.schema.json via a GitHub Actions Pages workflow, and reference it from the generated config.toml via `#:schema` for editor autocompletion/tooltips
 - convert `file://` URLs entered in the Add/Edit dialog to plain, percent-decoded file paths on save (Posix, Windows drive, and UNC variants; `file://localhost/...` is intentionally left unconverted)
 - select the search field text (not only set focus) when the main window gains focus, so search terms can be overridden right away
@@ -17,7 +18,7 @@
 - fix SharePoint Doc.aspx title pre-fill to use `file=` filename instead of `Doc.aspx`
 - add structured logging (file + stderr + sys.excepthook) and wrap all link-opening paths in try/except with traceback logging
 - persist search term, active filters (tags/types/match mode), and full sort state (sorting_active, sort_column, sort_order) across app restarts via `ui_state.json` next to `links.json`; saved on true quit only, restored at startup after links are loaded
-- include Edge favorites folder names as tags (toggleable via `folder_tags_enabled` in `[sources.edge_favorites]`, with `folder_name_exclusion_patterns` regexes to strip parts of the folder path before it becomes tags)
+- include Edge favorites folder names as tags (toggleable via `folder_tags_enabled` in `[sources.edge_favorites]`); the browser's root folder is skipped structurally (no hard-coded root names), and `folder_name_exclusion_patterns` regexes match the canonical folder path below the root (`/a/b/`, leading and trailing slash) so parts can be stripped before the remaining segments become tags
 
 ## NOT PLANNED
 - add auto-update mechanism ← this needs public distribution of a binary which introduces licensing issues
