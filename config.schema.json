@@ -136,6 +136,20 @@
               "description": "Set to false to disable this source (defaults to true).",
               "type": "boolean",
               "default": true
+            },
+            "folder_tags_enabled": {
+              "description": "Convert the favorites folder path into tags (default: true).",
+              "type": "boolean",
+              "default": true
+            },
+            "folder_name_exclusion_patterns": {
+              "description": "Regex patterns matched against the folder path below the browser's root folder, which always has a leading and trailing \"/\" (e.g. \"/Arbeit/Projekt/\"); matched parts are removed before the remaining segments become tags. Example: with [\"^/Arbeit/\"] a link in <root>/Arbeit/Projekte only gets the tag 'Projekte'.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "examples": [["^/Arbeit/"]]
             }
           }
         },
