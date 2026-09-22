@@ -152,18 +152,29 @@ class TestLinkTableModel:
         assert model.data(idx) == "work, important"
 
     def test_data_recent_tag(self):
-        """Tests that dynamic links display 'recent' in the tags column."""
+        """Tests that dynamic links display their source tag in the tags column.
+
+        Dynamic links get the source tag prepended to their tags list
+        (see MainWindow._load_dynamic_sources), which the tags column shows.
+        """
         model = LinkTableModel()
-        model.set_dynamic_links([_make_link(source_tag="recent")])
+        model.set_dynamic_links([_make_link(tags=["recent"], source_tag="recent")])
         idx = model.index(0, LinkTableModel.COL_TAGS)
         assert model.data(idx) == "recent"
 
     def test_data_favorite_tag(self):
-        """Tests that favorite links display source tag in the tags column."""
+        """Tests that favorite links display source tag and folder tags."""
         model = LinkTableModel()
-        model.set_dynamic_links([_make_link(source_tag="edge_favorites")])
+        model.set_dynamic_links(
+            [
+                _make_link(
+                    tags=["edge_favorites", "toller", "Pfad"],
+                    source_tag="edge_favorites",
+                )
+            ]
+        )
         idx = model.index(0, LinkTableModel.COL_TAGS)
-        assert model.data(idx) == "edge_favorites"
+        assert model.data(idx) == "edge_favorites, toller, Pfad"
 
     def test_data_user_role_returns_id(self):
         """Tests that UserRole returns the link's unique ID."""

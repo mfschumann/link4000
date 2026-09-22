@@ -90,6 +90,13 @@ class TestConfigDefaults:
         assert isinstance(patterns, list)
         assert patterns == []
 
+    def test_edge_favorites_source_defaults(self):
+        """Test that edge_favorites source defaults include folder tag options."""
+        source_cfg = config.get_source_config("edge_favorites")
+        assert source_cfg["enabled"] is True
+        assert source_cfg["folder_tags_enabled"] is True
+        assert source_cfg["folder_name_exclusion_patterns"] == []
+
     def test_detect_system_theme_returns_light_or_dark(self):
         """Test that detect_system_theme returns 'light' or 'dark'."""
         theme = config.detect_system_theme()
@@ -211,6 +218,20 @@ enabled = false
         sources = config.get_enabled_sources()
         assert "recent_windows" not in sources
         assert "recent_linux_gnome" in sources  # still enabled by default
+
+    def test_edge_favorites_folder_tags_config(self, temp_config):
+        """Test loading folder tag options for edge_favorites from config."""
+        with open(temp_config, "w") as f:
+            f.write("""
+[sources.edge_favorites]
+folder_tags_enabled = false
+folder_name_exclusion_patterns = ["^/Favoritenleiste/"]
+""")
+
+        source_cfg = config.get_source_config("edge_favorites")
+        assert source_cfg["enabled"] is True  # default preserved
+        assert source_cfg["folder_tags_enabled"] is False
+        assert source_cfg["folder_name_exclusion_patterns"] == ["^/Favoritenleiste/"]
 
     def test_custom_colors(self, temp_config):
         """Test loading custom colors."""

@@ -9,7 +9,9 @@ Supported platforms:
 from __future__ import annotations
 
 import json
+import logging
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +20,8 @@ from link4000.data.loader_types import SourceEntry
 from link4000.data.link_source import LinkSource
 from link4000.data.source_registry import SourceRegistry
 
+logger = logging.getLogger(__name__)
+
 
 @SourceRegistry.register
 class EdgeFavoritesSource(LinkSource):
@@ -25,6 +29,20 @@ class EdgeFavoritesSource(LinkSource):
 
     name = "edge_favorites"
     source_tag = "edge_favorites"
+    config_schema = [
+        (
+            "folder_tags_enabled",
+            bool,
+            True,
+            "Convert the favorites folder path into tags",
+        ),
+        (
+            "folder_name_exclusion_patterns",
+            list,
+            [],
+            "Regex patterns; matched parts of the folder path are not converted to tags",
+        ),
+    ]
 
     @property
     def is_available(self) -> bool:
@@ -34,7 +52,7 @@ class EdgeFavoritesSource(LinkSource):
     def fetch(self) -> list[SourceEntry]:
         """Return favorites from Microsoft Edge, newest first based on date_added."""
         bookmarks_path = self._get_bookmarks_path()
-        if not self.is_available:
+        if bookmarks_path is None:
             return []
         return self._fetch_favorites_from_path(bookmarks_path)
 
@@ -64,14 +82,31 @@ class EdgeFavoritesSource(LinkSource):
         try:
             unix_timestamp = (microseconds / 1_000_000) - 11644473600
             # Convert UTC aware datetime to local naive datetime to match other sources
-            return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc).astimezone().replace(
-                tzinfo=None
+            return (
+                datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
+                .astimezone()
+                .replace(tzinfo=None)
             )
         except (ValueError, OSError):
             return datetime.now()
 
-    def _extract_favorites(self, node: dict, entries: list[SourceEntry]) -> None:
-        """Recursively extract favorites from a bookmark node."""
+    def _extract_favorites(
+        self,
+        node: dict,
+        entries: list[SourceEntry],
+        folder_parts: list[str] | None = None,
+    ) -> None:
+        """Recursively extract favorites from a bookmark node.
+
+        Args:
+            node: The bookmark node to process.
+            entries: List to append extracted entries to.
+            folder_parts: Folder names from below the browser root down to the
+                current node; used to build the folder path. The browser root
+                folder's own name is never included.
+        """
+        if folder_parts is None:
+            folder_parts = []
         node_type = node.get("type", "")
         children = node.get("children", [])
 
@@ -82,6 +117,8 @@ class EdgeFavoritesSource(LinkSource):
 
             if url and name:
                 created_at = self._parse_timestamp(int(date_added))
+                # Only folders below the browser root are part of the path.
+                folder_path = "/" + "/".join(folder_parts) if folder_parts else ""
                 entries.append(
                     SourceEntry(
                         url=url,
@@ -90,11 +127,63 @@ class EdgeFavoritesSource(LinkSource):
                         updated_at=created_at,
                         last_accessed=created_at,
                         source_tag=self.source_tag,
+                        extra_tags=self._folder_path_to_tags(folder_path),
                     )
                 )
+
         elif node_type == "folder" and children:
+            folder_name = node.get("name", "")
+            new_folder_parts = folder_parts + ([folder_name] if folder_name else [])
+
             for child in children:
-                self._extract_favorites(child, entries)
+                self._extract_favorites(child, entries, new_folder_parts)
+
+    def _folder_path_to_tags(self, folder_path: str) -> list[str]:
+        """Convert a folder path into tags according to the plugin config.
+
+        If ``folder_tags_enabled`` is disabled, an empty list is returned.
+        Otherwise every configured ``folder_name_exclusion_patterns`` regex is
+        applied to the canonical folder path and the matched parts are removed;
+        the remaining path segments become tags. Duplicates are dropped.
+
+        Patterns are matched against the folder path *below* the browser's root
+        folder, which always has a leading and trailing slash (e.g.
+        ``/Arbeit/Projekte/``). This means a folder that directly contains a
+        favorite can be excluded with an anchored pattern such as ``^/Arbeit/``.
+
+        Args:
+            folder_path: Folder path below the browser root, e.g.
+                "/Arbeit/Projekte".
+
+        Returns:
+            List of tags derived from the folder path (may be empty).
+        """
+        config = self.get_config()
+        if not config.get("folder_tags_enabled", True):
+            return []
+
+        # Canonicalize to "/a/b/" so patterns can anchor on a trailing
+        # delimiter and also match folders that directly contain a favorite.
+        path = folder_path
+        if path and not path.endswith("/"):
+            path += "/"
+
+        for pattern in config.get("folder_name_exclusion_patterns", []):
+            try:
+                path = re.sub(pattern, "", path)
+            except (re.error, TypeError):
+                logger.warning(
+                    "Skipping invalid folder_name_exclusion_patterns regex: %r",
+                    pattern,
+                )
+
+        tags: list[str] = []
+        for segment in path.split("/"):
+            if not segment:
+                continue
+            if segment not in tags:
+                tags.append(segment)
+        return tags
 
     def _fetch_favorites_from_path(self, bookmarks_path: Path) -> list[SourceEntry]:
         """Read and parse the Edge Bookmarks file."""
@@ -109,7 +198,11 @@ class EdgeFavoritesSource(LinkSource):
         roots = data.get("roots", {})
         for root_key in ("bookmark_bar", "other", "synced"):
             root = roots.get(root_key, {})
-            self._extract_favorites(root, entries)
+            # Skip the browser's root folder name itself; roots are identified
+            # structurally (by position), not by hard-coded names. Only folders
+            # below the root become tags.
+            for child in root.get("children", []):
+                self._extract_favorites(child, entries, [])
 
         entries.sort(key=lambda e: e.created_at, reverse=True)
         return entries
