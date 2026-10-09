@@ -326,6 +326,10 @@ class LinkSortFilterModel(QSortFilterProxyModel):
         self._match_mode = TagMatchMode.OR
         self._selected_types = set()
         self._group_extensions: set[str] = set()
+        self._saved_first_active = False
+        self._secondary_column = LinkTableModel.COL_LAST_ACCESSED
+        self._secondary_role = Qt.ItemDataRole.UserRole + 1
+        self._secondary_order = Qt.SortOrder.DescendingOrder
 
     def set_search_text(self, text: str) -> None:
         """Sets the search text filter and invalidates the current filter."""
@@ -419,36 +423,131 @@ class LinkSortFilterModel(QSortFilterProxyModel):
 
         return True
 
+    def set_saved_first(
+        self,
+        active: bool,
+        column: int | None = None,
+        role: int | None = None,
+        order: Qt.SortOrder | None = None,
+    ) -> None:
+        """Enable or disable the "saved first" composite sort.
+
+        When enabled, the proxy places manually saved links
+        (``Link.source_tag`` empty) before dynamic links and applies the
+        stored secondary criterion within each group. The secondary
+        criterion's direction is baked into :meth:`lessThan`, so the proxy's
+        own sort order must remain ascending while this mode is active.
+
+        Args:
+            active: Whether saved-first sorting is active.
+            column: Secondary sort column (ignored when disabling).
+            role: Secondary Qt sort role (ignored when disabling).
+            order: Secondary sort direction (ignored when disabling).
+        """
+        changed = active != self._saved_first_active
+        if active:
+            self._secondary_column = (
+                column if column is not None else LinkTableModel.COL_LAST_ACCESSED
+            )
+            self._secondary_role = (
+                role if role is not None else Qt.ItemDataRole.UserRole + 1
+            )
+            self._secondary_order = (
+                order if order is not None else Qt.SortOrder.DescendingOrder
+            )
+        self._saved_first_active = active
+        if changed:
+            # ``QSortFilterProxyModel.sort()`` early-returns when
+            # ``dynamicSortFilter`` is enabled and the column/order are
+            # unchanged, so ``invalidate()`` is required to force ``lessThan``
+            # to run again after toggling the mode.
+            self.invalidate()
+
+    def _compare_links(
+        self,
+        left_link: Link,
+        right_link: Link,
+        column: int,
+        role: int,
+    ) -> bool | None:
+        """Compares two links for a given column and sort role (ascending).
+
+        Returns the ascending "less than" result, or ``None`` when the
+        ``(role, column)`` combination is not handled by the custom
+        comparator and the caller should fall back to the base class.
+
+        Args:
+            left_link: Left-hand link.
+            right_link: Right-hand link.
+            column: Column index selecting the compared field.
+            role: Qt item role selecting the comparison strategy.
+
+        Returns:
+            True if ``left_link`` sorts before ``right_link`` ascending,
+            False otherwise, or None if unsupported.
+        """
+        if role == Qt.ItemDataRole.UserRole + 1:
+            if column == LinkTableModel.COL_TITLE:
+                return left_link.created_at < right_link.created_at
+            elif column == LinkTableModel.COL_LAST_ACCESSED:
+                return left_link.last_accessed < right_link.last_accessed
+            elif column == LinkTableModel.COL_TAGS:
+                return (left_link.tags[0] if left_link.tags else "") < (
+                    right_link.tags[0] if right_link.tags else ""
+                )
+        elif role == Qt.ItemDataRole.UserRole + 2:
+            if column == LinkTableModel.COL_TITLE:
+                return left_link.created_at < right_link.created_at
+            elif column == LinkTableModel.COL_TAGS:
+                return left_link.updated_at < right_link.updated_at
+        elif role == Qt.ItemDataRole.DisplayRole:
+            if column == LinkTableModel.COL_TITLE:
+                return left_link.title < right_link.title
+        return None
+
     def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:
-        """Compares two model indexes for sorting using custom sort roles."""
+        """Compares two model indexes for sorting using custom sort roles.
+
+        In saved-first mode the comparison is a composite: manually saved
+        links sort before dynamic links, and the configured secondary
+        criterion (with its own direction) orders links within each group.
+        """
         source_model: LinkTableModel = self.sourceModel()
         if not source_model:
             return super().lessThan(left, right)
 
-        role = self.sortRole()
+        left_link = source_model.get_link(left.row())
+        right_link = source_model.get_link(right.row())
+        if left_link is None or right_link is None:
+            return super().lessThan(left, right)
 
-        if role == Qt.ItemDataRole.UserRole + 1:
-            left_link = source_model.get_link(left.row())
-            right_link = source_model.get_link(right.row())
-            if left_link and right_link:
-                col = left.column()
-                if col == LinkTableModel.COL_TITLE:
-                    return left_link.created_at < right_link.created_at
-                elif col == LinkTableModel.COL_LAST_ACCESSED:
-                    return left_link.last_accessed < right_link.last_accessed
-                elif col == LinkTableModel.COL_TAGS:
-                    return (left_link.tags[0] if left_link.tags else "") < (
-                        right_link.tags[0] if right_link.tags else ""
-                    )
+        if self._saved_first_active:
+            left_saved = not left_link.source_tag
+            right_saved = not right_link.source_tag
+            if left_saved != right_saved:
+                # Ascending order places saved links (True) first.
+                return left_saved
+            if self._secondary_order == Qt.SortOrder.DescendingOrder:
+                result = self._compare_links(
+                    right_link,
+                    left_link,
+                    self._secondary_column,
+                    self._secondary_role,
+                )
+            else:
+                result = self._compare_links(
+                    left_link,
+                    right_link,
+                    self._secondary_column,
+                    self._secondary_role,
+                )
+            if result is not None:
+                return result
+            return super().lessThan(left, right)
 
-        elif role == Qt.ItemDataRole.UserRole + 2:
-            left_link = source_model.get_link(left.row())
-            right_link = source_model.get_link(right.row())
-            if left_link and right_link:
-                col = left.column()
-                if col == LinkTableModel.COL_TITLE:
-                    return left_link.created_at < right_link.created_at
-                elif col == LinkTableModel.COL_TAGS:
-                    return left_link.updated_at < right_link.updated_at
-
-        return super().lessThan(left, right)
+        result = self._compare_links(
+            left_link, right_link, left.column(), self.sortRole()
+        )
+        if result is None:
+            return super().lessThan(left, right)
+        return result

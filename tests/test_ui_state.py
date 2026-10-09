@@ -157,3 +157,30 @@ class TestRoundTrip:
         ui_state.save_ui_state(original)
         loaded = ui_state.load_ui_state()
         assert loaded == original
+
+
+class TestSortRoleEncoding:
+    """Tests for the sort role serialization helpers."""
+
+    def test_known_roles_round_trip(self):
+        """Known Qt roles encode to a string and decode back."""
+        from PySide6.QtCore import Qt
+
+        for role in (
+            Qt.ItemDataRole.DisplayRole,
+            Qt.ItemDataRole.UserRole + 1,
+            Qt.ItemDataRole.UserRole + 2,
+        ):
+            encoded = ui_state.sort_role_to_string(role)
+            assert encoded is not None
+            assert ui_state.sort_role_from_string(encoded) == role
+
+    def test_unknown_role_to_string_is_none(self):
+        """An unrecognized role serializes to None."""
+        assert ui_state.sort_role_to_string(9999) is None
+
+    def test_unknown_string_is_none(self):
+        """An unrecognized persisted value decodes to None."""
+        assert ui_state.sort_role_from_string("bogus") is None
+        assert ui_state.sort_role_from_string(258) is None
+        assert ui_state.sort_role_from_string(None) is None
