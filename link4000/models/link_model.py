@@ -322,6 +322,7 @@ class LinkSortFilterModel(QSortFilterProxyModel):
         self._search_text = ""
         self._search_terms = []
         self._selected_tags = set()
+        self._selected_tags_lower = set()
         self._match_mode = TagMatchMode.OR
         self._selected_types = set()
         self._group_extensions: set[str] = set()
@@ -371,6 +372,7 @@ class LinkSortFilterModel(QSortFilterProxyModel):
                 extension-group ids (``group:<name>``) to include.
         """
         self._selected_tags = tags
+        self._selected_tags_lower = {tag.lower() for tag in tags}
         self._match_mode = match_mode
         self._selected_types = types if types is not None else set()
         self._group_extensions = self._expand_selected_groups(self._selected_types)
@@ -387,24 +389,22 @@ class LinkSortFilterModel(QSortFilterProxyModel):
             return True
 
         if self._search_terms:
+            blob = link.search_blob
             for term in self._search_terms:
-                if not (
-                    term in link.title.lower()
-                    or term in link.url.lower()
-                    or any(term in t.lower() for t in link.tags)
-                    or term in link.description.lower()
-                ):
+                if term not in blob:
                     return False
 
         if self._selected_tags:
+            link_tags = link.tags_lower
+            selected_lower = self._selected_tags_lower
             if self._match_mode == TagMatchMode.AND:
-                if not all(tag in link.tags for tag in self._selected_tags):
+                if not selected_lower <= link_tags:
                     return False
             elif self._match_mode == TagMatchMode.NONE:
-                if any(tag in link.tags for tag in self._selected_tags):
+                if selected_lower & link_tags:
                     return False
             else:  # TagMatchMode.OR
-                if not any(tag in link.tags for tag in self._selected_tags):
+                if not selected_lower & link_tags:
                     return False
 
         if self._selected_types:

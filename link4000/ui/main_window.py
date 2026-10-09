@@ -715,6 +715,8 @@ class MainWindow(QMainWindow):
         """
         self._status_bar.showMessage("Loading stored links...")
         stored = self._store.get_all()
+        for link in stored:
+            link.ensure_computed()
         self._model.set_links(stored)
 
         # Pre-compute link types in background to avoid GUI freeze when
@@ -791,6 +793,7 @@ class MainWindow(QMainWindow):
                         last_accessed=entry.last_accessed,
                         source_tag=entry.source_tag,
                     )
+                    link.ensure_computed()
                     all_links.append(link)
 
             return all_links

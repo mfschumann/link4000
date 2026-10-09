@@ -320,6 +320,47 @@ class TestLinkTableModel:
         result = model.update_link(nonexistent)
         assert result is False
 
+    def test_filter_performs_no_filesystem_checks(self, monkeypatch):
+        """Tests that filtering never calls os.path.isdir/isfile."""
+        import link4000.utils.path_utils as path_utils
+
+        links = [
+            _make_link("Doc", url="/some/file.pdf", tags=["work"]),
+            _make_link("Site", url="https://example.com", tags=["personal"]),
+        ]
+        for link in links:
+            link.ensure_computed()
+
+        def fail_isdir(path):
+            raise AssertionError("os.path.isdir must not be called during filter")
+
+        def fail_isfile(path):
+            raise AssertionError("os.path.isfile must not be called during filter")
+
+        monkeypatch.setattr(path_utils.os.path, "isdir", fail_isdir)
+        monkeypatch.setattr(path_utils.os.path, "isfile", fail_isfile)
+
+        proxy, _ = TestLinkSortFilterModel._make_model(links=links)
+        proxy.set_search_text("doc")
+        assert proxy.rowCount() == 1
+        proxy.set_search_text("")
+        proxy.set_selected_tags({"work"}, match_mode=TagMatchMode.OR)
+        assert proxy.rowCount() == 1
+
+    def test_filter_uses_cached_search_blob(self):
+        """Tests that search matches title, url, tags, and description via blob."""
+        model = LinkTableModel()
+        link = Link(
+            title="Report",
+            url="https://example.com/r",
+            tags=["Work"],
+            description="Quarterly SUMMARY",
+        )
+        link.ensure_computed()
+        model.set_links([link])
+        assert "quarterly summary" in link.search_blob
+        assert "work" in link.search_blob
+
     def test_set_dynamic_links_skips_reset_when_ids_unchanged(
         self, monkeypatch
     ):

@@ -39,6 +39,7 @@ class Link:
     source_tag: str = field(default="")
     _cached_link_type: Optional[str] = field(default=None, repr=False)
     _cached_file_extension: Optional[str] = field(default=None, repr=False)
+    _search_blob: Optional[str] = field(default=None, repr=False)
 
     @property
     def link_type(self) -> str:
@@ -55,13 +56,48 @@ class Link:
         return self._cached_file_extension
 
     def reset_type_cache(self) -> None:
-        """Invalidate the cached link type and file extension.
+        """Invalidate the cached link type, file extension, and search index.
 
-        Should be called after mutating ``url`` so that the type is
-        re-evaluated on the next access.
+        Should be called after mutating ``url``, ``title``, ``tags``, or
+        ``description`` so that the type and search data are re-evaluated
+        on the next access.
         """
         self._cached_link_type = None
         self._cached_file_extension = None
+        self._search_blob = None
+
+    @property
+    def tags_lower(self) -> frozenset:
+        """Return the link tags as a lowercased frozenset for filtering.
+
+        Computed on demand from the current tags; no separate cache is
+        needed since tag filtering reads it once per filter pass at most.
+        """
+        return frozenset(t.lower() for t in self.tags)
+
+    def ensure_computed(self) -> None:
+        """Precompute type, extension, and search blob, caching all of them.
+
+        Warms the lazy ``link_type``/``file_extension`` caches (which may
+        perform filesystem checks) and builds the lowercased search blob
+        used by the proxy filter. Call this once after a ``Link`` list is
+        built and before handing it to the GUI thread, so that filtering
+        and painting never trigger I/O or repeated ``lower()`` calls.
+        """
+        _ = self.link_type
+        _ = self.file_extension
+        if self._search_blob is None:
+            self._search_blob = (
+                f"{self.title}\n{self.url}\n{' '.join(self.tags)}\n"
+                f"{self.description}"
+            ).lower()
+
+    @property
+    def search_blob(self) -> str:
+        """Return the lowercased search blob, computing it if needed."""
+        if self._search_blob is None:
+            self.ensure_computed()
+        return self._search_blob
 
     def to_dict(self) -> dict:
         """Serializes the link to a dictionary with ISO-formatted timestamps."""
