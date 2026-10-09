@@ -231,6 +231,7 @@ class LinkStore:
 
                 self._links[i].tags = new_tags
                 self._links[i].updated_at = datetime.now()
+                self._links[i].reset_type_cache()
 
         self.save()
 

@@ -715,11 +715,10 @@ class MainWindow(QMainWindow):
         """
         self._status_bar.showMessage("Loading stored links...")
         stored = self._store.get_all()
+        # Warm type/extension/search caches before the model sees the list,
+        # so the first paint and filter never trigger filesystem checks.
+        self._precompute_link_types(stored)
         self._model.set_links(stored)
-
-        # Pre-compute link types in background to avoid GUI freeze when
-        # opening filter dialog (avoids blocking isdir()/isfile() calls)
-        self._precompute_link_types_background(stored)
 
         self._all_tags = set()
         for link in stored:
@@ -791,6 +790,9 @@ class MainWindow(QMainWindow):
                         last_accessed=entry.last_accessed,
                         source_tag=entry.source_tag,
                     )
+                    # Warm caches on the fetch worker thread, before the GUI
+                    # thread ever sees this link (see _precompute_link_types).
+                    link.ensure_computed()
                     all_links.append(link)
 
             return all_links
@@ -843,31 +845,21 @@ class MainWindow(QMainWindow):
         thread.start()
         QTimer.singleShot(50, check_done)
 
-    def _precompute_link_types_background(self, links: list) -> None:
-        """Pre-compute link types in background to avoid GUI freeze.
+    def _precompute_link_types(self, links: list) -> None:
+        """Pre-compute link type, extension, and search index for links.
 
-        Runs the link type computation (including filesystem checks like isdir/isfile)
-        in a background thread so the cache is populated before the filter
-        dialog is opened. This prevents blocking the GUI thread when accessing
-        link.link_type or link.file_extension.
+        Runs synchronously on the caller thread: each link's
+        ``ensure_computed()`` is called before the list reaches the model,
+        so filtering and painting never trigger filesystem checks or
+        repeated ``lower()`` calls on the GUI thread. The caller is
+        responsible for invoking this off the GUI thread when the list is
+        large (dynamic sources already do this via their fetch worker).
 
         Args:
-            links: List of Link objects to pre-compute types for.
+            links: List of Link objects to pre-compute data for.
         """
-        # Capture links in closure for the background thread
-        links_to_process = links
-
-        def worker() -> None:
-            for link in links_to_process:
-                # Access properties to trigger caching. This runs isdir()/isfile() calls
-                # but in the background thread, not the GUI thread.
-                _ = link.link_type
-                _ = link.file_extension
-
-        def on_done() -> None:
-            pass  # No action needed when done, cache is populated
-
-        self._run_in_background(worker, on_done)
+        for link in links:
+            link.ensure_computed()
 
     def _update_status(self) -> None:
         """Update the status bar with current link counts.

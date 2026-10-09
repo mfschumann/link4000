@@ -320,6 +320,86 @@ class TestLinkTableModel:
         result = model.update_link(nonexistent)
         assert result is False
 
+    def test_filter_performs_no_filesystem_checks(self, monkeypatch):
+        """Tests that filtering never calls os.path.isdir/isfile."""
+        import link4000.utils.path_utils as path_utils
+
+        links = [
+            _make_link("Doc", url="/some/file.pdf", tags=["work"]),
+            _make_link("Site", url="https://example.com", tags=["personal"]),
+        ]
+        for link in links:
+            link.ensure_computed()
+
+        def fail_isdir(path):
+            raise AssertionError("os.path.isdir must not be called during filter")
+
+        def fail_isfile(path):
+            raise AssertionError("os.path.isfile must not be called during filter")
+
+        monkeypatch.setattr(path_utils.os.path, "isdir", fail_isdir)
+        monkeypatch.setattr(path_utils.os.path, "isfile", fail_isfile)
+
+        proxy, _ = TestLinkSortFilterModel._make_model(links=links)
+        proxy.set_search_text("doc")
+        assert proxy.rowCount() == 1
+        proxy.set_search_text("")
+        proxy.set_selected_tags({"work"}, match_mode=TagMatchMode.OR)
+        assert proxy.rowCount() == 1
+
+    def test_filter_uses_cached_search_blob(self):
+        """Tests that search matches title, url, tags, and description via blob."""
+        model = LinkTableModel()
+        link = Link(
+            title="Report",
+            url="https://example.com/r",
+            tags=["Work"],
+            description="Quarterly SUMMARY",
+        )
+        link.ensure_computed()
+        model.set_links([link])
+        assert "quarterly summary" in link.search_blob
+        assert "work" in link.search_blob
+
+    def test_set_dynamic_links_skips_reset_when_ids_unchanged(
+        self, monkeypatch
+    ):
+        """Tests that reloading identical dynamic links skips the model reset."""
+        model = LinkTableModel()
+        model.set_links([_make_link("A")])
+        recent = [_make_link("R1", source_tag="recent")]
+        model.set_dynamic_links(recent)
+
+        def fail_reset():
+            raise AssertionError("beginResetModel must not be called")
+
+        monkeypatch.setattr(model, "beginResetModel", fail_reset)
+        monkeypatch.setattr(model, "endResetModel", fail_reset)
+
+        model.set_dynamic_links(list(recent))
+        assert model.rowCount() == 2
+        assert model.get_link(1).title == "R1"
+
+    def test_set_dynamic_links_resets_when_ids_changed(self, monkeypatch):
+        """Tests that changed dynamic links still trigger a full model reset."""
+        model = LinkTableModel()
+        model.set_dynamic_links([_make_link("R1", source_tag="recent")])
+
+        resets = []
+        orig_begin = model.beginResetModel
+        orig_end = model.endResetModel
+        monkeypatch.setattr(
+            model, "beginResetModel", lambda: resets.append("begin") or orig_begin()
+        )
+        monkeypatch.setattr(
+            model, "endResetModel", lambda: resets.append("end") or orig_end()
+        )
+
+        model.set_dynamic_links([_make_link("R2", source_tag="recent")])
+        assert resets == ["begin", "end"]
+        assert model.rowCount() == 1
+        assert model.get_link(0).title == "R2"
+
 
 # ---------------------------------------------------------------------------
 # LinkSortFilterModel
