@@ -320,6 +320,45 @@ class TestLinkTableModel:
         result = model.update_link(nonexistent)
         assert result is False
 
+    def test_set_dynamic_links_skips_reset_when_ids_unchanged(
+        self, monkeypatch
+    ):
+        """Tests that reloading identical dynamic links skips the model reset."""
+        model = LinkTableModel()
+        model.set_links([_make_link("A")])
+        recent = [_make_link("R1", source_tag="recent")]
+        model.set_dynamic_links(recent)
+
+        def fail_reset():
+            raise AssertionError("beginResetModel must not be called")
+
+        monkeypatch.setattr(model, "beginResetModel", fail_reset)
+        monkeypatch.setattr(model, "endResetModel", fail_reset)
+
+        model.set_dynamic_links(list(recent))
+        assert model.rowCount() == 2
+        assert model.get_link(1).title == "R1"
+
+    def test_set_dynamic_links_resets_when_ids_changed(self, monkeypatch):
+        """Tests that changed dynamic links still trigger a full model reset."""
+        model = LinkTableModel()
+        model.set_dynamic_links([_make_link("R1", source_tag="recent")])
+
+        resets = []
+        orig_begin = model.beginResetModel
+        orig_end = model.endResetModel
+        monkeypatch.setattr(
+            model, "beginResetModel", lambda: resets.append("begin") or orig_begin()
+        )
+        monkeypatch.setattr(
+            model, "endResetModel", lambda: resets.append("end") or orig_end()
+        )
+
+        model.set_dynamic_links([_make_link("R2", source_tag="recent")])
+        assert resets == ["begin", "end"]
+        assert model.rowCount() == 1
+        assert model.get_link(0).title == "R2"
+
 
 # ---------------------------------------------------------------------------
 # LinkSortFilterModel

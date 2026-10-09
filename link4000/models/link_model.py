@@ -191,7 +191,25 @@ class LinkTableModel(QAbstractTableModel):
         self.endResetModel()
 
     def set_dynamic_links(self, recent: List[Link]) -> None:
-        """Replaces the recent links list with the given list."""
+        """Replaces the recent links list with the given list.
+
+        If the incoming list contains the same links (by id, in order),
+        only a ``dataChanged`` signal is emitted instead of a full model
+        reset. A reset re-runs the proxy filter and sort over every row,
+        so skipping it on the common no-change reload keeps the GUI
+        responsive.
+        """
+        current_ids = [link.id for link in self._dynamic_links]
+        new_ids = [link.id for link in recent]
+        if current_ids == new_ids:
+            self._dynamic_links = recent
+            if recent:
+                n = len(self._links)
+                self.dataChanged.emit(
+                    self.index(n, 0),
+                    self.index(n + len(recent) - 1, self.columnCount() - 1),
+                )
+            return
         self.beginResetModel()
         self._dynamic_links = recent
         self.endResetModel()
