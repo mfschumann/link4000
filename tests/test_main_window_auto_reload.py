@@ -123,3 +123,38 @@ reload_interval_minutes = 15
         assert not timer.isActive()
 
         win.deleteLater()
+
+
+class TestLinkCacheWarmup:
+    """Test that link caches are warmed before the model receives links."""
+
+    def test_ensure_computed_called_before_set_links(self, temp_config, monkeypatch):
+        """_load_links warms caches before calling set_links."""
+        from link4000.models.link import Link
+        from link4000.models.link_model import LinkTableModel
+
+        call_order: list[str] = []
+
+        orig_ensure = Link.ensure_computed
+
+        def recording_ensure(self) -> None:
+            call_order.append("ensure")
+            orig_ensure(self)
+
+        monkeypatch.setattr(Link, "ensure_computed", recording_ensure)
+
+        orig_set_links = LinkTableModel.set_links
+
+        def recording_set_links(self, links) -> None:
+            call_order.append("set_links")
+            orig_set_links(self, links)
+
+        monkeypatch.setattr(LinkTableModel, "set_links", recording_set_links)
+
+        win = MainWindow()
+        if win._model.rowCount() > 0:
+            assert call_order[0] == "ensure"
+            assert "set_links" in call_order
+            assert call_order.index("ensure") < call_order.index("set_links")
+        win.close()
+        win.deleteLater()
