@@ -351,6 +351,21 @@ class TestToOfficeUri:
 class TestResolveUncPath:
     """Tests for resolve_unc_path function."""
 
+    @pytest.fixture(autouse=True)
+    def _clear_drive_unc_cache(self):
+        """Reset the module-level drive→UNC cache around each test.
+
+        The cache persists for the life of the process, so a test (or any
+        code under test) that resolves a drive letter without a mapping can
+        leak a ``None`` entry into other tests. Clearing it keeps these
+        tests order-independent.
+        """
+        from link4000.utils import path_utils
+
+        path_utils._drive_unc_cache.clear()
+        yield
+        path_utils._drive_unc_cache.clear()
+
     def test_non_windows_returns_unchanged(self):
         """Tests that resolve_unc_path returns the path unchanged on non-Windows."""
         with patch("sys.platform", "linux"):

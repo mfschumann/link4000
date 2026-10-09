@@ -357,7 +357,6 @@ class AddLinkDialog(QDialog):
             self.link = Link(
                 title=title, url=str(url), tags=tags, description=description
             )
-            self.link.ensure_computed()
 
         self.accept()
 
