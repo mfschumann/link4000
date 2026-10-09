@@ -647,6 +647,217 @@ class TestLinkSortFilterModel:
 
 
 # ---------------------------------------------------------------------------
+# Saved-first composite sort
+# ---------------------------------------------------------------------------
+
+
+def _link_with_times(
+    link_id,
+    *,
+    source_tag="",
+    title=None,
+    tags=None,
+    created=None,
+    updated=None,
+    accessed=None,
+):
+    """Builds a Link with deterministic timestamps for ordering tests."""
+    base = datetime(2024, 1, 1, 12, 0, 0)
+    return Link(
+        title=title if title is not None else link_id,
+        url=f"https://example.com/{link_id}",
+        tags=tags or [],
+        id=link_id,
+        source_tag=source_tag,
+        created_at=created if created is not None else base,
+        updated_at=updated if updated is not None else base,
+        last_accessed=accessed if accessed is not None else base,
+    )
+
+
+class TestSavedFirstSort:
+    """Tests for the composite "saved first" sorting mode."""
+
+    @staticmethod
+    def _order(proxy):
+        """Returns the link ids in proxy (display) order."""
+        return [
+            proxy.data(
+                proxy.index(row, LinkTableModel.COL_TITLE),
+                Qt.ItemDataRole.UserRole,
+            )
+            for row in range(proxy.rowCount())
+        ]
+
+    @staticmethod
+    def _make_source(saved, dynamic):
+        """Creates a source model with saved and dynamic links."""
+        source = LinkTableModel()
+        source.set_links(saved)
+        source.set_dynamic_links(dynamic)
+        return source
+
+    @staticmethod
+    def _apply_saved_first(proxy, column, role, order):
+        """Configures the proxy as MainWindow does when Saved first is chosen."""
+        proxy.setSortRole(role)
+        proxy.sort(column, Qt.SortOrder.AscendingOrder)
+        proxy.set_saved_first(True, column, role, order)
+
+    def test_saved_links_precede_dynamic(self):
+        """Saved links come first, dynamic links below (last accessed desc)."""
+        base = datetime(2024, 1, 1, 12, 0, 0)
+        source = self._make_source(
+            [
+                _link_with_times("s_old", accessed=base),
+                _link_with_times("s_new", accessed=base + timedelta(days=2)),
+            ],
+            [
+                _link_with_times(
+                    "d_old", source_tag="recent", accessed=base + timedelta(days=1)
+                ),
+                _link_with_times(
+                    "d_new", source_tag="recent", accessed=base + timedelta(days=3)
+                ),
+            ],
+        )
+        proxy = LinkSortFilterModel()
+        proxy.setSourceModel(source)
+        self._apply_saved_first(
+            proxy,
+            LinkTableModel.COL_LAST_ACCESSED,
+            Qt.ItemDataRole.UserRole + 1,
+            Qt.SortOrder.DescendingOrder,
+        )
+        assert self._order(proxy) == ["s_new", "s_old", "d_new", "d_old"]
+
+    def test_secondary_created_ascending(self):
+        """Secondary criterion (Created, ascending) orders within each group."""
+        base = datetime(2024, 1, 1, 12, 0, 0)
+        source = self._make_source(
+            [
+                _link_with_times("s1", created=base),
+                _link_with_times("s2", created=base + timedelta(days=1)),
+            ],
+            [
+                _link_with_times("d1", source_tag="recent", created=base),
+                _link_with_times(
+                    "d2", source_tag="recent", created=base + timedelta(days=1)
+                ),
+            ],
+        )
+        proxy = LinkSortFilterModel()
+        proxy.setSourceModel(source)
+        self._apply_saved_first(
+            proxy,
+            LinkTableModel.COL_TITLE,
+            Qt.ItemDataRole.UserRole + 2,
+            Qt.SortOrder.AscendingOrder,
+        )
+        assert self._order(proxy) == ["s1", "s2", "d1", "d2"]
+
+    def test_secondary_modified_descending(self):
+        """Secondary criterion (Modified, descending) orders within each group."""
+        base = datetime(2024, 1, 1, 12, 0, 0)
+        source = self._make_source(
+            [
+                _link_with_times("s_old", updated=base),
+                _link_with_times("s_new", updated=base + timedelta(days=1)),
+            ],
+            [
+                _link_with_times("d_old", source_tag="recent", updated=base),
+                _link_with_times(
+                    "d_new", source_tag="recent", updated=base + timedelta(days=1)
+                ),
+            ],
+        )
+        proxy = LinkSortFilterModel()
+        proxy.setSourceModel(source)
+        self._apply_saved_first(
+            proxy,
+            LinkTableModel.COL_TAGS,
+            Qt.ItemDataRole.UserRole + 2,
+            Qt.SortOrder.DescendingOrder,
+        )
+        assert self._order(proxy) == ["s_new", "s_old", "d_new", "d_old"]
+
+    def test_secondary_title_ascending(self):
+        """Secondary criterion (Title, ascending) orders within each group."""
+        source = self._make_source(
+            [
+                _link_with_times("s_z", title="Zeta"),
+                _link_with_times("s_a", title="Alpha"),
+            ],
+            [
+                _link_with_times("d_d", title="Delta", source_tag="recent"),
+                _link_with_times("d_c", title="Charlie", source_tag="recent"),
+            ],
+        )
+        proxy = LinkSortFilterModel()
+        proxy.setSourceModel(source)
+        self._apply_saved_first(
+            proxy,
+            LinkTableModel.COL_TITLE,
+            Qt.ItemDataRole.DisplayRole,
+            Qt.SortOrder.AscendingOrder,
+        )
+        assert self._order(proxy) == ["s_a", "s_z", "d_c", "d_d"]
+
+    def test_secondary_tags_descending(self):
+        """Secondary criterion (Tags, descending) orders within each group."""
+        source = self._make_source(
+            [
+                _link_with_times("s_b", tags=["b"]),
+                _link_with_times("s_a", tags=["a"]),
+            ],
+            [
+                _link_with_times("d_d", tags=["d"], source_tag="recent"),
+                _link_with_times("d_c", tags=["c"], source_tag="recent"),
+            ],
+        )
+        proxy = LinkSortFilterModel()
+        proxy.setSourceModel(source)
+        self._apply_saved_first(
+            proxy,
+            LinkTableModel.COL_TAGS,
+            Qt.ItemDataRole.UserRole + 1,
+            Qt.SortOrder.DescendingOrder,
+        )
+        assert self._order(proxy) == ["s_b", "s_a", "d_d", "d_c"]
+
+    def test_disabling_saved_first_restores_normal_sort(self):
+        """Disabling saved-first sorts all links by the base criterion only."""
+        base = datetime(2024, 1, 1, 12, 0, 0)
+        source = self._make_source(
+            [
+                _link_with_times("s_old", accessed=base),
+                _link_with_times("s_new", accessed=base + timedelta(days=2)),
+            ],
+            [
+                _link_with_times(
+                    "d_old", source_tag="recent", accessed=base + timedelta(days=1)
+                ),
+                _link_with_times(
+                    "d_new", source_tag="recent", accessed=base + timedelta(days=3)
+                ),
+            ],
+        )
+        proxy = LinkSortFilterModel()
+        proxy.setSourceModel(source)
+        self._apply_saved_first(
+            proxy,
+            LinkTableModel.COL_LAST_ACCESSED,
+            Qt.ItemDataRole.UserRole + 1,
+            Qt.SortOrder.DescendingOrder,
+        )
+        proxy.set_saved_first(False)
+        proxy.setSortRole(Qt.ItemDataRole.UserRole + 1)
+        proxy.sort(LinkTableModel.COL_LAST_ACCESSED, Qt.SortOrder.DescendingOrder)
+        # Pure last-accessed descending: groups are no longer separated.
+        assert self._order(proxy) == ["d_new", "s_new", "d_old", "s_old"]
+
+
+# ---------------------------------------------------------------------------
 # Tags in the title tooltip (show_tags_column = false)
 # ---------------------------------------------------------------------------
 

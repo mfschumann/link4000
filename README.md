@@ -325,7 +325,7 @@ main.py                  # Application entry point
 - **Tag Management**: Add, edit, and filter links by tags
 - **Search**: Find links by title, URL, tags, or description
 - **Filter Modes**: Tag filtering supports three modes: match ANY tag (OR), ALL tags (AND), or NONE of the selected tags
-- **Sorting**: Sort by created date, modified date, or last accessed
+- **Sorting**: Sort by created date, modified date, last accessed, or "Saved first" (manually saved links above dynamic ones)
 - **System Tray**: Configurable close-to-tray and minimize-to-tray behavior
 - **Clipboard Integration**: Pre-fill URL from clipboard when adding links
 - **Drag & Drop**: (Planned) Import links by dragging files

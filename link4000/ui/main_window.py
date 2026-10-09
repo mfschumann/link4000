@@ -76,6 +76,8 @@ from link4000.utils.config import (
 from link4000.utils.ui_state import (
     load_ui_state,
     save_ui_state,
+    sort_role_from_string,
+    sort_role_to_string,
 )
 from link4000.data.source_registry import SourceRegistry
 from pathlib import Path, PurePath
@@ -207,7 +209,9 @@ class MainWindow(QMainWindow):
         self._all_types: set[str] | None = None
         self._current_sort_column = None
         self._current_sort_order = Qt.SortOrder.AscendingOrder
+        self._current_sort_role = Qt.ItemDataRole.UserRole + 1
         self._sorting_active = False
+        self._saved_first_active = False
 
         self._pending_search_text = ""
         self._search_timer = QTimer(self)
@@ -405,7 +409,7 @@ class MainWindow(QMainWindow):
         Returns:
             Dict with keys ``search_text``, ``selected_tags``,
             ``match_mode``, ``selected_types``, ``sorting_active``,
-            ``sort_column``, ``sort_order``.
+            ``sort_column``, ``sort_order``, ``saved_first``, ``sort_role``.
         """
         match_mode_str = self._match_mode.name
         return {
@@ -420,6 +424,8 @@ class MainWindow(QMainWindow):
             "sort_order": "asc"
             if self._current_sort_order == Qt.SortOrder.AscendingOrder
             else "desc",
+            "saved_first": self._saved_first_active,
+            "sort_role": sort_role_to_string(self._current_sort_role),
         }
 
     def _save_ui_state(self) -> None:
@@ -494,11 +500,50 @@ class MainWindow(QMainWindow):
             if sort_order_raw == "asc"
             else Qt.SortOrder.DescendingOrder
         )
+        saved_first = state.get("saved_first", False)
+        if not isinstance(saved_first, bool):
+            saved_first = False
 
-        if isinstance(sorting_active, bool) and sorting_active:
-            self._sorting_active = True
+        # Prefer the persisted sort role; otherwise derive it from the legacy
+        # (sorting_active, sort_column) pair so older state files still restore.
+        sort_role = sort_role_from_string(state.get("sort_role"))
+        if sort_role is None:
+            if isinstance(sorting_active, bool) and sorting_active:
+                sort_role = Qt.ItemDataRole.UserRole + 2
+            elif sort_column == LinkTableModel.COL_TITLE:
+                sort_role = Qt.ItemDataRole.DisplayRole
+            else:
+                sort_role = Qt.ItemDataRole.UserRole + 1
+
+        valid_column = sort_column in (
+            LinkTableModel.COL_TITLE,
+            LinkTableModel.COL_TAGS,
+            LinkTableModel.COL_LAST_ACCESSED,
+        )
+
+        if saved_first and valid_column:
+            self._saved_first_active = True
+            self._sorting_active = False
             self._current_sort_column = sort_column
             self._current_sort_order = sort_order
+            self._current_sort_role = sort_role
+
+            self._sort_combo.blockSignals(True)
+            self._sort_combo.setCurrentText("Saved first")
+            self._sort_combo.blockSignals(False)
+
+            self._proxy_model.setSortRole(sort_role)
+            self._proxy_model.sort(sort_column, Qt.SortOrder.AscendingOrder)
+            self._proxy_model.set_saved_first(
+                True, sort_column, sort_role, sort_order
+            )
+            self._header.setSortIndicatorShown(False)
+        elif isinstance(sorting_active, bool) and sorting_active:
+            self._sorting_active = True
+            self._saved_first_active = False
+            self._current_sort_column = sort_column
+            self._current_sort_order = sort_order
+            self._current_sort_role = sort_role
 
             if sort_column == LinkTableModel.COL_TITLE:
                 combo_text = "Created"
@@ -511,23 +556,17 @@ class MainWindow(QMainWindow):
             self._sort_combo.setCurrentText(combo_text)
             self._sort_combo.blockSignals(False)
 
-            self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 2)
+            self._proxy_model.setSortRole(sort_role)
             self._proxy_model.sort(sort_column, sort_order)
             self._header.setSortIndicatorShown(False)
         else:
-            if sort_column in (
-                LinkTableModel.COL_TITLE,
-                LinkTableModel.COL_TAGS,
-                LinkTableModel.COL_LAST_ACCESSED,
-            ):
+            if valid_column:
                 self._current_sort_column = sort_column
                 self._current_sort_order = sort_order
+                self._current_sort_role = sort_role
+                self._saved_first_active = False
 
-                if sort_column == LinkTableModel.COL_TITLE:
-                    self._proxy_model.setSortRole(Qt.ItemDataRole.DisplayRole)
-                else:
-                    self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
-
+                self._proxy_model.setSortRole(sort_role)
                 self._proxy_model.sort(sort_column, sort_order)
                 self._header.setSortIndicatorShown(True)
                 self._header.setSortIndicator(sort_column, sort_order)
@@ -631,7 +670,7 @@ class MainWindow(QMainWindow):
         toolbar_layout.addWidget(self._clear_search_button)
 
         self._sort_combo = QComboBox()
-        self._sort_combo.addItems(["Sort by", "Created", "Modified"])
+        self._sort_combo.addItems(["Sort by", "Created", "Modified", "Saved first"])
         self._sort_combo.currentTextChanged.connect(self._on_sort_changed)
         toolbar_layout.addWidget(self._sort_combo)
 
@@ -730,6 +769,8 @@ class MainWindow(QMainWindow):
             if source_name in registered:
                 self._all_tags.add(registered[source_name].source_tag)
 
+        self._saved_first_active = False
+        self._proxy_model.set_saved_first(False)
         self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
         self._proxy_model.sort(
             LinkTableModel.COL_LAST_ACCESSED, Qt.SortOrder.DescendingOrder
@@ -739,6 +780,7 @@ class MainWindow(QMainWindow):
         )
         self._current_sort_column = LinkTableModel.COL_LAST_ACCESSED
         self._current_sort_order = Qt.SortOrder.DescendingOrder
+        self._current_sort_role = Qt.ItemDataRole.UserRole + 1
         self._update_status()
 
         self._excluded_urls_lower = {
@@ -925,16 +967,50 @@ class MainWindow(QMainWindow):
         """Handle sort combo box selection changes.
 
         Applies sorting based on the selected option ("Sort by", "Created",
-        or "Modified"). Disables the header sort indicator when using the
-        combo-based sort.
+        "Modified", or "Saved first"). Disables the header sort indicator when
+        using the combo-based sort. Selecting any option other than "Saved
+        first" exits saved-first mode; selecting "Saved first" snapshots the
+        currently active criterion as the secondary sort key and places
+        manually saved links before dynamic ones.
 
         Args:
             text: The currently selected sort option text.
         """
         if text == "Sort by":
+            if self._saved_first_active:
+                # Leaving saved-first drops the grouping; re-apply the base
+                # criterion as a normal sort so later automatic re-sorts stay
+                # consistent.
+                self._saved_first_active = False
+                self._proxy_model.set_saved_first(False)
+                self._proxy_model.setSortRole(self._current_sort_role)
+                self._proxy_model.sort(
+                    self._current_sort_column, self._current_sort_order
+                )
             self._sorting_active = False
             self._header.setSortIndicatorShown(False)
             return
+
+        if text == "Saved first":
+            self._saved_first_active = True
+            self._sorting_active = False
+            self._header.setSortIndicatorShown(False)
+            # The proxy's own order is forced ascending because the secondary
+            # direction is baked into the composite comparator.
+            self._proxy_model.setSortRole(self._current_sort_role)
+            self._proxy_model.sort(
+                self._current_sort_column, Qt.SortOrder.AscendingOrder
+            )
+            self._proxy_model.set_saved_first(
+                True,
+                self._current_sort_column,
+                self._current_sort_role,
+                self._current_sort_order,
+            )
+            return
+
+        self._saved_first_active = False
+        self._proxy_model.set_saved_first(False)
 
         sort_column = LinkTableModel.COL_TITLE
 
@@ -945,6 +1021,7 @@ class MainWindow(QMainWindow):
 
         self._current_sort_column = sort_column
         self._current_sort_order = Qt.SortOrder.DescendingOrder
+        self._current_sort_role = Qt.ItemDataRole.UserRole + 2
 
         self._sorting_active = True
         self._header.setSortIndicatorShown(False)
@@ -964,6 +1041,7 @@ class MainWindow(QMainWindow):
         """
         if section == LinkTableModel.COL_TITLE:
             self._proxy_model.setSortRole(Qt.ItemDataRole.DisplayRole)
+            self._current_sort_role = Qt.ItemDataRole.DisplayRole
             if self._current_sort_column == LinkTableModel.COL_TITLE:
                 if self._current_sort_order == Qt.SortOrder.AscendingOrder:
                     self._current_sort_order = Qt.SortOrder.DescendingOrder
@@ -974,6 +1052,7 @@ class MainWindow(QMainWindow):
                 self._current_sort_order = Qt.SortOrder.AscendingOrder
         elif section == LinkTableModel.COL_TAGS:
             self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
+            self._current_sort_role = Qt.ItemDataRole.UserRole + 1
             if self._current_sort_column == LinkTableModel.COL_TAGS:
                 if self._current_sort_order == Qt.SortOrder.AscendingOrder:
                     self._current_sort_order = Qt.SortOrder.DescendingOrder
@@ -984,6 +1063,7 @@ class MainWindow(QMainWindow):
                 self._current_sort_order = Qt.SortOrder.DescendingOrder
         elif section == LinkTableModel.COL_LAST_ACCESSED:
             self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
+            self._current_sort_role = Qt.ItemDataRole.UserRole + 1
             if self._current_sort_column == LinkTableModel.COL_LAST_ACCESSED:
                 if self._current_sort_order == Qt.SortOrder.AscendingOrder:
                     self._current_sort_order = Qt.SortOrder.DescendingOrder
@@ -996,6 +1076,8 @@ class MainWindow(QMainWindow):
             return
 
         self._sorting_active = False
+        self._saved_first_active = False
+        self._proxy_model.set_saved_first(False)
         self._header.setSortIndicatorShown(True)
         self._header.setSortIndicator(
             self._current_sort_column, self._current_sort_order

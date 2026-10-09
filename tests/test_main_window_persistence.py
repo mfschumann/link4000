@@ -294,3 +294,125 @@ class TestRestoreOnStart:
         assert win._search_input.text() == "valid"
 
         win.deleteLater()
+
+
+class TestSavedFirstSortState:
+    """Tests for selecting, applying, and persisting the Saved first sort."""
+
+    def test_selecting_saved_first_snapshots_prior_sort(self, temp_config):
+        """Choosing Saved first keeps the prior sort as the secondary key."""
+        win = MainWindow()
+        win.show()
+
+        win._on_sort_changed("Created")
+        win._on_sort_changed("Saved first")
+
+        assert win._saved_first_active is True
+        assert win._sorting_active is False
+        assert win._proxy_model._saved_first_active is True
+        assert win._proxy_model._secondary_column == LinkTableModel.COL_TITLE
+        assert win._proxy_model._secondary_role == Qt.ItemDataRole.UserRole + 2
+        assert win._proxy_model._secondary_order == Qt.SortOrder.DescendingOrder
+
+        state = win._collect_ui_state()
+        assert state["saved_first"] is True
+        assert state["sort_role"] == "user2"
+
+        win.deleteLater()
+
+    def test_restore_saved_first(self, temp_config):
+        """Saved-first mode and its secondary key are restored on start."""
+        save_ui_state(
+            {
+                "search_text": "",
+                "selected_tags": [],
+                "match_mode": "OR",
+                "selected_types": [],
+                "sorting_active": False,
+                "sort_column": LinkTableModel.COL_LAST_ACCESSED,
+                "sort_order": "desc",
+                "saved_first": True,
+                "sort_role": "user1",
+            }
+        )
+
+        win = MainWindow()
+        win.show()
+
+        assert win._saved_first_active is True
+        assert win._proxy_model._saved_first_active is True
+        assert win._current_sort_column == LinkTableModel.COL_LAST_ACCESSED
+        assert win._current_sort_role == Qt.ItemDataRole.UserRole + 1
+        assert win._sort_combo.currentText() == "Saved first"
+
+        win.deleteLater()
+
+    def test_header_click_clears_saved_first(self, temp_config):
+        """Clicking a header replaces Saved first with a normal header sort."""
+        win = MainWindow()
+        win.show()
+
+        win._on_sort_changed("Saved first")
+        assert win._saved_first_active is True
+
+        win._on_header_clicked(LinkTableModel.COL_LAST_ACCESSED)
+
+        assert win._saved_first_active is False
+        assert win._proxy_model._saved_first_active is False
+
+        win.deleteLater()
+
+    def test_combo_sort_clears_saved_first(self, temp_config):
+        """Choosing another combo sort replaces Saved first."""
+        win = MainWindow()
+        win.show()
+
+        win._on_sort_changed("Saved first")
+        win._on_sort_changed("Modified")
+
+        assert win._saved_first_active is False
+        assert win._proxy_model._saved_first_active is False
+        assert win._current_sort_column == LinkTableModel.COL_TAGS
+
+        win.deleteLater()
+
+    def test_saved_first_places_saved_link_first(self, temp_config):
+        """Integration: a saved link sorts above a dynamic link."""
+        from datetime import datetime, timedelta
+        from link4000.data.link_store import LinkStore
+
+        base = datetime(2024, 1, 1, 12, 0, 0)
+        store = LinkStore()
+        store.add(
+            Link(
+                title="Saved",
+                url="https://saved.example.com",
+                id="saved1",
+                source_tag="",
+                last_accessed=base,
+            )
+        )
+
+        win = MainWindow()
+        win.show()
+
+        win._model.set_dynamic_links(
+            [
+                Link(
+                    title="Dynamic",
+                    url="https://dynamic.example.com",
+                    id="dyn1",
+                    source_tag="recent",
+                    last_accessed=base + timedelta(days=1),
+                )
+            ]
+        )
+        win._on_sort_changed("Saved first")
+
+        first_id = win._proxy_model.data(
+            win._proxy_model.index(0, LinkTableModel.COL_TITLE),
+            Qt.ItemDataRole.UserRole,
+        )
+        assert first_id == "saved1"
+
+        win.deleteLater()

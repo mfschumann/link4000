@@ -10,6 +10,7 @@ from pathlib import Path
 from link4000.utils.config import get_links_file_path
 from link4000.utils.enums import TagMatchMode
 from link4000.models.link_model import LinkTableModel
+from PySide6.QtCore import Qt
 
 _logger = logging.getLogger(__name__)
 
@@ -27,6 +28,46 @@ _SORT_COLUMN_STRINGS = {
     "Tags": LinkTableModel.COL_TAGS,
     "Last Accessed": LinkTableModel.COL_LAST_ACCESSED,
 }
+
+# Serialized representations of the Qt sort roles used by the sort combo and
+# the table header. Persisting the role (and not just the column) keeps the
+# "saved first" secondary criterion and the combo/header distinction lossless
+# across restarts.
+_SORT_ROLE_STRINGS = {
+    "display": Qt.ItemDataRole.DisplayRole,
+    "user1": Qt.ItemDataRole.UserRole + 1,
+    "user2": Qt.ItemDataRole.UserRole + 2,
+}
+
+_SORT_ROLE_TO_STRING = {value: key for key, value in _SORT_ROLE_STRINGS.items()}
+
+
+def sort_role_to_string(role: int) -> str | None:
+    """Return the serialized name of a Qt sort role.
+
+    Args:
+        role: A Qt item role value used for sorting.
+
+    Returns:
+        The persisted string for the role, or None if it is not one of the
+        known sort roles.
+    """
+    return _SORT_ROLE_TO_STRING.get(role)
+
+
+def sort_role_from_string(value: object) -> int | None:
+    """Resolve a persisted sort role name back to its Qt role value.
+
+    Args:
+        value: The persisted value (expected to be a known role string).
+
+    Returns:
+        The Qt role value, or None when the value is unknown or not a string.
+    """
+    if not isinstance(value, str):
+        return None
+    return _SORT_ROLE_STRINGS.get(value)
+
 
 
 def get_ui_state_file_path() -> str:
@@ -52,7 +93,8 @@ def load_ui_state() -> dict:
     Returns:
         Dict with keys ``search_text``, ``selected_tags``, ``match_mode``,
         ``selected_types``, ``sorting_active``, ``sort_column``,
-        ``sort_order``, or ``{}`` if nothing could be loaded.
+        ``sort_order``, ``saved_first``, ``sort_role``, or ``{}`` if nothing
+        could be loaded.
     """
     path = get_ui_state_file_path()
     if not os.path.exists(path):
