@@ -204,7 +204,9 @@ class AddLinkDialog(QDialog):
 
         Normalizes path separators on Windows, resolves .lnk shortcut files
         to their targets (converting network drive paths to UNC), and
-        auto-fills the title if the user has not set it manually.
+        auto-fills the title if the user has not set it manually. In edit
+        mode the existing title is never overwritten, matching the behavior
+        of typing the path directly.
 
         Args:
             path: The file or folder path selected by the user.
@@ -225,7 +227,7 @@ class AddLinkDialog(QDialog):
 
         resolved = resolve_unc_path(PurePath(path))
         self._url_input.setText(str(resolved))
-        if not self._title_manually_set:
+        if not self._title_manually_set and not self._is_edit:
             # Use PureWindowsPath to extract the basename because .lnk targets
             # are always Windows-style paths (backslash separators). On Linux,
             # PurePath would create a PurePosixPath that treats backslashes as

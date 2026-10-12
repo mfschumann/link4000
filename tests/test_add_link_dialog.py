@@ -262,6 +262,29 @@ class TestAddLinkDialogEditMode:
         dlg._url_input.setText("/new/path/file.txt")
         assert dlg._title_input.text() == "Custom Title"
 
+    @patch("link4000.ui.add_link_dialog.resolve_unc_path", side_effect=lambda p: p)
+    def test_browse_does_not_overwrite_title_in_edit_mode(self, mock_unc):
+        """Browsing for a path while editing keeps the existing title.
+
+        Selecting a file through the browse dialog must behave like typing
+        the path directly: the existing (possibly non-filename) title is
+        preserved rather than overwritten with the file's basename.
+        """
+        link = Link(title="Custom Title", url="https://old.com")
+        dlg = AddLinkDialog(link=link)
+        dlg._set_path("/new/path/file.txt")
+        # resolve_unc_path is mocked to return its input, so the stored URL is
+        # the platform's normalized form of the path (backslashes on Windows).
+        assert dlg._url_input.text() == str(PurePath("/new/path/file.txt"))
+        assert dlg._title_input.text() == "Custom Title"
+
+    @patch("link4000.ui.add_link_dialog.resolve_unc_path", side_effect=lambda p: p)
+    def test_browse_auto_fills_title_in_add_mode(self, mock_unc):
+        """Browsing for a path in add mode still auto-fills the title."""
+        dlg = AddLinkDialog()
+        dlg._set_path("/new/path/file.txt")
+        assert dlg._title_input.text() == "file.txt"
+
 
 class TestAddLinkDialogFileUrlConversion:
     """Tests for file:// URL to path conversion in the add/edit dialog."""
