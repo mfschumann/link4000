@@ -273,7 +273,9 @@ class TestAddLinkDialogEditMode:
         link = Link(title="Custom Title", url="https://old.com")
         dlg = AddLinkDialog(link=link)
         dlg._set_path("/new/path/file.txt")
-        assert dlg._url_input.text() == "/new/path/file.txt"
+        # resolve_unc_path is mocked to return its input, so the stored URL is
+        # the platform's normalized form of the path (backslashes on Windows).
+        assert dlg._url_input.text() == str(PurePath("/new/path/file.txt"))
         assert dlg._title_input.text() == "Custom Title"
 
     @patch("link4000.ui.add_link_dialog.resolve_unc_path", side_effect=lambda p: p)
