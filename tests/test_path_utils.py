@@ -10,6 +10,7 @@ from link4000.utils.path_utils import (
     get_link_type,
     get_file_extension,
     get_sharepoint_filename,
+    get_sharepoint_parent_url,
     to_office_uri,
     resolve_unc_path,
     resolve_lnk,
@@ -598,3 +599,81 @@ class TestMatchesExclusionPattern:
         """Test that empty input returns False."""
         mock_get_patterns.return_value = ["*"]
         assert matches_exclusion_pattern("") is False
+
+
+class TestGetSharepointParentUrl:
+    """Tests for get_sharepoint_parent_url function."""
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_file_url_parent(self, mock_sp):
+        """A normal SharePoint file URL returns its containing folder."""
+        url = "https://t.sharepoint.com/sites/S/Lib/Folder/File.docx"
+        assert (
+            get_sharepoint_parent_url(url)
+            == "https://t.sharepoint.com/sites/S/Lib/Folder"
+        )
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_nested_folder_parent(self, mock_sp):
+        """A nested SharePoint folder URL returns its parent folder."""
+        url = "https://t.sharepoint.com/sites/S/Lib/Folder/Subfolder"
+        assert (
+            get_sharepoint_parent_url(url)
+            == "https://t.sharepoint.com/sites/S/Lib/Folder"
+        )
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_trailing_slash(self, mock_sp):
+        """A trailing slash does not change the derived parent."""
+        url = "https://t.sharepoint.com/sites/S/Lib/Folder/"
+        assert (
+            get_sharepoint_parent_url(url)
+            == "https://t.sharepoint.com/sites/S/Lib"
+        )
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_query_and_fragment_removed(self, mock_sp):
+        """Query and fragment components are dropped from the parent URL."""
+        url = "https://t.sharepoint.com/sites/S/Lib/Folder/File.docx?web=1#section"
+        assert (
+            get_sharepoint_parent_url(url)
+            == "https://t.sharepoint.com/sites/S/Lib/Folder"
+        )
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_percent_encoding_preserved(self, mock_sp):
+        """Percent-encoded path segments are preserved in the parent URL."""
+        url = "https://t.sharepoint.com/sites/S/Lib/My%20Folder/File.docx"
+        assert (
+            get_sharepoint_parent_url(url)
+            == "https://t.sharepoint.com/sites/S/Lib/My%20Folder"
+        )
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_share_token_returns_none(self, mock_sp):
+        """Share-token URLs have no meaningful parent folder."""
+        url = "https://t-my.sharepoint.com/:x:/p/user/ID"
+        assert get_sharepoint_parent_url(url) is None
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_doc_aspx_returns_none(self, mock_sp):
+        """Doc.aspx URLs are not path-based and have no meaningful parent."""
+        url = (
+            "https://t.sharepoint.com/sites/S/Lib/_layouts/15/Doc.aspx"
+            "?file=Folder%2FFile.docx"
+        )
+        assert get_sharepoint_parent_url(url) is None
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=False)
+    def test_non_sharepoint_url_returns_none(self, mock_sp):
+        """Non-SharePoint URLs are ignored."""
+        assert get_sharepoint_parent_url("https://example.com/a/b/c") is None
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_short_paths_return_none(self, mock_sp):
+        """Site roots, library roots, and shallower paths have no parent action."""
+        assert get_sharepoint_parent_url("https://t.sharepoint.com/sites") is None
+        assert get_sharepoint_parent_url("https://t.sharepoint.com/sites/S") is None
+        assert (
+            get_sharepoint_parent_url("https://t.sharepoint.com/sites/S/Lib") is None
+        )

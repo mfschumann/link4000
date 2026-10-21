@@ -20,6 +20,7 @@ from link4000.utils.path_utils import (
     to_office_uri,
     resolve_unc_path,
     matches_exclusion_pattern,
+    get_sharepoint_parent_url,
 )
 from link4000.models.link import Link
 from link4000.utils.enums import TagMatchMode
@@ -1457,6 +1458,28 @@ class MainWindow(QMainWindow):
             clipboard.setText(parent)
             self._status_bar.showMessage(f"Copied: {parent}", 2000)
 
+    @staticmethod
+    def _open_parent_url(parent_url: str) -> None:
+        """Open a SharePoint parent folder URL in the default browser.
+
+        Args:
+            parent_url: The parent folder URL to open.
+        """
+        try:
+            webbrowser.open(parent_url)
+        except Exception:
+            _logger.exception("Failed to open parent URL %r", parent_url)
+
+    def _copy_parent_url(self, parent_url: str) -> None:
+        """Copy a SharePoint parent folder URL to the system clipboard.
+
+        Args:
+            parent_url: The parent folder URL to copy.
+        """
+        clipboard = QApplication.clipboard()
+        clipboard.setText(parent_url)
+        self._status_bar.showMessage(f"Copied: {parent_url}", 2000)
+
     def _get_selected_link(self) -> Link | None:
         """Retrieve the currently selected link from the table.
 
@@ -1496,10 +1519,6 @@ class MainWindow(QMainWindow):
     def _on_context_menu(self, pos: QPoint) -> None:
         """Show a context menu for the selected table items.
 
-        For a single selection, offers open, copy, edit, and delete actions
-        (with file-specific options for file paths). For multi-selection,
-        offers bulk add/remove tags and delete actions.
-
         Args:
             pos: The QPoint position where the context menu was requested.
         """
@@ -1507,10 +1526,27 @@ class MainWindow(QMainWindow):
         if not selected_links:
             return
 
+        menu = self._build_context_menu(selected_links)
+        menu.exec(self._table_view.viewport().mapToGlobal(pos))
+
+    def _build_context_menu(self, selected_links: list[Link]) -> QMenu:
+        """Build the context menu for the selected links.
+
+        For a single selection, offers open, copy, edit, and delete actions
+        (with file-specific and SharePoint-specific parent actions). For
+        multi-selection, offers bulk add/remove tags and delete actions.
+
+        Args:
+            selected_links: The Link objects currently selected in the table.
+
+        Returns:
+            The populated context menu.
+        """
         menu = QMenu(self)
 
         if len(selected_links) == 1:
             link = selected_links[0]
+            parent_url = get_sharepoint_parent_url(link.url)
             open_label = "Open Path" if is_file_path(link.url) else "Open URL"
             open_action = QAction(open_label, self)
             if link.source_tag:
@@ -1536,9 +1572,23 @@ class MainWindow(QMainWindow):
                 )
                 menu.addAction(copy_parent_action)
             else:
+                if parent_url:
+                    open_parent_action = QAction("Open Parent Folder", self)
+                    open_parent_action.triggered.connect(
+                        lambda: self._open_parent_url(parent_url)
+                    )
+                    menu.addAction(open_parent_action)
+
                 copy_url_action = QAction("Copy URL", self)
                 copy_url_action.triggered.connect(lambda: self._copy_url(link))
                 menu.addAction(copy_url_action)
+
+                if parent_url:
+                    copy_parent_action = QAction("Copy Parent Folder", self)
+                    copy_parent_action.triggered.connect(
+                        lambda: self._copy_parent_url(parent_url)
+                    )
+                    menu.addAction(copy_parent_action)
 
             edit_action = QAction("Edit", self)
             if link.source_tag:
@@ -1566,7 +1616,7 @@ class MainWindow(QMainWindow):
         delete_action.triggered.connect(lambda: self._bulk_delete(selected_links))
         menu.addAction(delete_action)
 
-        menu.exec(self._table_view.viewport().mapToGlobal(pos))
+        return menu
 
     def _bulk_add_tags(self, links: list[Link]) -> None:
         """Add tags to multiple links at once.

@@ -8,6 +8,7 @@
 - UX: what buttons do we need in the main list?
 
 ## DONE
+- add "Open Parent Folder" and "Copy Parent Folder" context-menu actions for normal path-based SharePoint URLs at folder/library-content depth (excluding share-token and Doc.aspx URLs)
 - stop the browse ("…") button from overwriting an existing link's title in the Edit dialog; selecting a file path now leaves the title untouched, matching direct path entry
 - add a "Saved first" sort option that places manually saved links above dynamic ones, keeping the previously active sort criterion as the secondary key (persisted via `ui_state.json` alongside `sort_role`)
 - include the `#:schema` directive in the output of `--show-config`/`--show-default-config` (previously only the generated config.toml had it) via a shared `CONFIG_SCHEMA_URL` constant
