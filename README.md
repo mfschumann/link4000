@@ -17,6 +17,8 @@ Link4000 allows you to:
 - Open SharePoint Office documents in the native Office app on Windows; share
   links without a file extension (`/:x:/`, `/:w:/`, `/:p:/`) are inferred as
   Excel, Word, or PowerPoint files
+- Open or copy the parent folder of normal path-based SharePoint URLs from the
+  context menu, just like folder paths and local files
 - Enter `file://` URLs (e.g. pasted from a browser) in the Add/Edit dialog;
   they are converted to plain, percent-decoded file paths when saved
   (`file:///home/u/My%20Doc/a.pdf` → `/home/u/My Doc/a.pdf`)

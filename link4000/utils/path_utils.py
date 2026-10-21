@@ -250,6 +250,46 @@ def get_sharepoint_filename(url: str) -> str:
     return filename
 
 
+def get_sharepoint_parent_url(url: str) -> str | None:
+    """
+    Return the parent folder URL for a path-based SharePoint URL.
+
+    Only normal path-based folders and files are supported. Site roots and
+    library roots (fewer than four non-empty path segments) return ``None``
+    because their parent is not a navigable folder. SharePoint share-token
+    URLs (``/:x:/p/user/ID``) and ``Doc.aspx`` URLs are also rejected.
+
+    Query and fragment components are dropped from the returned URL. Path
+    segments keep their original percent-encoding.
+
+    Args:
+        url: The URL to inspect.
+
+    Returns:
+        The parent folder URL, or ``None`` if *url* is not a supported
+        SharePoint URL or has no meaningful parent.
+    """
+    if not is_sharepoint_url(url):
+        return None
+
+    parsed = urllib.parse.urlsplit(url)
+    decoded_path = urllib.parse.unquote(parsed.path)
+    if Path(decoded_path).name.lower() == "doc.aspx":
+        return None
+    if _get_share_token(url):
+        return None
+
+    path = parsed.path.rstrip("/")
+    segments = [segment for segment in path.split("/") if segment]
+    if len(segments) < 4:
+        return None
+
+    parent_path = "/" + "/".join(segments[:-1])
+    return urllib.parse.urlunsplit(
+        (parsed.scheme, parsed.netloc, parent_path, "", "")
+    )
+
+
 def get_office_scheme(extension: str) -> str | None:
     """
     Return the Office URI scheme prefix for the given file extension,
