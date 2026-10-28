@@ -290,6 +290,24 @@ class TestGetSharepointFilename:
         )
         assert result == ""
 
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_sharepoint_resolved_share_url_returns_filename(self, mock_sp):
+        """Tests that resolved share URLs (``/:x:/r/...``) expose their real filename."""
+        url = (
+            "https://company.sharepoint.com/:x:/r/Sites/12345/Sustaining/"
+            "Dokumente Projekt/10_Gewerk/04_KVP/261023_Ideen.xlsx"
+            "?d=wc6affdbe5fa740e38a10abf6d2408410&csf=1&web=1&e=HQlx2L"
+        )
+        assert get_sharepoint_filename(url) == "261023_Ideen.xlsx"
+
+    def test_sharepoint_path_url_with_encoded_folders_returns_filename(self):
+        """Tests that percent-encoded folder segments do not affect the filename."""
+        url = (
+            "https://company.sharepoint.com/Sites/202384/"
+            "Freigegebene%20Dokumente/Projekt/PM%C3%9C/Dokumentation.xlsm?web=1"
+        )
+        assert get_sharepoint_filename(url) == "Dokumentation.xlsm"
+
 
 class TestToOfficeUri:
     """Tests for to_office_uri function."""
@@ -654,6 +672,48 @@ class TestGetSharepointParentUrl:
         """Share-token URLs have no meaningful parent folder."""
         url = "https://t-my.sharepoint.com/:x:/p/user/ID"
         assert get_sharepoint_parent_url(url) is None
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_resolved_share_url_parent(self, mock_sp):
+        """Resolved share URLs (``/:x:/r/...``) keep the prefix and return the parent."""
+        url = (
+            "https://company.sharepoint.com/:x:/r/Sites/12345/Sustaining/"
+            "Dokumente Projekt/10_Gewerk/04_KVP/261023_Ideen.xlsx"
+            "?d=wc6affdbe5fa740e38a10abf6d2408410&csf=1&web=1&e=HQlx2L"
+        )
+        assert (
+            get_sharepoint_parent_url(url)
+            == "https://company.sharepoint.com/:x:/r/Sites/12345/Sustaining/"
+            "Dokumente Projekt/10_Gewerk/04_KVP"
+        )
+
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_resolved_share_site_and_library_roots_return_none(self, mock_sp):
+        """Resolved share site and library roots still have no parent action."""
+        assert (
+            get_sharepoint_parent_url(
+                "https://company.sharepoint.com/:x:/r/Sites/12345"
+            )
+            is None
+        )
+        assert (
+            get_sharepoint_parent_url(
+                "https://company.sharepoint.com/:x:/r/Sites/12345/Sustaining"
+            )
+            is None
+        )
+
+    def test_path_url_with_encoded_folders_parent(self):
+        """Percent-encoded folder segments are preserved in the parent URL."""
+        url = (
+            "https://company.sharepoint.com/Sites/202384/"
+            "Freigegebene%20Dokumente/Projekt/PM%C3%9C/Dokumentation.xlsm?web=1"
+        )
+        assert (
+            get_sharepoint_parent_url(url)
+            == "https://company.sharepoint.com/Sites/202384/"
+            "Freigegebene%20Dokumente/Projekt/PM%C3%9C"
+        )
 
     @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
     def test_doc_aspx_returns_none(self, mock_sp):

@@ -78,6 +78,16 @@ class TestAddLinkDialogAddMode:
         dlg = AddLinkDialog(url=url)
         assert dlg._title_input.text() == ""
 
+    def test_constructor_prefills_title_for_resolved_share_url(self):
+        """A resolved share URL (``/:x:/r/...``) prefills the real filename."""
+        url = (
+            "https://company.sharepoint.com/:x:/r/Sites/12345/Sustaining/"
+            "Dokumente Projekt/10_Gewerk/04_KVP/261023_Ideen.xlsx"
+            "?d=wc6affdbe5fa740e38a10abf6d2408410&csf=1&web=1&e=HQlx2L"
+        )
+        dlg = AddLinkDialog(url=url)
+        assert dlg._title_input.text() == "261023_Ideen.xlsx"
+
     def test_url_changed_auto_fills_title_from_sharepoint(self):
         """Typing a SharePoint Doc.aspx URL auto-fills the title when not manually set."""
         dlg = AddLinkDialog()

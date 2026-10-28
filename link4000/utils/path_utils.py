@@ -192,6 +192,21 @@ def _get_share_token(url: str) -> str:
     return match.group(1).lower() if match else ""
 
 
+def _has_resolved_share_path(url: str) -> bool:
+    """
+    Return True for share URLs that contain a real, resolved folder path.
+
+    Modern SharePoint links use the form ``/:x:/r/sites/.../file.xlsx`` for
+    files reached through a real path.  Unlike opaque share links such as
+    ``/:x:/p/user/ID`` or ``/:x:/g/personal/user/ID``, the resolved form embeds
+    the actual site, folder, and file names, so filename and parent-folder
+    extraction work on it.
+    """
+    parsed = urllib.parse.urlparse(url)
+    path = urllib.parse.unquote(parsed.path)
+    return bool(re.match(r"^/:[A-Za-z]:/r(?:/|$)", path, re.IGNORECASE))
+
+
 def get_sharepoint_file_extension(url: str) -> str:
     """
     Extract the file extension from a SharePoint URL.
@@ -226,8 +241,10 @@ def get_sharepoint_filename(url: str) -> str:
     For normal SharePoint file URLs the filename is the basename of the URL path.
     For SharePoint "Doc.aspx" URLs (e.g. ``_layouts/15/Doc.aspx?file=...``),
     the filename is taken from the ``file`` query parameter instead.
-    For SharePoint share URLs (e.g. ``/:x:/p/user/ID``) the last path segment is
-    an opaque share ID rather than a filename, so an empty string is returned.
+    For resolved share URLs (e.g. ``/:x:/r/sites/.../file.xlsx``) the embedded
+    path is used.  For opaque share URLs (e.g. ``/:x:/p/user/ID``) the last path
+    segment is an opaque share ID rather than a filename, so an empty string is
+    returned.
     Returns the filename or empty string if none could be determined.
     """
     if not is_sharepoint_url(url):
@@ -242,8 +259,9 @@ def get_sharepoint_filename(url: str) -> str:
         if file_param:
             return Path(file_param).name
 
-    # Share-token URLs contain an opaque ID, not a real filename.
-    if _get_share_token(url):
+    # Opaque share-token URLs contain an opaque ID, not a real filename.
+    # Resolved share URLs (``/:x:/r/...``) do contain the real path.
+    if _get_share_token(url) and not _has_resolved_share_path(url):
         return ""
 
     filename = path.rsplit("/", 1)[-1] if "/" in path else path
@@ -255,9 +273,11 @@ def get_sharepoint_parent_url(url: str) -> str | None:
     Return the parent folder URL for a path-based SharePoint URL.
 
     Only normal path-based folders and files are supported. Site roots and
-    library roots (fewer than four non-empty path segments) return ``None``
-    because their parent is not a navigable folder. SharePoint share-token
-    URLs (``/:x:/p/user/ID``) and ``Doc.aspx`` URLs are also rejected.
+    library roots (fewer than four non-empty path segments after any resolved
+    share prefix) return ``None`` because their parent is not a navigable
+    folder. Opaque SharePoint share-token URLs (``/:x:/p/user/ID``) and
+    ``Doc.aspx`` URLs are rejected. Resolved share URLs
+    (``/:x:/r/sites/...``) contain a real path and are supported.
 
     Query and fragment components are dropped from the returned URL. Path
     segments keep their original percent-encoding.
@@ -276,12 +296,17 @@ def get_sharepoint_parent_url(url: str) -> str | None:
     decoded_path = urllib.parse.unquote(parsed.path)
     if Path(decoded_path).name.lower() == "doc.aspx":
         return None
-    if _get_share_token(url):
+
+    resolved_share = _has_resolved_share_path(url)
+    if _get_share_token(url) and not resolved_share:
         return None
 
     path = parsed.path.rstrip("/")
     segments = [segment for segment in path.split("/") if segment]
-    if len(segments) < 4:
+    # A resolved share URL adds two segments (``:x:`` and ``r``) in front of
+    # the real path, so ignore them when applying the normal depth rule.
+    prefix_segments = 2 if resolved_share else 0
+    if len(segments) - prefix_segments < 4:
         return None
 
     parent_path = "/" + "/".join(segments[:-1])
