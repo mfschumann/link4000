@@ -75,6 +75,39 @@ class TestSharePointParentContextMenu:
             win.close()
             win.deleteLater()
 
+    def test_sharepoint_path_url_with_encoded_folders_has_parent_actions(
+        self, temp_config
+    ):
+        """A percent-encoded path-based SharePoint file gets parent actions."""
+        win = MainWindow()
+        try:
+            texts = _menu_action_texts(
+                win,
+                "https://company.sharepoint.com/Sites/202384/"
+                "Freigegebene%20Dokumente/Projekt/PM%C3%9C/Dokumentation.xlsm?web=1",
+            )
+            assert "Open Parent Folder" in texts
+            assert "Copy Parent Folder" in texts
+        finally:
+            win.close()
+            win.deleteLater()
+
+    def test_sharepoint_resolved_share_url_has_parent_actions(self, temp_config):
+        """A resolved share URL (``/:x:/r/...``) gets parent actions."""
+        win = MainWindow()
+        try:
+            texts = _menu_action_texts(
+                win,
+                "https://company.sharepoint.com/:x:/r/Sites/12345/Sustaining/"
+                "Dokumente Projekt/10_Gewerk/04_KVP/261023_Ideen.xlsx"
+                "?d=wc6affdbe5fa740e38a10abf6d2408410&csf=1&web=1&e=HQlx2L",
+            )
+            assert "Open Parent Folder" in texts
+            assert "Copy Parent Folder" in texts
+        finally:
+            win.close()
+            win.deleteLater()
+
     def test_sharepoint_site_and_library_roots_have_no_parent_actions(
         self, temp_config
     ):
