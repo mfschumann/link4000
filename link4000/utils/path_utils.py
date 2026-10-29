@@ -24,6 +24,30 @@ _OFFICE_SCHEMES = {
     ".accdb": "ms-access:ofv|u|",
     ".mpp": "ms-project:ofv|u|",
     ".pub": "ms-publisher:ofv|u|",
+    # Macro-enabled and binary document formats
+    ".docm": "ms-word:ofv|u|",
+    ".xlsm": "ms-excel:ofv|u|",
+    ".xlsb": "ms-excel:ofv|u|",
+    ".pptm": "ms-powerpoint:ofv|u|",
+    ".ppsx": "ms-powerpoint:ofv|u|",
+    ".ppsm": "ms-powerpoint:ofv|u|",
+    ".vsd": "ms-visio:ofv|u|",
+    ".vsdm": "ms-visio:ofv|u|",
+    ".mdb": "ms-access:ofv|u|",
+    ".accde": "ms-access:ofv|u|",
+    ".accdr": "ms-access:ofv|u|",
+    # Template formats
+    ".dot": "ms-word:ofv|u|",
+    ".dotx": "ms-word:ofv|u|",
+    ".dotm": "ms-word:ofv|u|",
+    ".xlt": "ms-excel:ofv|u|",
+    ".xltx": "ms-excel:ofv|u|",
+    ".xltm": "ms-excel:ofv|u|",
+    ".pot": "ms-powerpoint:ofv|u|",
+    ".potx": "ms-powerpoint:ofv|u|",
+    ".potm": "ms-powerpoint:ofv|u|",
+    ".mpt": "ms-project:ofv|u|",
+    ".accdt": "ms-access:ofv|u|",
 }
 
 # SharePoint share-token path segment -> assumed Office file extension.
