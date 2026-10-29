@@ -751,9 +751,10 @@ class MainWindow(QMainWindow):
     def _load_links(self) -> None:
         """Load all stored links into the table model and refresh the UI.
 
-        Retrieves all links from the store, populates the tag set, applies the
-        default sort order (last accessed, descending), updates the status bar,
-        and schedules asynchronous loading of dynamic source entries.
+        Retrieves all links from the store, populates the tag set, keeps the
+        current sort selection (falling back to last accessed, descending on
+        the first load), updates the status bar, and schedules asynchronous
+        loading of dynamic source entries.
         """
         self._status_bar.showMessage("Loading stored links...")
         stored = self._store.get_all()
@@ -772,18 +773,18 @@ class MainWindow(QMainWindow):
             if source_name in registered:
                 self._all_tags.add(registered[source_name].source_tag)
 
-        self._saved_first_active = False
-        self._proxy_model.set_saved_first(False)
-        self._proxy_model.setSortRole(Qt.ItemDataRole.UserRole + 1)
-        self._proxy_model.sort(
-            LinkTableModel.COL_LAST_ACCESSED, Qt.SortOrder.DescendingOrder
-        )
-        self._header.setSortIndicator(
-            LinkTableModel.COL_LAST_ACCESSED, Qt.SortOrder.DescendingOrder
-        )
-        self._current_sort_column = LinkTableModel.COL_LAST_ACCESSED
-        self._current_sort_order = Qt.SortOrder.DescendingOrder
-        self._current_sort_role = Qt.ItemDataRole.UserRole + 1
+        if self._current_sort_column is None:
+            # First load (before _restore_ui_state runs): use the default.
+            self._current_sort_column = LinkTableModel.COL_LAST_ACCESSED
+            self._current_sort_order = Qt.SortOrder.DescendingOrder
+            self._current_sort_role = Qt.ItemDataRole.UserRole + 1
+            self._sorting_active = False
+            self._saved_first_active = False
+        # Later reloads keep the user's sort selection. Resetting only the
+        # model sort here would leave the combo box out of sync and make the
+        # persisted sort state inconsistent (so the selection was lost after
+        # a restart).
+        self._apply_current_sort()
         self._update_status()
 
         self._excluded_urls_lower = {
@@ -795,6 +796,41 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, self._load_dynamic_sources)
 
         self._ensure_auto_reload_timer_running()
+
+    def _apply_current_sort(self) -> None:
+        """Apply the current sort state to the proxy model and header.
+
+        Used after reloading links so the table keeps the active sort instead
+        of silently falling back to the default while the sort combo box still
+        shows the user's selection.
+        """
+        self._proxy_model.set_saved_first(False)
+        self._proxy_model.setSortRole(self._current_sort_role)
+
+        if self._saved_first_active:
+            # The proxy's own order is forced ascending because the secondary
+            # direction is baked into the composite comparator.
+            self._proxy_model.sort(
+                self._current_sort_column, Qt.SortOrder.AscendingOrder
+            )
+            self._proxy_model.set_saved_first(
+                True,
+                self._current_sort_column,
+                self._current_sort_role,
+                self._current_sort_order,
+            )
+            self._header.setSortIndicatorShown(False)
+        else:
+            self._proxy_model.sort(
+                self._current_sort_column, self._current_sort_order
+            )
+            if self._sorting_active:
+                self._header.setSortIndicatorShown(False)
+            else:
+                self._header.setSortIndicatorShown(True)
+                self._header.setSortIndicator(
+                    self._current_sort_column, self._current_sort_order
+                )
 
     def _load_dynamic_sources(self) -> None:
         """Fetch entries from all enabled dynamic sources.
