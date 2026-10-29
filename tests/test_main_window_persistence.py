@@ -298,6 +298,63 @@ class TestRestoreOnStart:
         win.deleteLater()
 
 
+class TestSortSelectionSurvivesReload:
+    """Reloading links must not silently drop the selected sort option."""
+
+    def test_reload_preserves_combo_sort(self, temp_config):
+        """A reload keeps the combo-based sort and its model sort column."""
+        win = MainWindow()
+        win.show()
+
+        win._sort_combo.setCurrentText("Created")
+        win._load_links()
+
+        assert win._sort_combo.currentText() == "Created"
+        assert win._sorting_active is True
+        assert win._current_sort_column == LinkTableModel.COL_TITLE
+        assert win._proxy_model.sortColumn() == LinkTableModel.COL_TITLE
+
+        win.deleteLater()
+
+    def test_reload_preserves_saved_first(self, temp_config):
+        """A reload keeps the Saved first sort active."""
+        win = MainWindow()
+        win.show()
+
+        win._sort_combo.setCurrentText("Saved first")
+        win._load_links()
+
+        assert win._sort_combo.currentText() == "Saved first"
+        assert win._saved_first_active is True
+        assert win._proxy_model._saved_first_active is True
+
+        win.deleteLater()
+
+    def test_combo_sort_restored_after_reload_and_restart(self, temp_config):
+        """Sort picked before a reload is still restored after a restart."""
+        from PySide6.QtGui import QCloseEvent
+
+        win = MainWindow()
+        win.show()
+
+        win._sort_combo.setCurrentText("Modified")
+        win._load_links()
+
+        event = QCloseEvent()
+        win.closeEvent(event)
+        assert event.isAccepted()
+        win.deleteLater()
+
+        win2 = MainWindow()
+        win2.show()
+
+        assert win2._sort_combo.currentText() == "Modified"
+        assert win2._sorting_active is True
+        assert win2._current_sort_column == LinkTableModel.COL_TAGS
+
+        win2.deleteLater()
+
+
 class TestSavedFirstSortState:
     """Tests for selecting, applying, and persisting the Saved first sort."""
 
