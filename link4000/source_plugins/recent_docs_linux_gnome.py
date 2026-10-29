@@ -7,14 +7,19 @@ located at ~/.local/share/recently-used.xbel.
 
 from __future__ import annotations
 
+import logging
 import sys
 import urllib.parse
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
+from typing import ClassVar
 
-from link4000.data.loader_types import SourceEntry
 from link4000.data.link_source import LinkSource
+from link4000.data.loader_types import SourceEntry
 from link4000.data.source_registry import SourceRegistry
+
+logger = logging.getLogger(__name__)
 
 
 @SourceRegistry.register
@@ -26,7 +31,7 @@ class RecentDocsLinuxGnomeSource(LinkSource):
 
     name = "recent_linux_gnome"
     source_tag = "recent"
-    config_schema = [
+    config_schema: ClassVar[list[tuple[str, type, object, str]]] = [
         ("max_age_days", int, 0, "Maximum age in days for recent items (0 = no limit)"),
     ]
 
@@ -49,9 +54,7 @@ class RecentDocsLinuxGnomeSource(LinkSource):
         entries: list[SourceEntry] = []
 
         try:
-            import xml.etree.ElementTree as elmTree
-
-            tree = elmTree.parse(self._xbel_path)
+            tree = ET.parse(self._xbel_path)
             root = tree.getroot()
             if root is None:
                 return []
@@ -84,7 +87,7 @@ class RecentDocsLinuxGnomeSource(LinkSource):
                     normalized = raw.replace("Z", "+00:00")
                     try:
                         return datetime.fromisoformat(normalized).replace(tzinfo=None)
-                    except Exception:
+                    except (ValueError, TypeError):
                         return None
 
                 created_at = parse_ts(raw_added)
@@ -111,7 +114,7 @@ class RecentDocsLinuxGnomeSource(LinkSource):
                         last_accessed = datetime.fromtimestamp(
                             Path(url).stat().st_mtime
                         )
-                    except Exception:
+                    except OSError:
                         last_accessed = now
 
                 entries.append(
@@ -124,8 +127,8 @@ class RecentDocsLinuxGnomeSource(LinkSource):
                         source_tag=self.source_tag,
                     )
                 )
-        except Exception:
-            pass
+        except (ET.ParseError, OSError) as exc:
+            logger.warning("Could not read GNOME recent files: %s", exc)
 
         entries.sort(key=lambda e: e.last_accessed, reverse=True)
 

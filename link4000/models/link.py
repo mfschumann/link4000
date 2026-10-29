@@ -3,11 +3,12 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
 
 from link4000.utils.path_utils import (
-    get_link_type as _get_link_type,
     get_file_extension as _get_file_extension,
+)
+from link4000.utils.path_utils import (
+    get_link_type as _get_link_type,
 )
 
 
@@ -30,16 +31,16 @@ class Link:
 
     title: str
     url: str
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     description: str = field(default="")
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     last_accessed: datetime = field(default_factory=datetime.now)
     source_tag: str = field(default="")
-    _cached_link_type: Optional[str] = field(default=None, repr=False)
-    _cached_file_extension: Optional[str] = field(default=None, repr=False)
-    _search_blob: Optional[str] = field(default=None, repr=False)
+    _cached_link_type: str | None = field(default=None, repr=False)
+    _cached_file_extension: str | None = field(default=None, repr=False)
+    _search_blob: str | None = field(default=None, repr=False)
 
     @property
     def link_type(self) -> str:

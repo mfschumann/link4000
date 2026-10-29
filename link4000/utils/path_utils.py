@@ -5,12 +5,11 @@ import re
 import sys
 import urllib.parse
 from pathlib import Path, PurePath, PureWindowsPath
-from typing import Optional
 
 from link4000.utils.config import get_exclusion_patterns, get_sharepoint_patterns
 
 # Module-level cache: drive letter (uppercase) -> UNC root, or None if local/unknown
-_drive_unc_cache: dict[str, Optional[str]] = {}
+_drive_unc_cache: dict[str, str | None] = {}
 
 # Office URI scheme mapping: extension -> scheme prefix
 _OFFICE_SCHEMES = {
@@ -24,6 +23,30 @@ _OFFICE_SCHEMES = {
     ".accdb": "ms-access:ofv|u|",
     ".mpp": "ms-project:ofv|u|",
     ".pub": "ms-publisher:ofv|u|",
+    # Macro-enabled and binary document formats
+    ".docm": "ms-word:ofv|u|",
+    ".xlsm": "ms-excel:ofv|u|",
+    ".xlsb": "ms-excel:ofv|u|",
+    ".pptm": "ms-powerpoint:ofv|u|",
+    ".ppsx": "ms-powerpoint:ofv|u|",
+    ".ppsm": "ms-powerpoint:ofv|u|",
+    ".vsd": "ms-visio:ofv|u|",
+    ".vsdm": "ms-visio:ofv|u|",
+    ".mdb": "ms-access:ofv|u|",
+    ".accde": "ms-access:ofv|u|",
+    ".accdr": "ms-access:ofv|u|",
+    # Template formats
+    ".dot": "ms-word:ofv|u|",
+    ".dotx": "ms-word:ofv|u|",
+    ".dotm": "ms-word:ofv|u|",
+    ".xlt": "ms-excel:ofv|u|",
+    ".xltx": "ms-excel:ofv|u|",
+    ".xltm": "ms-excel:ofv|u|",
+    ".pot": "ms-powerpoint:ofv|u|",
+    ".potx": "ms-powerpoint:ofv|u|",
+    ".potm": "ms-powerpoint:ofv|u|",
+    ".mpt": "ms-project:ofv|u|",
+    ".accdt": "ms-access:ofv|u|",
 }
 
 # SharePoint share-token path segment -> assumed Office file extension.
@@ -57,12 +80,10 @@ def is_file_path(text: str) -> bool:
     if text.startswith("/"):
         return True
     # UNC path (forward- or back-slash variants)
-    if text.startswith("\\\\") or text.startswith("//"):
+    if text.startswith(("\\\\", "//")):
         return True
     # Windows drive-letter path
-    if re.match(r"^[A-Za-z]:[/\\]", text):
-        return True
-    return False
+    return bool(re.match(r"^[A-Za-z]:[/\\]", text))
 
 
 def file_url_to_path(file_url: str) -> str | None:
@@ -396,7 +417,7 @@ def resolve_lnk(lnk_path: PureWindowsPath) -> tuple[str, str]:
     """
     try:
         import win32com.client
-    except Exception as e:
+    except ImportError as e:
         print(f"resolve_lnk import error: {e}", file=sys.stderr)
         return "", ""
 
@@ -407,7 +428,7 @@ def resolve_lnk(lnk_path: PureWindowsPath) -> tuple[str, str]:
         title = shortcut.Description or lnk_path.stem
 
         return target, title
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - pywin32 raises platform-specific errors
         print(f"resolve_lnk({lnk_path.name}) exception: {e}", file=sys.stderr)
         return "", ""
 
@@ -470,7 +491,7 @@ def is_folder(url: str) -> bool:
     return False
 
 
-def _get_unc_for_drive(drive_letter: str) -> Optional[str]:
+def _get_unc_for_drive(drive_letter: str) -> str | None:
     """
     Call ``WNetGetConnectionW`` via *ctypes* to retrieve the UNC share name
     for a mapped drive letter (e.g. ``Z:`` → ``\\\\fileserver\\Finance``).
@@ -496,6 +517,6 @@ def _get_unc_for_drive(drive_letter: str) -> Optional[str]:
         if result == 0:  # NO_ERROR
             unc = buf.value
             return unc if unc else None
-    except Exception:
-        pass
+    except Exception:  # noqa: BLE001 - ctypes errors vary across Windows versions
+        return None
     return None

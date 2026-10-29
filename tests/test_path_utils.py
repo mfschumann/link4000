@@ -1,21 +1,22 @@
 """Unit tests for path utilities."""
-from pathlib import PureWindowsPath, PurePosixPath
-
-import pytest
+from pathlib import PurePosixPath, PureWindowsPath
 from unittest.mock import patch
 
+import pytest
+
 from link4000.utils.path_utils import (
-    is_url,
-    is_file_path,
-    get_link_type,
+    file_url_to_path,
     get_file_extension,
+    get_link_type,
+    get_office_scheme,
     get_sharepoint_filename,
     get_sharepoint_parent_url,
-    to_office_uri,
-    resolve_unc_path,
-    resolve_lnk,
+    is_file_path,
+    is_url,
     matches_exclusion_pattern,
-    file_url_to_path,
+    resolve_lnk,
+    resolve_unc_path,
+    to_office_uri,
 )
 
 
@@ -309,6 +310,49 @@ class TestGetSharepointFilename:
         assert get_sharepoint_filename(url) == "Dokumentation.xlsm"
 
 
+class TestGetOfficeScheme:
+    """Tests for get_office_scheme function."""
+
+    @pytest.mark.parametrize(
+        ("extension", "expected"),
+        [
+            (".docm", "ms-word:ofv|u|"),
+            (".xlsm", "ms-excel:ofv|u|"),
+            (".xlsb", "ms-excel:ofv|u|"),
+            (".pptm", "ms-powerpoint:ofv|u|"),
+            (".ppsx", "ms-powerpoint:ofv|u|"),
+            (".ppsm", "ms-powerpoint:ofv|u|"),
+            (".vsd", "ms-visio:ofv|u|"),
+            (".vsdm", "ms-visio:ofv|u|"),
+            (".mdb", "ms-access:ofv|u|"),
+            (".accde", "ms-access:ofv|u|"),
+            (".accdr", "ms-access:ofv|u|"),
+            (".dot", "ms-word:ofv|u|"),
+            (".dotx", "ms-word:ofv|u|"),
+            (".dotm", "ms-word:ofv|u|"),
+            (".xlt", "ms-excel:ofv|u|"),
+            (".xltx", "ms-excel:ofv|u|"),
+            (".xltm", "ms-excel:ofv|u|"),
+            (".pot", "ms-powerpoint:ofv|u|"),
+            (".potx", "ms-powerpoint:ofv|u|"),
+            (".potm", "ms-powerpoint:ofv|u|"),
+            (".mpt", "ms-project:ofv|u|"),
+            (".accdt", "ms-access:ofv|u|"),
+        ],
+    )
+    def test_new_extension_mappings(self, extension, expected):
+        """Tests that macro-enabled and template extensions map to their app."""
+        assert get_office_scheme(extension) == expected
+
+    def test_unknown_extension(self):
+        """Tests that an unknown extension returns None."""
+        assert get_office_scheme(".unknown") is None
+
+    def test_case_insensitive(self):
+        """Tests that extension lookup ignores case."""
+        assert get_office_scheme(".XLSM") == "ms-excel:ofv|u|"
+
+
 class TestToOfficeUri:
     """Tests for to_office_uri function."""
 
@@ -346,6 +390,14 @@ class TestToOfficeUri:
         url = "https://company-my.sharepoint.com/:p:/p/user/some_ID"
         result = to_office_uri(url)
         assert result == f"ms-powerpoint:ofv|u|{url}"
+
+    @patch("sys.platform", "win32")
+    @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)
+    def test_macro_enabled_excel_file(self, mock_sp):
+        """Tests that an .xlsm SharePoint file returns a ms-excel URI on Windows."""
+        url = "https://company.sharepoint.com/sites/doc.xlsm"
+        result = to_office_uri(url)
+        assert result == f"ms-excel:ofv|u|{url}"
 
     @patch("sys.platform", "win32")
     @patch("link4000.utils.path_utils.is_sharepoint_url", return_value=True)

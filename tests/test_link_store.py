@@ -1,8 +1,9 @@
 """Unit tests for the LinkStore."""
 
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
 
 from link4000.data.link_store import LinkStore
 from link4000.models.link import Link

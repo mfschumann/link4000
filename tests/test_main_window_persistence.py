@@ -2,15 +2,17 @@
 
 import json
 import os
+
 import pytest
 import tomli_w
 
 try:
     from PySide6.QtCore import Qt
+
     from link4000.models.link import Link
+    from link4000.models.link_model import LinkTableModel
     from link4000.ui.main_window import MainWindow
     from link4000.utils.enums import TagMatchMode
-    from link4000.models.link_model import LinkTableModel
     from link4000.utils.ui_state import (
         get_ui_state_file_path,
         save_ui_state,
@@ -379,6 +381,7 @@ class TestSavedFirstSortState:
     def test_saved_first_places_saved_link_first(self, temp_config):
         """Integration: a saved link sorts above a dynamic link."""
         from datetime import datetime, timedelta
+
         from link4000.data.link_store import LinkStore
 
         base = datetime(2024, 1, 1, 12, 0, 0)

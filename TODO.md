@@ -8,6 +8,7 @@
 - UX: what buttons do we need in the main list?
 
 ## DONE
+- expand the native-open Office extension map to macro-enabled/binary documents (`.docm`, `.xlsm`, `.xlsb`, `.pptm`, `.ppsx`, `.ppsm`, `.vsd`, `.vsdm`, `.mdb`, `.accde`, `.accdr`) and templates (`.dot/.dotx/.dotm`, `.xlt/.xltx/.xltm`, `.pot/.potx/.potm`, `.mpt`, `.accdt`)
 - extract the real filename and parent folder from resolved SharePoint share URLs (`/:x:/r/...`), so the title is prefilled and the parent-folder actions are available for them
 - add "Open Parent Folder" and "Copy Parent Folder" context-menu actions for normal path-based SharePoint URLs at folder/library-content depth (excluding share-token and Doc.aspx URLs)
 - stop the browse ("…") button from overwriting an existing link's title in the Edit dialog; selecting a file path now leaves the title untouched, matching direct path entry

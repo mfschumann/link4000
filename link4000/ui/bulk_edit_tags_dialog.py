@@ -5,17 +5,17 @@ to add to or remove from a set of previously selected link items. Includes
 auto-completion support based on existing tags.
 """
 
+from PySide6.QtCore import QStringListModel, Qt
 from PySide6.QtWidgets import (
+    QCompleter,
     QDialog,
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QCompleter,
+    QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import Qt, QStringListModel
 
 
 class BulkEditTagsDialog(QDialog):

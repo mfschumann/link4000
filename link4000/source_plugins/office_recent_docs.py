@@ -8,14 +8,14 @@ Works on Windows by reading the Office File MRU registry keys.
 
 from __future__ import annotations
 
-import sys
 import re
-from datetime import datetime, timedelta, timezone
+import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import PurePath
-from typing import Optional
+from typing import ClassVar
 
-from link4000.data.loader_types import SourceEntry
 from link4000.data.link_source import LinkSource
+from link4000.data.loader_types import SourceEntry
 from link4000.data.source_registry import SourceRegistry
 from link4000.utils.path_utils import resolve_unc_path
 
@@ -26,7 +26,7 @@ class OfficeRecentSource(LinkSource):
 
     name = "office_recent"
     source_tag = "office_recent"
-    config_schema = [
+    config_schema: ClassVar[list[tuple[str, type, object, str]]] = [
         ("max_age_days", int, 0, "Maximum age in days for recent items (0 = no limit)"),
     ]
 
@@ -56,7 +56,7 @@ class OfficeRecentSource(LinkSource):
 
         try:
             office_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, base_path)
-        except WindowsError:
+        except OSError:
             return entries
 
         try:
@@ -64,14 +64,14 @@ class OfficeRecentSource(LinkSource):
             while True:
                 try:
                     version = winreg.EnumKey(office_key, i)
-                except WindowsError:
+                except OSError:
                     break
                 i += 1
 
                 app_path = f"{base_path}\\{version}"
                 try:
                     app_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, app_path)
-                except WindowsError:
+                except OSError:
                     continue
 
                 try:
@@ -79,7 +79,7 @@ class OfficeRecentSource(LinkSource):
                     while True:
                         try:
                             app_name = winreg.EnumKey(app_key, j)
-                        except WindowsError:
+                        except OSError:
                             break
                         j += 1
 
@@ -103,7 +103,7 @@ class OfficeRecentSource(LinkSource):
 
         try:
             office_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, base_path)
-        except WindowsError:
+        except OSError:
             return entries
 
         try:
@@ -111,14 +111,14 @@ class OfficeRecentSource(LinkSource):
             while True:
                 try:
                     version = winreg.EnumKey(office_key, i)
-                except WindowsError:
+                except OSError:
                     break
                 i += 1
 
                 app_path = f"{base_path}\\{version}"
                 try:
                     app_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, app_path)
-                except WindowsError:
+                except OSError:
                     continue
 
                 try:
@@ -126,7 +126,7 @@ class OfficeRecentSource(LinkSource):
                     while True:
                         try:
                             app_name = winreg.EnumKey(app_key, j)
-                        except WindowsError:
+                        except OSError:
                             break
                         j += 1
 
@@ -149,7 +149,7 @@ class OfficeRecentSource(LinkSource):
 
         try:
             user_mru_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, user_mru_path)
-        except WindowsError:
+        except OSError:
             return entries
 
         try:
@@ -157,7 +157,7 @@ class OfficeRecentSource(LinkSource):
             while True:
                 try:
                     user = winreg.EnumKey(user_mru_key, i)
-                except WindowsError:
+                except OSError:
                     break
                 i += 1
 
@@ -177,7 +177,7 @@ class OfficeRecentSource(LinkSource):
 
         try:
             mru_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, mru_path)
-        except WindowsError:
+        except OSError:
             return entries
 
         try:
@@ -185,7 +185,7 @@ class OfficeRecentSource(LinkSource):
             while True:
                 try:
                     value, _ = winreg.QueryValueEx(mru_key, f"Item {i}")
-                except WindowsError:
+                except OSError:
                     break
                 i += 1
 
@@ -198,7 +198,7 @@ class OfficeRecentSource(LinkSource):
 
         return entries
 
-    def _parse_mru_value(self, value: str) -> Optional[SourceEntry]:
+    def _parse_mru_value(self, value: str) -> SourceEntry | None:
         r"""Parse Office MRU value like [F00000000][T01CDC2FCC3BD6990][O00000000]*C:\path\file.docx"""
         if not value or "*" not in value:
             return None
@@ -232,7 +232,7 @@ class OfficeRecentSource(LinkSource):
 
         filetime = int(hex_value, 16)
 
-        windows_epoch = datetime(1601, 1, 1, tzinfo=timezone.utc)
+        windows_epoch = datetime(1601, 1, 1, tzinfo=UTC)
         filetime_microseconds = filetime / 10
         dt = windows_epoch + timedelta(microseconds=filetime_microseconds)
 

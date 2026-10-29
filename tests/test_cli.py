@@ -1,8 +1,9 @@
 """Unit tests for CLI arguments."""
 
 import sys
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 try:
     if hasattr(__import__("sys"), "version_info") and sys.version_info >= (3, 11):
@@ -101,7 +102,8 @@ class TestConfigCliArg:
         # Write output to file and verify it's valid TOML
         config_file = tmp_path / "default_config.toml"
         config_file.write_text(output)
-        parsed = tomllib.load(open(config_file, "rb"))
+        with open(config_file, "rb") as f:
+            parsed = tomllib.load(f)
 
         # Check that we got expected sections
         assert "global" in parsed
@@ -111,8 +113,8 @@ class TestConfigCliArg:
 
     def test_show_config_with_user_overrides(self, tmp_path, capsys):
         """--show-config outputs valid TOML with user overrides when config file exists."""
-        from main import main
         from link4000.utils.config import set_config_path
+        from main import main
 
         # Create a temporary config with user overrides
         user_config = tmp_path / "user_config.toml"
@@ -145,7 +147,8 @@ max_age_days = 7
         # Write output to file and verify it's valid TOML
         config_file = tmp_path / "active_config.toml"
         config_file.write_text(output)
-        parsed = tomllib.load(open(config_file, "rb"))
+        with open(config_file, "rb") as f:
+            parsed = tomllib.load(f)
 
         # Check that user overrides are present
         assert parsed["global"]["tray_behavior"] == "normal"

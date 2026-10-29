@@ -11,9 +11,10 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path, PurePath, PureWindowsPath
+from typing import ClassVar
 
-from link4000.data.loader_types import SourceEntry
 from link4000.data.link_source import LinkSource
+from link4000.data.loader_types import SourceEntry
 from link4000.data.source_registry import SourceRegistry
 from link4000.utils.path_utils import resolve_lnk, resolve_unc_path
 
@@ -27,7 +28,7 @@ class RecentDocsWindowsSource(LinkSource):
 
     name = "recent_windows"
     source_tag = "recent"
-    config_schema = [
+    config_schema: ClassVar[list[tuple[str, type, object, str]]] = [
         ("max_age_days", int, 0, "Maximum age in days for recent items (0 = no limit)"),
     ]
 
@@ -61,7 +62,7 @@ class RecentDocsWindowsSource(LinkSource):
 
             try:
                 mtime = datetime.fromtimestamp(lnk_path.stat().st_mtime)
-            except Exception:
+            except OSError:
                 mtime = datetime.now()
 
             entries.append(

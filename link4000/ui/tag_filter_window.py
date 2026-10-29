@@ -6,26 +6,28 @@ matching for tags, live preview of the filter via signals, and restoring
 the original state on cancel or close.
 """
 
+from typing import ClassVar
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QCloseEvent, QColor, QFont
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
     QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QPushButton,
     QRadioButton,
-    QLabel,
+    QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui import QFont, QCloseEvent, QColor
 
 from link4000.data.source_registry import SourceRegistry
 from link4000.utils.config import (
+    EXTENSION_GROUP_PREFIX,
     get_color_for_link,
     get_extension_groups,
     get_theme,
-    EXTENSION_GROUP_PREFIX,
 )
 from link4000.utils.enums import TagMatchMode
 
@@ -54,7 +56,7 @@ class TagFilterWindow(QDialog):
     filter_preview = Signal(
         set, TagMatchMode, set
     )  # Preview filter as selection changes
-    _link_types = {"web", "folder", "file", "sharepoint", "unknown"}
+    _link_types: ClassVar[set[str]] = {"web", "folder", "file", "sharepoint", "unknown"}
 
     def _get_dynamic_tags(self) -> tuple[str, ...]:
         """Return unique source_tags from all registered source plugins.

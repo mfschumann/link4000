@@ -13,11 +13,12 @@ import logging
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import ClassVar
 
-from link4000.data.loader_types import SourceEntry
 from link4000.data.link_source import LinkSource
+from link4000.data.loader_types import SourceEntry
 from link4000.data.source_registry import SourceRegistry
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class EdgeFavoritesSource(LinkSource):
 
     name = "edge_favorites"
     source_tag = "edge_favorites"
-    config_schema = [
+    config_schema: ClassVar[list[tuple[str, type, object, str]]] = [
         (
             "folder_tags_enabled",
             bool,
@@ -83,7 +84,7 @@ class EdgeFavoritesSource(LinkSource):
             unix_timestamp = (microseconds / 1_000_000) - 11644473600
             # Convert UTC aware datetime to local naive datetime to match other sources
             return (
-                datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
+                datetime.fromtimestamp(unix_timestamp, tz=UTC)
                 .astimezone()
                 .replace(tzinfo=None)
             )

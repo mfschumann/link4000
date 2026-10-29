@@ -5,74 +5,76 @@ search/filter/sort controls, system tray integration, and context menu actions
 for managing stored, recent, and favorite links.
 """
 
-import os
-import sys
 import logging
+import os
 import subprocess
-import webbrowser
+import sys
 import threading
+import webbrowser
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path, PurePath
 
-from link4000.utils.path_utils import (
-    is_url,
-    is_file_path,
-    to_office_uri,
-    resolve_unc_path,
-    matches_exclusion_pattern,
-    get_sharepoint_parent_url,
-)
-from link4000.models.link import Link
-from link4000.utils.enums import TagMatchMode
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QTableView,
-    QLineEdit,
-    QPushButton,
-    QStatusBar,
-    QMenu,
-    QMessageBox,
-    QHeaderView,
-    QSystemTrayIcon,
-    QItemDelegate,
-    QApplication,
-    QComboBox,
-    QStyleOptionViewItem,
-    QFileDialog,
-)
 from PySide6.QtCore import (
-    Qt,
-    QEvent,
-    QTimer,
-    QPoint,
     QAbstractItemModel,
+    QEvent,
     QModelIndex,
+    QPoint,
+    Qt,
+    QTimer,
     QUrl,
 )
 from PySide6.QtGui import (
     QAction,
-    QPainter,
-    QColor,
-    QFont,
     QCloseEvent,
+    QColor,
     QDesktopServices,
+    QFont,
+    QPainter,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QFileDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QItemDelegate,
+    QLineEdit,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QStatusBar,
+    QStyleOptionViewItem,
+    QSystemTrayIcon,
+    QTableView,
+    QVBoxLayout,
+    QWidget,
 )
 
 from link4000.data.link_store import LinkStore
-from link4000.models.link_model import LinkTableModel, LinkSortFilterModel
+from link4000.data.source_registry import SourceRegistry
+from link4000.models.link import Link
+from link4000.models.link_model import LinkSortFilterModel, LinkTableModel
 from link4000.ui.add_link_dialog import AddLinkDialog
 from link4000.ui.bulk_edit_tags_dialog import BulkEditTagsDialog
 from link4000.ui.tag_filter_window import TagFilterWindow
 from link4000.utils.app_icon import get_app_icon
 from link4000.utils.config import (
     ensure_config_exists,
-    get_tray_behavior,
     get_enabled_sources,
     get_reload_interval_minutes,
     get_show_tags_column,
+    get_tray_behavior,
+)
+from link4000.utils.enums import TagMatchMode
+from link4000.utils.path_utils import (
+    get_sharepoint_parent_url,
+    is_file_path,
+    is_url,
+    matches_exclusion_pattern,
+    resolve_unc_path,
+    to_office_uri,
 )
 from link4000.utils.ui_state import (
     load_ui_state,
@@ -80,8 +82,6 @@ from link4000.utils.ui_state import (
     sort_role_from_string,
     sort_role_to_string,
 )
-from link4000.data.source_registry import SourceRegistry
-from pathlib import Path, PurePath
 
 _logger = logging.getLogger(__name__)
 
@@ -174,12 +174,14 @@ class ButtonDelegate(QItemDelegate):
             True if the event was handled, or the result of the default
             handler otherwise.
         """
-        if index.column() == self._column:
-            if event.type() == QEvent.Type.MouseButtonRelease:
-                link_id = index.data(Qt.ItemDataRole.UserRole)
-                if link_id:
-                    self._callback(link_id)
-                return True
+        if (
+            index.column() == self._column
+            and event.type() == QEvent.Type.MouseButtonRelease
+        ):
+            link_id = index.data(Qt.ItemDataRole.UserRole)
+            if link_id:
+                self._callback(link_id)
+            return True
         return super().editorEvent(event, model, option, index)
 
 

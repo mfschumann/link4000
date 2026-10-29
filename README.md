@@ -14,9 +14,10 @@ Link4000 allows you to:
 - Import favorites and browsing history from Microsoft Edge browser
 - Access Microsoft Office recent documents (Windows)
 - Open links in your default browser or file manager
-- Open SharePoint Office documents in the native Office app on Windows; share
-  links without a file extension (`/:x:/`, `/:w:/`, `/:p:/`) are inferred as
-  Excel, Word, or PowerPoint files
+- Open SharePoint Office documents in the native Office app on Windows,
+  including macro-enabled and template formats; share links without a file
+  extension (`/:x:/`, `/:w:/`, `/:p:/`) are inferred as Excel, Word, or
+  PowerPoint files
 - Open or copy the parent folder of normal path-based SharePoint URLs and
   resolved share links (`/:x:/r/...`) from the context menu, just like folder
   paths and local files

@@ -1,6 +1,6 @@
 """Plugin registry for link sources."""
 
-from typing import List
+from typing import ClassVar
 
 from link4000.data.link_source import LinkSource
 from link4000.utils.config import get_enabled_sources
@@ -13,7 +13,7 @@ class SourceRegistry:
     The registry provides access to enabled sources based on configuration.
     """
 
-    _sources: dict[str, type[LinkSource]] = {}
+    _sources: ClassVar[dict[str, type[LinkSource]]] = {}
 
     @classmethod
     def register(cls, source_class: type[LinkSource]) -> type[LinkSource]:
@@ -47,7 +47,7 @@ class SourceRegistry:
         import link4000.source_plugins  # noqa: F401
 
     @classmethod
-    def get_enabled_sources(cls) -> List[LinkSource]:
+    def get_enabled_sources(cls) -> list[LinkSource]:
         """Return instantiated sources that are both registered and enabled in config.
 
         Returns:
@@ -55,7 +55,7 @@ class SourceRegistry:
         """
         cls._ensure_plugins_loaded()
         enabled_names = get_enabled_sources()
-        sources: List[LinkSource] = []
+        sources: list[LinkSource] = []
 
         for name in enabled_names:
             if name in cls._sources:

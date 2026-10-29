@@ -4,8 +4,8 @@ import pytest
 
 try:
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QApplication  # noqa: F401
     from PySide6.QtTest import QSignalSpy
+    from PySide6.QtWidgets import QApplication  # noqa: F401
 
     from link4000.ui.tag_filter_window import TagFilterWindow
     from link4000.utils.enums import TagMatchMode
@@ -144,7 +144,7 @@ class TestTagFilterWindowSignals:
         )
         spy = QSignalSpy(dlg.tags_and_types_selected)
         dlg._on_ok()
-        tags, match_mode, types = spy.at(0)
+        _tags, match_mode, _types = spy.at(0)
         assert match_mode == TagMatchMode.AND
 
     def test_ok_with_match_none(self):
@@ -157,7 +157,7 @@ class TestTagFilterWindowSignals:
         )
         spy = QSignalSpy(dlg.tags_and_types_selected)
         dlg._on_ok()
-        tags, match_mode, types = spy.at(0)
+        _tags, match_mode, _types = spy.at(0)
         assert match_mode == TagMatchMode.NONE
 
     def test_selection_change_emits_filter_preview(self):
@@ -170,7 +170,7 @@ class TestTagFilterWindowSignals:
         spy = QSignalSpy(dlg.filter_preview)
         _select_items(dlg._tags_list, {"personal"})
         assert spy.count() >= 1
-        tags, match_mode, types = spy.at(spy.count() - 1)
+        tags, match_mode, _types = spy.at(spy.count() - 1)
         assert tags == {"personal"}
         assert match_mode == TagMatchMode.OR
 
@@ -183,7 +183,7 @@ class TestTagFilterWindowSignals:
         )
         spy = QSignalSpy(dlg.filter_preview)
         dlg._tag_none_radio.setChecked(True)
-        tags, match_mode, types = spy.at(spy.count() - 1)
+        _tags, match_mode, _types = spy.at(spy.count() - 1)
         assert match_mode == TagMatchMode.NONE
 
     def test_clear_deselects_all(self):
@@ -208,7 +208,7 @@ class TestTagFilterWindowSignals:
         spy = QSignalSpy(dlg.filter_preview)
         _select_items(dlg._tags_list, {"personal"})
         dlg._on_cancel()
-        tags, match_mode, types = spy.at(spy.count() - 1)
+        tags, match_mode, _types = spy.at(spy.count() - 1)
         assert tags == {"work"}
         assert match_mode == TagMatchMode.OR
 
@@ -223,7 +223,7 @@ class TestTagFilterWindowSignals:
         spy = QSignalSpy(dlg.filter_preview)
         _select_items(dlg._tags_list, {"personal"})
         dlg.reject()
-        tags, match_mode, types = spy.at(spy.count() - 1)
+        tags, match_mode, _types = spy.at(spy.count() - 1)
         assert tags == {"work"}
         assert match_mode == TagMatchMode.AND
 
@@ -279,7 +279,7 @@ class TestTagFilterWindowExtensionGroups:
         dlg = TagFilterWindow(all_types={"web", ".png"}, selected_types=set())
         spy = QSignalSpy(dlg.filter_preview)
         dlg._types_list.item(1).setSelected(True)
-        tags, match_mode, types = spy.at(spy.count() - 1)
+        _tags, _match_mode, types = spy.at(spy.count() - 1)
         assert types == {"group:Pictures"}
 
     def test_ok_emits_group_id(self, monkeypatch):
@@ -289,7 +289,7 @@ class TestTagFilterWindowExtensionGroups:
         spy = QSignalSpy(dlg.tags_and_types_selected)
         dlg._types_list.item(1).setSelected(True)
         dlg._on_ok()
-        tags, match_mode, types = spy.at(0)
+        _tags, _match_mode, types = spy.at(0)
         assert types == {"group:Pictures"}
 
     def test_group_preselected_from_selected_types(self, monkeypatch):
@@ -310,7 +310,7 @@ class TestTagFilterWindowExtensionGroups:
         )
         spy = QSignalSpy(dlg.filter_preview)
         dlg._types_list.item(0).setSelected(True)  # "web"
-        tags, match_mode, types = spy.at(spy.count() - 1)
+        _tags, _match_mode, types = spy.at(spy.count() - 1)
         assert types == {"group:Pictures", ".txt", "web"}
 
     def test_clear_deselects_group_items(self, monkeypatch):
@@ -331,6 +331,6 @@ class TestTagFilterWindowExtensionGroups:
         spy = QSignalSpy(dlg.filter_preview)
         dlg._types_list.item(1).setSelected(False)
         dlg._on_cancel()
-        tags, match_mode, types = spy.at(spy.count() - 1)
+        _tags, _match_mode, types = spy.at(spy.count() - 1)
         assert types == {"group:Pictures"}
         assert dlg._types_list.item(1).isSelected()

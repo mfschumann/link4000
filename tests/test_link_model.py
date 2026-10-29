@@ -322,7 +322,7 @@ class TestLinkTableModel:
 
     def test_filter_performs_no_filesystem_checks(self, monkeypatch):
         """Tests that filtering never calls os.path.isdir/isfile."""
-        import link4000.utils.path_utils as path_utils
+        from link4000.utils import path_utils
 
         links = [
             _make_link("Doc", url="/some/file.pdf", tags=["work"]),
@@ -423,7 +423,7 @@ class TestLinkSortFilterModel:
 
     def test_no_filter_shows_all(self):
         """Tests that all links are visible when no filter is applied."""
-        proxy, source = self._make_model(links=[_make_link("A"), _make_link("B")])
+        proxy, _source = self._make_model(links=[_make_link("A"), _make_link("B")])
         assert proxy.rowCount() == 2
 
     def test_search_filters_by_title(self):
@@ -615,7 +615,7 @@ class TestLinkSortFilterModel:
     def test_type_filter_unknown_group_matches_nothing(self, monkeypatch):
         """Tests that a group id without configured group filters everything out."""
         monkeypatch.setattr(
-            "link4000.models.link_model.get_extension_groups", lambda: []
+            "link4000.models.link_model.get_extension_groups", list
         )
         proxy, _ = self._make_model(links=[_make_link("Pic", url="/docs/photo.png")])
         proxy.set_selected_tags(set(), TagMatchMode.OR, types={"group:Nonexistent"})
