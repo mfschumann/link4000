@@ -2,7 +2,6 @@
 
 import json
 import os
-from typing import Optional
 
 from link4000.data.link_store import LinkStore
 from link4000.models.link import Link
@@ -30,7 +29,7 @@ def _detect_schema(data: dict | list) -> str:
 
 def do_import(
     source_path: str, override: bool = False
-) -> tuple[int, int, int, Optional[str]]:
+) -> tuple[int, int, int, str | None]:
     """Import links from a JSON file into the configured links.json.
 
     Args:

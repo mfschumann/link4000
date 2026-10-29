@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -83,22 +82,10 @@ def _load_config() -> dict:
     if not os.path.exists(_CONFIG_PATH):
         return _DEFAULTS.copy()
 
-    if sys.version_info >= (3, 11):
-        import tomllib
+    import tomllib
 
-        with open(_CONFIG_PATH, "rb") as f:
-            return tomllib.load(f)
-    else:
-        try:
-            import tomllib
-        except ImportError:
-            try:
-                import tomli
-
-                with open(_CONFIG_PATH, "rb") as f:
-                    return tomli.load(f)
-            except ImportError:
-                return _DEFAULTS.copy()
+    with open(_CONFIG_PATH, "rb") as f:
+        return tomllib.load(f)
 
     return _DEFAULTS.copy()
 
@@ -153,11 +140,11 @@ def detect_system_theme() -> str:
         if hints.colorScheme() == Qt.ColorScheme.Dark:
             return "dark"
         return "light"
-    except Exception:
+    except (ImportError, AttributeError, RuntimeError):
         return "light"
 
 
-def get_color_for_link(url: str, link_type: str, extension: str = "") -> "QColor":
+def get_color_for_link(url: str, link_type: str, extension: str = "") -> QColor:
     """
     Return a QColor for the given link based on its type and extension.
 

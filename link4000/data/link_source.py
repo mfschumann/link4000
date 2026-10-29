@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar
 
 from link4000.data.loader_types import SourceEntry
 
@@ -21,7 +21,7 @@ class LinkSource(ABC):
 
     name: str = ""
     source_tag: str = ""
-    config_schema: list[tuple[str, type, Any, str]] = []
+    config_schema: ClassVar[list[tuple[str, type, Any, str]]] = []
     _config: dict[str, Any] | None = None
 
     @abstractmethod

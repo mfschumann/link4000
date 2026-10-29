@@ -1,7 +1,7 @@
 """Unit tests for Edge history SQL age filtering."""
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -53,7 +53,7 @@ def _fetch(
 
 def _row(url: str, days_ago: float) -> tuple[str, str, int]:
     """Build a (url, title, last_visit_time) row visited days_ago days ago."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     visited = now.timestamp() - days_ago * 86400
     return (url, f"Title {url}", int((visited + 11644473600) * 1_000_000))
 

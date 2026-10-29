@@ -8,14 +8,21 @@ Supported platforms:
 
 from __future__ import annotations
 
+import logging
 import os
+import shutil
+import sqlite3
 import sys
-from datetime import datetime, timezone
+import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import ClassVar
 
-from link4000.data.loader_types import SourceEntry
 from link4000.data.link_source import LinkSource
+from link4000.data.loader_types import SourceEntry
 from link4000.data.source_registry import SourceRegistry
+
+logger = logging.getLogger(__name__)
 
 
 @SourceRegistry.register
@@ -24,7 +31,7 @@ class EdgeHistorySource(LinkSource):
 
     name = "edge_history"
     source_tag = "edge_history"
-    config_schema = [
+    config_schema: ClassVar[list[tuple[str, type, object, str]]] = [
         ("max_age_days", int, 30, "Maximum age in days for history items (0 = no limit)"),
     ]
 
@@ -54,7 +61,7 @@ class EdgeHistorySource(LinkSource):
         try:
             unix_timestamp = (microseconds / 1_000_000) - 11644473600
             # Convert UTC aware datetime to local naive datetime to match other sources
-            return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc).astimezone().replace(
+            return datetime.fromtimestamp(unix_timestamp, tz=UTC).astimezone().replace(
                 tzinfo=None
             )
         except (ValueError, OSError):
@@ -74,7 +81,7 @@ class EdgeHistorySource(LinkSource):
         Returns:
             The cutoff as a WebKit timestamp in microseconds.
         """
-        unix_cutoff = datetime.now(timezone.utc).timestamp() - max_age_days * 86400
+        unix_cutoff = datetime.now(UTC).timestamp() - max_age_days * 86400
         return int((unix_cutoff + 11644473600) * 1_000_000)
 
     @property
@@ -107,22 +114,16 @@ class EdgeHistorySource(LinkSource):
 
         history_copy_path = None
         try:
-            import tempfile
-
             temp_dir = Path(tempfile.gettempdir())
             history_copy_path = temp_dir / f"link4000_edge_history_{os.getpid()}.db"
 
-            import shutil
-
             shutil.copy2(history_path, history_copy_path)
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Could not copy Edge history database: %s", exc)
 
         db_path = history_copy_path if history_copy_path and history_copy_path.exists() else history_path
 
         try:
-            import sqlite3
-
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -162,14 +163,16 @@ class EdgeHistorySource(LinkSource):
                 )
 
             conn.close()
-        except Exception:
-            pass
+        except sqlite3.Error as exc:
+            logger.warning("Could not read Edge history database: %s", exc)
         finally:
             if history_copy_path and history_copy_path.exists():
                 try:
                     history_copy_path.unlink()
-                except Exception:
-                    pass
+                except OSError as exc:
+                    logger.debug(
+                        "Could not remove temporary Edge history copy: %s", exc
+                    )
 
         # Rows arrive in DESC last_visit_time order from SQL in both
         # branches, so no Python re-sort is needed.

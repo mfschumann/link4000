@@ -9,7 +9,6 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 from link4000.models.link import Link
 from link4000.utils.config import get_links_file_path
@@ -28,7 +27,7 @@ class LinkStore:
         _excluded_recent_urls: Set of URLs excluded from recent-docs import.
     """
 
-    def __init__(self, filepath: Optional[str] = None) -> None:
+    def __init__(self, filepath: str | None = None) -> None:
         """Initialize the store and load existing data.
 
         Args:
@@ -44,7 +43,7 @@ class LinkStore:
             self._filepath = Path(filepath)
             self._dir = self._filepath.parent
 
-        self._links: List[Link] = []
+        self._links: list[Link] = []
         self._excluded_recent_urls: set[str] = set()
         self._load()
 
@@ -63,7 +62,7 @@ class LinkStore:
                     self._excluded_recent_urls = set(
                         data.get("excluded_recent_urls", [])
                     )
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 self._links = []
                 self._excluded_recent_urls = set()
         else:
@@ -79,7 +78,7 @@ class LinkStore:
         with open(self._filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-    def get_all(self) -> List[Link]:
+    def get_all(self) -> list[Link]:
         """Return a shallow copy of all stored links.
 
         Returns:
@@ -138,7 +137,7 @@ class LinkStore:
                 break
         self.save()
 
-    def find_by_url(self, url: str) -> "Optional[Link]":
+    def find_by_url(self, url: str) -> "Link | None":
         """Return the first Link whose URL/path matches *url* (case-insensitive)."""
         url_lower = url.lower()
         for link in self._links:
@@ -146,7 +145,7 @@ class LinkStore:
                 return link
         return None
 
-    def search(self, query: str) -> List[Link]:
+    def search(self, query: str) -> list[Link]:
         """Search links by title, URL, or tags (case-insensitive substring match).
 
         Args:
@@ -168,7 +167,7 @@ class LinkStore:
         ]
 
     def import_links(
-        self, other_links: List[Link], override: bool = False
+        self, other_links: list[Link], override: bool = False
     ) -> tuple[int, int, int]:
         """
         Import links from another list. If override=False, skip links whose URL
@@ -200,7 +199,7 @@ class LinkStore:
         return len(other_links) - skipped - updated, skipped, updated
 
     def bulk_update_tags(
-        self, link_ids: List[str], tags_to_add: List[str], tags_to_remove: List[str]
+        self, link_ids: list[str], tags_to_add: list[str], tags_to_remove: list[str]
     ) -> None:
         """
         Add and/or remove tags from multiple links.
@@ -235,7 +234,7 @@ class LinkStore:
 
         self.save()
 
-    def bulk_delete(self, link_ids: List[str]) -> None:
+    def bulk_delete(self, link_ids: list[str]) -> None:
         """
         Delete multiple links by their IDs.
 

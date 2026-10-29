@@ -4,21 +4,21 @@ Link4000 - Link Manager Application
 A desktop application for managing bookmarks/links with tagging support.
 """
 
-import sys
-import os
-import logging
-import traceback
 import argparse
-from typing import Optional
+import logging
+import os
+import sys
+import traceback
 
 import tomli_w
-
-from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QFile
 from PySide6.QtGui import QGuiApplication
+from PySide6.QtWidgets import QApplication
 
 from link4000.ui.main_window import MainWindow
 from link4000.utils.app_icon import get_app_icon
+
+logger = logging.getLogger(__name__)
 
 
 def _setup_resources_path() -> None:
@@ -52,13 +52,13 @@ def _setup_logging() -> None:
             logging.StreamHandler(sys.stderr),
         ],
     )
-    logging.info("Log file: %s", log_file)
+    logger.info("Log file: %s", log_file)
 
     original_excepthook = sys.excepthook
 
     def excepthook(exc_type, exc_value, exc_tb):
         tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
-        logging.critical("Unhandled exception:\n%s", tb_text)
+        logger.critical("Unhandled exception:\n%s", tb_text)
         original_excepthook(exc_type, exc_value, exc_tb)
 
     sys.excepthook = excepthook
@@ -79,7 +79,7 @@ class LinkManagerApp:
         self._app.setApplicationDisplayName("Link Manager")
         icon = get_app_icon()
         self._app.setWindowIcon(icon)
-        self._window: Optional[MainWindow] = None
+        self._window: MainWindow | None = None
 
     def run(self) -> int:
         """Show the main window and run the application event loop."""

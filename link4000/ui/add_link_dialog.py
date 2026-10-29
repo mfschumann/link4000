@@ -7,33 +7,31 @@ deleting an existing link in edit mode.
 """
 from pathlib import Path, PurePath, PureWindowsPath
 
+from PySide6.QtCore import QPoint, QStringListModel, Qt, Signal
 from PySide6.QtWidgets import (
+    QCompleter,
     QDialog,
-    QVBoxLayout,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QTextEdit,
-    QPushButton,
-    QMessageBox,
-    QCompleter,
-    QFileDialog,
     QMenu,
+    QMessageBox,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
     QWidget,
 )
-from typing import Optional
-
-from PySide6.QtCore import Qt, QStringListModel, QPoint, Signal
 
 from link4000.models.link import Link
 from link4000.utils.path_utils import (
-    is_file_path,
-    resolve_lnk,
-    resolve_unc_path,
-    is_sharepoint_url,
+    file_url_to_path,
     get_sharepoint_file_extension,
     get_sharepoint_filename,
-    file_url_to_path,
+    is_file_path,
+    is_sharepoint_url,
+    resolve_lnk,
+    resolve_unc_path,
 )
 
 
@@ -376,7 +374,7 @@ class AddLinkDialog(QDialog):
             self.delete_requested.emit()
             self.accept()
 
-    def get_link(self) -> Optional[Link]:
+    def get_link(self) -> Link | None:
         """Return the constructed Link object, or None if deleted.
 
         Returns:

@@ -1,7 +1,8 @@
 """Unit tests for AddLinkDialog."""
 import sys
-from unittest.mock import patch
 from pathlib import PurePath, PureWindowsPath
+from unittest.mock import patch
+
 import pytest
 
 from link4000.models.link import Link
@@ -252,12 +253,14 @@ class TestAddLinkDialogEditMode:
         dlg._url_input.setText("/some/path/file.txt")
         dlg._tags_input.setText("updated")
 
-        with patch("link4000.models.link._get_link_type", return_value="file"):
-            with patch("link4000.models.link._get_file_extension", return_value=".txt"):
-                dlg._on_save()
-                assert link.url == str(PurePath("/some/path/file.txt"))
-                assert link.link_type == "file"
-                assert link.file_extension == ".txt"
+        with (
+            patch("link4000.models.link._get_link_type", return_value="file"),
+            patch("link4000.models.link._get_file_extension", return_value=".txt"),
+        ):
+            dlg._on_save()
+            assert link.url == str(PurePath("/some/path/file.txt"))
+            assert link.link_type == "file"
+            assert link.file_extension == ".txt"
 
     def test_has_delete_button_in_edit_mode(self):
         """Edit mode includes a delete button."""

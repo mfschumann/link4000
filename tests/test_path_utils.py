@@ -1,22 +1,22 @@
 """Unit tests for path utilities."""
-from pathlib import PureWindowsPath, PurePosixPath
-
-import pytest
+from pathlib import PurePosixPath, PureWindowsPath
 from unittest.mock import patch
 
+import pytest
+
 from link4000.utils.path_utils import (
-    is_url,
-    is_file_path,
-    get_link_type,
+    file_url_to_path,
     get_file_extension,
+    get_link_type,
+    get_office_scheme,
     get_sharepoint_filename,
     get_sharepoint_parent_url,
-    get_office_scheme,
-    to_office_uri,
-    resolve_unc_path,
-    resolve_lnk,
+    is_file_path,
+    is_url,
     matches_exclusion_pattern,
-    file_url_to_path,
+    resolve_lnk,
+    resolve_unc_path,
+    to_office_uri,
 )
 
 

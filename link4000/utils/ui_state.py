@@ -7,10 +7,11 @@ import logging
 import os
 from pathlib import Path
 
+from PySide6.QtCore import Qt
+
+from link4000.models.link_model import LinkTableModel
 from link4000.utils.config import get_links_file_path
 from link4000.utils.enums import TagMatchMode
-from link4000.models.link_model import LinkTableModel
-from PySide6.QtCore import Qt
 
 _logger = logging.getLogger(__name__)
 

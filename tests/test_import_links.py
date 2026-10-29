@@ -1,9 +1,10 @@
 """Unit tests for the import_links utility module."""
 
 import json
+
 import pytest
 
-from link4000.utils.import_links import do_import, _detect_schema
+from link4000.utils.import_links import _detect_schema, do_import
 
 
 class TestDetectSchema:
@@ -78,7 +79,7 @@ class TestDoImport:
         bad_file = config_setup / "bad.json"
         bad_file.write_text("{ invalid json }")
 
-        added, skipped, updated, error = do_import(str(bad_file))
+        added, _skipped, _updated, error = do_import(str(bad_file))
         assert error is not None
         assert "Invalid JSON" in error
         assert added == 0

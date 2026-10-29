@@ -105,6 +105,7 @@ class TestConfigDefaults:
     def test_detect_system_theme_with_mock_dark(self, monkeypatch):
         """Test detect_system_theme returns 'dark' when OS is in dark mode."""
         from unittest.mock import MagicMock
+
         from PySide6.QtGui import QGuiApplication, Qt
 
         mock_hints = MagicMock()
@@ -119,6 +120,7 @@ class TestConfigDefaults:
     def test_detect_system_theme_with_mock_light(self, monkeypatch):
         """Test detect_system_theme returns 'light' when OS is in light mode."""
         from unittest.mock import MagicMock
+
         from PySide6.QtGui import QGuiApplication, Qt
 
         mock_hints = MagicMock()
@@ -852,16 +854,18 @@ class TestConfigSchema:
     """Test the JSON schema shipped for config.toml editor support."""
 
     _EXPECTED_URL = "https://mfs.name/link4000/config.schema.json"
-    _EXPECTED_TOP_LEVEL_PROPERTIES = {
-        "global",
-        "sources",
-        "colors",
-        "colors_dark",
-        "extensions",
-        "extensions_dark",
-        "extension_groups",
-        "onedrive",
-    }
+    _EXPECTED_TOP_LEVEL_PROPERTIES = frozenset(
+        {
+            "global",
+            "sources",
+            "colors",
+            "colors_dark",
+            "extensions",
+            "extensions_dark",
+            "extension_groups",
+            "onedrive",
+        }
+    )
 
     @staticmethod
     def _load_schema() -> dict:

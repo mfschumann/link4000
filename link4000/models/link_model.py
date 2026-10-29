@@ -1,24 +1,24 @@
 """Qt table model and proxy model for displaying and filtering links."""
 
-from typing import List
 from datetime import datetime
+
 from PySide6.QtCore import (
-    Qt,
     QAbstractTableModel,
     QModelIndex,
     QSortFilterProxyModel,
+    Qt,
 )
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QWidget
 
 from link4000.models.link import Link
-from link4000.utils.enums import TagMatchMode
-from PySide6.QtGui import QFont
 from link4000.utils.config import (
-    get_color_for_link,
-    get_show_tags_column,
-    get_extension_groups,
     EXTENSION_GROUP_PREFIX,
+    get_color_for_link,
+    get_extension_groups,
+    get_show_tags_column,
 )
+from link4000.utils.enums import TagMatchMode
 
 
 def format_relative_date(dt: datetime) -> str:
@@ -68,15 +68,15 @@ class LinkTableModel(QAbstractTableModel):
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initializes the table model with empty link lists and column headers."""
         super().__init__(parent)
-        self._links: List[Link] = []
-        self._dynamic_links: List[Link] = []
+        self._links: list[Link] = []
+        self._dynamic_links: list[Link] = []
         self._headers = ["Title", "Tags", "Last Accessed", "", ""]
 
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | None = None) -> int:
         """Returns the total number of rows (standard + recent links)."""
         return len(self._links) + len(self._dynamic_links)
 
-    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def columnCount(self, parent: QModelIndex | None = None) -> int:
         """Returns the number of columns in the model."""
         return len(self._headers)
 
@@ -184,13 +184,13 @@ class LinkTableModel(QAbstractTableModel):
             return self._headers[section]
         return None
 
-    def set_links(self, links: List[Link]) -> None:
+    def set_links(self, links: list[Link]) -> None:
         """Replaces the main link list with the given list."""
         self.beginResetModel()
         self._links = links
         self.endResetModel()
 
-    def set_dynamic_links(self, recent: List[Link]) -> None:
+    def set_dynamic_links(self, recent: list[Link]) -> None:
         """Replaces the recent links list with the given list.
 
         If the incoming list contains the same links (by id, in order),
@@ -214,7 +214,7 @@ class LinkTableModel(QAbstractTableModel):
         self._dynamic_links = recent
         self.endResetModel()
 
-    def append_links(self, links: List[Link]) -> None:
+    def append_links(self, links: list[Link]) -> None:
         """Appends links to the main list, notifying the view of new rows."""
         self.beginInsertRows(
             QModelIndex(), len(self._links), len(self._links) + len(links) - 1
@@ -222,7 +222,7 @@ class LinkTableModel(QAbstractTableModel):
         self._links.extend(links)
         self.endInsertRows()
 
-    def append_dynamic_links(self, recent: List[Link]) -> None:
+    def append_dynamic_links(self, recent: list[Link]) -> None:
         """Appends links to the recent list, notifying the view of new rows."""
         self.beginInsertRows(
             QModelIndex(),
@@ -500,9 +500,8 @@ class LinkSortFilterModel(QSortFilterProxyModel):
                 return left_link.created_at < right_link.created_at
             elif column == LinkTableModel.COL_TAGS:
                 return left_link.updated_at < right_link.updated_at
-        elif role == Qt.ItemDataRole.DisplayRole:
-            if column == LinkTableModel.COL_TITLE:
-                return left_link.title < right_link.title
+        elif role == Qt.ItemDataRole.DisplayRole and column == LinkTableModel.COL_TITLE:
+            return left_link.title < right_link.title
         return None
 
     def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:

@@ -2,11 +2,12 @@
 
 import json
 import os
+
 import pytest
 import tomli_w
 
-from link4000.utils import ui_state
 import link4000.utils.config as config_mod
+from link4000.utils import ui_state
 
 try:
     from link4000.models.link_model import LinkTableModel
